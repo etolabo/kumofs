@@ -16,15 +16,29 @@ static const size_t MEMPROTO_TEXT_INITIAL_ALLOCATION_SIZE = 2048;
 static const size_t MEMPROTO_TEXT_RESERVE_SIZE = 1024;
 
 
-MemprotoText::MemprotoText(Gateway* gw) :
-	m_gw(gw) {}
+MemprotoText::MemprotoText(int lsock) :
+	m_lsock(lsock) { }
 
 MemprotoText::~MemprotoText() {}
 
 
-void MemprotoText::add(int fd)
+void MemprotoText::accepted(void* data, int fd)
 {
-	mp::iothreads::add<Connection>(fd, m_gw);
+	Gateway* gw = reinterpret_cast<Gateway*>(data);
+	if(fd < 0) {
+		LOG_FATAL("accept failed: ",strerror(-fd));
+		gw->signal_end(SIGTERM);
+		return;
+	}
+	mp::set_nonblock(fd);
+	mp::iothreads::add<Connection>(fd, gw);
+}
+
+void MemprotoText::listen(Gateway* gw)
+{
+	mp::iothreads::listen(m_lsock,
+			&MemprotoText::accepted,
+			reinterpret_cast<void*>(gw));
 }
 
 

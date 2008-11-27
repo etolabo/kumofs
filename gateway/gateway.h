@@ -3,6 +3,7 @@
 
 #include "logic/gw.h"
 #include <mp/iothreads.h>
+#include <mp/utility.h>
 #include <mp/memory.h>
 #include <mp/zone.h>
 
@@ -10,8 +11,9 @@ namespace kumo {
 
 class GatewayInterface {
 public:
+	GatewayInterface() { }
 	virtual ~GatewayInterface() { }
-	virtual void add_connection(int fd) = 0;
+	virtual void listen(Gateway* gw) = 0;
 };
 
 

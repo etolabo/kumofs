@@ -1,8 +1,11 @@
 #include "logic/base.h"
 #include "logic/gw.h"
+#include "gateway/memproto_text.h"
 #include <fstream>
 
 using namespace kumo;
+
+#define MEMPROTO_TEXT_DEFAULT_PORT 19788
 
 struct arg_t : rpc_server_args {
 
@@ -16,10 +19,14 @@ struct arg_t : rpc_server_args {
 	unsigned short set_retry_num;
 	unsigned short delete_retry_num;
 
+	sockaddr_in memproto_text_addr_in;
+	int memproto_text_lsock;  // convert
+
 	virtual void convert()
 	{
 		manager1 = rpc::address(manager1_in);
 		manager2 = rpc::address(manager2_in);
+		memproto_text_lsock = scoped_listen_tcp::listen(memproto_text_addr_in);
 		rpc_server_args::convert();
 	}
 
@@ -34,6 +41,8 @@ struct arg_t : rpc_server_args {
 				type::connectable(&manager1_in, CLIENT_DEFAULT_PORT));
 		on("-p", "--manager2", &manager2_set,
 				type::connectable(&manager2_in, CLIENT_DEFAULT_PORT));
+		on("-t", "--memproto-text",
+				type::listenable(&memproto_text_addr_in, MEMPROTO_TEXT_DEFAULT_PORT));
 		on("-G", "--get-retry",
 				type::numeric(&get_retry_num, get_retry_num));
 		on("-S", "--get-retry",
@@ -49,6 +58,7 @@ std::cout <<
 "usage: "<<prog<<" -m <addr[:port]> -p <addr[:port]> [-c port]\n"
 "  -m  <addr[:port="<<CLIENT_DEFAULT_PORT<<"]>   --manager1      address of manager 1\n"
 "  -p  <addr[:port="<<CLIENT_DEFAULT_PORT<<"]>   --manager2      address of manager 2\n"
+"  -t  <[addr:]port="<<MEMPROTO_TEXT_DEFAULT_PORT<<">    --memproto-text        memcached text protocol listen port\n"
 ;
 rpc_server_args::show_usage();
 	}
@@ -73,8 +83,11 @@ int main(int argc, char* argv[])
 		mlogger::reset(new mlogger_tty(loglevel, std::cout));
 	}
 
-	Gateway srv(arg);
-	srv.run();
-	srv.join();
+	std::auto_ptr<MemprotoText> mpt(new MemprotoText(arg.memproto_text_lsock));
+
+	Gateway::initialize(arg);
+	Gateway::instance().add_gateway(mpt.get());
+	Gateway::instance().run();
+	Gateway::instance().join();
 }
 

@@ -1,4 +1,5 @@
 #include "logic/gw_impl.h"
+#include "gateway/gateway.h"
 
 namespace kumo {
 
@@ -42,6 +43,11 @@ void Gateway::submit(delete_request& req)
 			&Gateway::Delete, this,
 			req.callback, req.user, req.life,
 			req.key, req.keylen);
+}
+
+void Gateway::add_gateway(GatewayInterface* gw)
+{
+	gw->listen(this);
 }
 
 

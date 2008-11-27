@@ -7,6 +7,8 @@
 namespace kumo {
 
 
+class GatewayInterface;
+
 class Gateway : public RPCBase<Gateway>, public rpc::client<> {
 public:
 	template <typename Config>
@@ -21,6 +23,9 @@ public:
 	void session_lost(const address& addr, shared_session& s);
 
 	void step_timeout();
+
+public:
+	void add_gateway(GatewayInterface* gw);
 
 public:
 	RPC_DECL(HashSpacePush);
