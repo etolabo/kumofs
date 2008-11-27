@@ -112,7 +112,6 @@ template <typename F>
 void server::for_each_peer(F f)
 {
 	detail::server_each_peer<F> e(f);
-	LOG_ERROR("for each pair ",m_peers.size());
 	std::for_each(m_peers.begin(), m_peers.end(), e);
 }
 

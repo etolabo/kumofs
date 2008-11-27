@@ -38,6 +38,8 @@ void Server::check_master_assign(const char* key, uint32_t keylen)
 
 CLISRV_FUNC(Get, from, response, life, param)
 try {
+	LOG_DEBUG("Get '",std::string(param.key(),param.keylen()),"'");
+
 	check_replicator_assign(m_rhs, param.key(), param.keylen());
 
 	uint32_t meta_vallen;
@@ -63,6 +65,10 @@ RPC_CATCH(Set, response)
 
 CLISRV_FUNC(Set, from, response, life, param)
 try {
+	LOG_DEBUG("Set '",std::string(param.key(),param.keylen()),"' => '",
+			std::string(param.meta_val()+DBFormat::LEADING_METADATA_SIZE,
+				param.meta_vallen()-DBFormat::LEADING_METADATA_SIZE),"'");
+
 	check_master_assign(param.key(), param.keylen());
 
 	ClockTime ct(m_clock.now_incr());
@@ -102,6 +108,7 @@ try {
 	*copy_required = 0;
 #endif
 
+	LOG_DEBUG("set copy required: ", *copy_required);
 	if(*copy_required == 0) {
 		response.result( msgpack::type::tuple<uint64_t>(ct.get()) );
 	}
@@ -159,6 +166,7 @@ RPC_REPLY(ResReplicateSet, from, res, err, life,
 		unsigned short* copy_required,
 		rpc::weak_responder response, uint64_t clocktime)
 {
+	LOG_DEBUG("ResReplicateSet ",*copy_required);
 	// retry if failed
 	if(!err.is_nil()) {
 		if(from) {
@@ -171,10 +179,13 @@ RPC_REPLY(ResReplicateSet, from, res, err, life,
 		}
 		response.null();
 		LOG_ERROR("ReplicateSet failed: ",err);
+	} else {
+		LOG_DEBUG("ReplicateSet succeeded");
 	}
 
 	--*copy_required;
 	if(*copy_required == 0) {
+		LOG_DEBUG("send response ",*copy_required);
 		response.result( msgpack::type::tuple<uint64_t>(clocktime) );
 	}
 }
@@ -196,6 +207,8 @@ RPC_REPLY(ResReplicateDelete, from, res, err, life,
 		}
 		response.null();
 		LOG_ERROR("ReplicateDelete failed: ",err);
+	} else {
+		LOG_DEBUG("ReplicateDelete succeeded");
 	}
 
 	--*copy_required;

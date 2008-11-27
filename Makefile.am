@@ -1,6 +1,6 @@
 export ERB
 export RAGEL
-SUBDIRS = log kazuhiki rpc memproto
+SUBDIRS = log kazuhiki rpc memproto storage
 
 noinst_LIBRARIES = libkumo_logic.a
 
@@ -44,6 +44,7 @@ kumo_manager_LDADD  = \
 kumo_server_LDADD  = \
 		libkumo_logic.a \
 		kazuhiki/libkazuhiki.a \
+		storage/libkumo_storage.a \
 		log/libkumo_log.a \
 		rpc/libkumo_cluster.a
 
