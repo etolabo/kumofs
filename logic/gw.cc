@@ -8,26 +8,6 @@ Gateway::~Gateway()
 }
 
 
-/*
-Gateway::Transport::Transport(int fd, shared_session s, transport_manager* mgr) :
-	rpc::transport<Transport>(fd, s, mgr) { }
-
-Gateway::Transport::Transport(int fd, transport_manager* mgr) :
-	rpc::transport<Transport>(fd, mgr) { }
-
-Gateway::Transport::~Transport() { }
-
-
-void Gateway::Transport::dispatch_request(method_id method, msgobj param, responder& response, auto_zone& z)
-{
-	shared_zone life(new mp::zone());
-	life->push_finalizer(&mp::object_delete<msgpack::zone>, z.get());
-	z.release();
-	reinterpret_cast<Gateway*>(get_manager())->dispatch(
-			m_session, method, param, response, life);
-}
-*/
-
 void Gateway::dispatch(
 		shared_session& from, rpc::weak_responder response,
 		method_id method, msgobj param, shared_zone& life)

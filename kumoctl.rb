@@ -20,7 +20,7 @@ class KumoManager
 		@sock.flush
 	rescue
 		@sock.close
-		throw
+		raise
 	end
 
 	def receive_message
@@ -45,7 +45,7 @@ class KumoManager
 	end
 
 	def process_request(seqid, cmd, param)
-		throw "request received, excpect response"
+		raise "request received, excpect response"
 	end
 
 	def process_response(seqid, res, err)
@@ -79,7 +79,7 @@ class KumoManager
 
 	def send_request_sync_ex(cmd, param)
 		res, err = send_request_sync(cmd, param)
-		throw "error #{err}" if err
+		raise "error #{err}" if err
 		res
 	end
 
