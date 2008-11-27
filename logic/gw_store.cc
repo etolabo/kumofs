@@ -224,7 +224,7 @@ RPC_REPLY(ResDelete, from, res, err, life,
 		ret.deleted   = st;
 		(*callback)(user, ret);
 
-	} else if( retry->retry_incr(m_cfg_set_retry_num) ) {
+	} else if( retry->retry_incr(m_cfg_delete_retry_num) ) {
 		if(from->is_lost()) {
 			// FIXME renew hash space?
 			// FIXME delayed retry

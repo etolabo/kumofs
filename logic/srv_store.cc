@@ -118,6 +118,8 @@ RPC_CATCH(Set, response)
 
 RPC_FUNC(Delete, from, response, life, param)
 try {
+	LOG_DEBUG("Delete '",std::string(param.key(),param.keylen()),"'");
+
 	check_master_assign(param.key(), param.keylen());
 
 	if(!m_db.erase(param.key(), param.keylen())) {
@@ -166,7 +168,7 @@ RPC_REPLY(ResReplicateSet, from, res, err, life,
 		unsigned short* copy_required,
 		rpc::weak_responder response, uint64_t clocktime)
 {
-	LOG_DEBUG("ResReplicateSet ",*copy_required);
+	LOG_DEBUG("ResReplicateSet ",err," ",*copy_required);
 	// retry if failed
 	if(!err.is_nil()) {
 		if(from) {
@@ -220,6 +222,7 @@ RPC_REPLY(ResReplicateDelete, from, res, err, life,
 
 CLUSTER_FUNC(ReplicateSet, from, response, life, param)
 try {
+	LOG_TRACE("ReplicateSet");
 	m_clock.update(param.clock());
 
 	check_replicator_assign(m_whs, param.key(), param.keylen());
@@ -245,6 +248,7 @@ RPC_CATCH(ReplicateSet, response)
 
 CLUSTER_FUNC(ReplicateDelete, from, response, life, param)
 try {
+	LOG_TRACE("ReplicateDelete");
 	m_clock.update(param.clock());
 
 	// FIXME check write-hash-space assignment?

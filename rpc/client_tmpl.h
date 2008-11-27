@@ -38,7 +38,8 @@ client<Transport, Session>::get_session(const address& addr)
 	while(pair.first != pair.second) {
 		s = pair.first->second.lock();
 		if(s && !s->is_lost()) { return s; }
-		m_sessions.erase(pair.first++);
+		++pair.first;
+		//m_sessions.erase(pair.first++);  // lock avoid
 	}
 	LOG_TRACE("no session exist, connecting ",addr);
 	s.reset(new Session(this));
@@ -59,7 +60,8 @@ client<Transport, Session>::create_session(const address& addr)
 	while(pair.first != pair.second) {
 		s = pair.first->second.lock();
 		if(s && !s->is_lost()) { return s; }
-		m_sessions.erase(pair.first++);
+		++pair.first;
+		//m_sessions.erase(pair.first++);  // lock avoid
 	}
 	s.reset(new Session(this));
 	return s;
@@ -206,16 +208,20 @@ void client<Transport, Session>::step_timeout()
 
 	typedef std::vector<
 		std::pair<address, shared_session>
-		> lock_avoid_t;
-	lock_avoid_t lock_avoid;
+		> lock_avoid_cons_t;
+	lock_avoid_cons_t lock_avoid_cons;
+
+	typedef std::vector<typename sessions_t::iterator> lock_avoid_ses_t;
+	lock_avoid_ses_t lock_avoid_ses;
 
 	for(typename unbounds_t::iterator it(m_unbounds.begin()), it_end(m_unbounds.end());
 			it != it_end; ) {
 		if(it->second.timeout_steps == 0) {
 			address addr(it->second.addr);
-			lock_avoid.push_back( typename lock_avoid_t::value_type(
+			lock_avoid_cons.push_back( typename lock_avoid_cons_t::value_type(
 						addr, it->second.session
 						) );
+			//connect_timeout(addr, it->second.session);
 			m_unbounds.erase(it++);
 			LOG_DEBUG("connect timed out: ",addr," ",m_unbounds.size());
 		} else {
@@ -226,20 +232,25 @@ void client<Transport, Session>::step_timeout()
 		}
 	}
 
-	for(typename sessions_t::iterator it(m_sessions.begin()), it_end(m_sessions.end());
-			it != it_end; ) {
+	for(typename sessions_t::iterator it(m_sessions.begin()),
+			it_end(m_sessions.end()); it != it_end; ) {
 		shared_session s(it->second.lock());
 		if(s && !s->is_lost()) {
 			s->step_timeout(basic_shared_session(s));
 			++it;
 		} else {
-			m_sessions.erase(it++);
+			lock_avoid_ses.push_back(it++);
+			//m_sessions.erase(it++);
 		}
 	}
 
 	lk.unlock();
-	for(typename lock_avoid_t::iterator it(lock_avoid.begin()), it_end(lock_avoid.end());
-			it != it_end; ++it) {
+	for(typename lock_avoid_ses_t::iterator it(lock_avoid_ses.begin()),
+			it_end(lock_avoid_ses.end()); it != it_end; ++it) {
+		m_sessions.erase(*it);
+	}
+	for(typename lock_avoid_cons_t::iterator it(lock_avoid_cons.begin()),
+			it_end(lock_avoid_cons.end()); it != it_end; ++it) {
 		connect_timeout(it->first, it->second);
 	}
 }
