@@ -14,7 +14,9 @@ namespace rpc {
 class cluster;
 
 struct cluster_init_sender {
+	cluster_init_sender();
 	cluster_init_sender(int fd, const address& addr, role_type id);
+	void send_init(int fd, const address& addr, role_type id);
 };
 
 class cluster_transport : private cluster_init_sender,
@@ -120,6 +122,11 @@ public:
 		throw msgpack::type_error();
 	}
 
+	virtual void subsystem_dispatch_request(
+			basic_shared_session& s,
+			method_id method, msgobj param,
+			msgid_t msgid, auto_zone& z);
+
 public:
 	// step timeout count.
 	void step_timeout();
@@ -179,10 +186,6 @@ private:
 	public:
 		void dispatch(
 				shared_peer& from, weak_responder response,
-				method_id method, msgobj param, shared_zone& life);
-
-		void dispatch_request(
-				basic_shared_session& s, weak_responder response,
 				method_id method, msgobj param, shared_zone& life);
 
 		void add_session(basic_shared_session s);

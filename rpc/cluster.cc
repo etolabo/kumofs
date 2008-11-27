@@ -4,7 +4,14 @@
 namespace rpc {
 
 
-cluster_init_sender::cluster_init_sender(int fd, const address& addr, role_type id)
+cluster_init_sender::cluster_init_sender() { }
+
+inline cluster_init_sender::cluster_init_sender(int fd, const address& addr, role_type id)
+{
+	send_init(fd, addr, id);
+}
+
+inline void cluster_init_sender::send_init(int fd, const address& addr, role_type id)
 {
 	sbuffer buf;
 	rpc_initmsg param(addr, id);
@@ -27,7 +34,7 @@ cluster_transport::cluster_transport(int fd, basic_shared_session s, transport_m
 }
 
 cluster_transport::cluster_transport(int fd, transport_manager* srv) :
-	cluster_init_sender(fd, get_server(srv)->m_self_addr, get_server(srv)->m_self_id),
+	//cluster_init_sender(fd, get_server(srv)->m_self_addr, get_server(srv)->m_self_id),
 	basic_transport(basic_shared_session(), srv),
 	connection<cluster_transport>(fd),
 	m_role(PEER_NOT_SET)
@@ -83,6 +90,7 @@ void cluster_transport::process_message(msgobj msg, auto_zone& z)
 				if(!init.addr().connectable()) {
 					throw std::runtime_error("invalid address");
 				}
+				send_init(fd(), get_server()->m_self_addr, get_server()->m_self_id);
 				rebind( get_server()->bind_session(init.addr()) );
 			}
 
@@ -116,9 +124,15 @@ void cluster_transport::process_message(msgobj msg, auto_zone& z)
 	rpc_message rpc(msg.convert());
 	if(rpc.is_request()) {
 		rpc_request<msgobj> msgreq(rpc);
-		get_server()->cluster_dispatch_request(
-				m_session, m_role,
-				msgreq.method(), msgreq.param(), msgreq.msgid(), z);
+		if(m_role == PEER_SERVER) {
+			get_server()->subsystem_dispatch_request(
+					m_session,
+					msgreq.method(), msgreq.param(), msgreq.msgid(), z);
+		} else {
+			get_server()->cluster_dispatch_request(
+					m_session, m_role,
+					msgreq.method(), msgreq.param(), msgreq.msgid(), z);
+		}
 
 	} else {
 		rpc_response<msgobj, msgobj> msgres(rpc);
@@ -212,7 +226,23 @@ void cluster::cluster_dispatch_request(
 	z.release();
 	weak_responder response(s, msgid);
 	shared_node from = mp::static_pointer_cast<node>(s);
-	cluster_dispatch(from, from->role(), response, method, param, life);
+	cluster_dispatch(from, role, response, method, param, life);
+}
+
+
+void cluster::subsystem_dispatch_request(
+		basic_shared_session& s,
+		method_id method, msgobj param,
+		msgid_t msgid, auto_zone& z)
+{
+	shared_zone life(new mp::zone());
+	life->push_finalizer(
+			&mp::object_delete<msgpack::zone>,
+			z.get());
+	z.release();
+	weak_responder response(s, msgid);
+	shared_peer from = mp::static_pointer_cast<peer>(s);
+	subsystem_dispatch(from, response, method, param, life);
 }
 
 
@@ -249,15 +279,6 @@ void cluster::subsys::dispatch(
 		method_id method, msgobj param, shared_zone& life)
 {
 	throw std::logic_error("cluster::subsys::dispatch called");
-}
-
-void cluster::subsys::dispatch_request(
-		basic_shared_session& s, weak_responder response,
-		method_id method, msgobj param, shared_zone& life)
-{
-	shared_peer from = mp::static_pointer_cast<peer>(s);
-	m_srv->subsystem_dispatch(
-			from, response, method, param, life);
 }
 
 

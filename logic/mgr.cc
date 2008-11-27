@@ -75,6 +75,7 @@ void Manager::new_node(address addr, role_type id, shared_node n)
 		return;
 
 	} else if(id == protocol::SERVER) {
+		// FIXME delayed change
 		add_server(addr, n);
 		return;
 
@@ -91,6 +92,7 @@ void Manager::lost_node(address addr, role_type id)
 		return;
 
 	} else if(id == protocol::SERVER) {
+		// FIXME delayed change
 		remove_server(addr);
 		return;
 
