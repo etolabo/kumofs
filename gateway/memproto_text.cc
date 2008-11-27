@@ -381,10 +381,10 @@ int MemprotoText::Connection::memproto_set(
 
 	if(noreply) {
 		req.callback = &mp::object_callback<void (set_response&)>
-			::mem_fun<ResSet, &ResSet::response>;
+			::mem_fun<ResSet, &ResSet::no_response>;
 	} else {
 		req.callback = &mp::object_callback<void (set_response&)>
-			::mem_fun<ResSet, &ResSet::no_response>;
+			::mem_fun<ResSet, &ResSet::response>;
 	}
 	req.user = ctx;
 
@@ -413,10 +413,10 @@ int MemprotoText::Connection::memproto_delete(
 
 	if(noreply) {
 		req.callback = &mp::object_callback<void (delete_response&)>
-			::mem_fun<ResDelete, &ResDelete::response>;
+			::mem_fun<ResDelete, &ResDelete::no_response>;
 	} else {
 		req.callback = &mp::object_callback<void (delete_response&)>
-			::mem_fun<ResDelete, &ResDelete::no_response>;
+			::mem_fun<ResDelete, &ResDelete::response>;
 	}
 	req.user = ctx;
 

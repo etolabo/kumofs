@@ -126,6 +126,7 @@ RPC_REPLY(ResGet, from, res, err, life,
 		RetryGet* retry,
 		void (*callback)(void*, get_response&), void* user)
 {
+	LOG_TRACE("ResGet ",err);
 	if(err.is_nil()) {
 		get_response ret;
 		ret.error     = 0;
@@ -136,7 +137,6 @@ RPC_REPLY(ResGet, from, res, err, life,
 			ret.val       = NULL;
 			ret.vallen    = 0;
 			ret.clocktime = 0;
-			(*callback)(user, ret);
 		} else {
 			msgpack::type::tuple<msgpack::type::raw_ref, uint64_t> st(res);
 			ret.val       = (char*)st.get<0>().ptr;
@@ -171,6 +171,7 @@ RPC_REPLY(ResSet, from, res, err, life,
 		RetrySet* retry,
 		void (*callback)(void*, set_response&), void* user)
 {
+	LOG_TRACE("ResSet ",err);
 	if(!res.is_nil()) {
 		msgpack::type::tuple<uint64_t> st(res);
 		set_response ret;
@@ -212,6 +213,7 @@ RPC_REPLY(ResDelete, from, res, err, life,
 		RetryDelete* retry,
 		void (*callback)(void*, delete_response&), void* user)
 {
+	LOG_TRACE("ResDelete ",err);
 	if(!res.is_nil()) {
 		bool st(res.convert());
 		delete_response ret;
