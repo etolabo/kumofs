@@ -75,7 +75,7 @@ public:
 	template <typename F>
 	void for_each_peer(F f);
 
-public:
+protected:
 	typedef std::map<void*, basic_weak_session> peers_t;
 	peers_t m_peers;
 

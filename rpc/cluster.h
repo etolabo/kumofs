@@ -3,6 +3,7 @@
 
 #include "rpc/client.h"
 #include "rpc/protocol.h"
+#include "rpc/server.h"
 #include <mp/pthread.h>
 #include <algorithm>
 #include <iterator>
@@ -33,6 +34,8 @@ private:
 	cluster* get_server(transport_manager* srv);
 
 private:
+	static const short PEER_NOT_SET = -1;
+	static const short PEER_SERVER  = -2;
 	short m_role;
 
 private:
@@ -79,6 +82,9 @@ public:
 	typedef rpc::weak_node   weak_node;
 	typedef rpc::role_type   role_type;
 
+	typedef rpc::shared_peer shared_peer;
+	typedef rpc::weak_peer   weak_peer;
+
 	cluster(role_type self_id,
 			const address& self_addr,
 			unsigned short connect_retry_limit,
@@ -93,14 +99,23 @@ public:
 	// called when node is lost.
 	virtual void lost_node(address addr, role_type id) { }
 
+
 	virtual void cluster_dispatch(
 			shared_node& from, role_type role, weak_responder response,
-			method_id method, msgobj param, shared_zone& z) = 0;
+			method_id method, msgobj param, shared_zone& life) = 0;
 
 	virtual void cluster_dispatch_request(
 			basic_shared_session& s, role_type role,
 			method_id method, msgobj param,
 			msgid_t msgid, auto_zone& z);
+
+
+	virtual void subsystem_dispatch(
+			shared_peer& from, weak_responder response,
+			method_id method, msgobj param, shared_zone& life)
+	{
+		throw msgpack::type_error();
+	}
 
 public:
 	// step timeout count.
@@ -125,6 +140,10 @@ public:
 	// return self address;
 	const address& addr() const;
 
+	// get server interface.
+	// it manages non-cluster clients.
+	server& subsystem();
+
 private:
 	shared_node bind_session(const address& addr);
 
@@ -142,11 +161,38 @@ private:
 private:
 	virtual void dispatch(
 			shared_node& from, weak_responder response,
-			method_id method, msgobj param, shared_zone& z);
+			method_id method, msgobj param, shared_zone& life);
 
 	virtual void dispatch_request(
 			basic_shared_session& s, weak_responder response,
 			method_id method, msgobj param, shared_zone& life);
+
+private:
+	class subsys : public server {
+	public:
+		subsys(cluster* srv);
+		~subsys();
+
+	public:
+		void dispatch(
+				shared_peer& from, weak_responder response,
+				method_id method, msgobj param, shared_zone& life);
+
+		void dispatch_request(
+				basic_shared_session& s, weak_responder response,
+				method_id method, msgobj param, shared_zone& life);
+
+		void add_session(basic_shared_session s);
+
+	private:
+		cluster* m_srv;
+
+	private:
+		subsys();
+		subsys(const subsys&);
+	};
+
+	subsys m_subsystem;
 
 private:
 	cluster();
@@ -162,6 +208,11 @@ inline void cluster::step_timeout()
 inline const address& cluster::addr() const
 {
 	return m_self_addr;
+}
+
+inline server& cluster::subsystem()
+{
+	return static_cast<server&>(m_subsystem);
 }
 
 
