@@ -262,7 +262,7 @@ char* MemprotoText::Connection::alloc_responder_buf(shared_zone& z, size_t size,
 	} catch (...) { free(b); throw; }
 	try {
 		z->push_finalizer(&object_destruct_free<T>, b);
-	} catch (...) { rp->~T(); free(b); throw; }
+	} catch (...) { (*rp)->~T(); free(b); throw; }
 	return ((char*)b) + sizeof(T);
 }
 

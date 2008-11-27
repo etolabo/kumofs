@@ -1,4 +1,5 @@
 #include "logic/gw_impl.h"
+#include <assert.h>
 
 namespace kumo {
 
