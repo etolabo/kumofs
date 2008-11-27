@@ -19,6 +19,10 @@ public:
 			shared_node& from, role_type role, rpc::weak_responder response,
 			method_id method, msgobj param, shared_zone& life);
 
+	void subsystem_dispatch(
+			shared_peer& from, rpc::weak_responder response,
+			method_id method, msgobj param, shared_zone& life);
+
 	void new_node(address addr, role_type id, shared_node n);
 	void lost_node(address addr, role_type id);
 
@@ -35,14 +39,7 @@ public:
 	CLUSTER_DECL(WHashSpaceRequest);
 	CLUSTER_DECL(RHashSpaceRequest);
 
-	class CliSrv : public CliSrvBase<Manager>, public rpc::server {
-	public:
-		CliSrv(Manager* srv);
-		void dispatch(shared_peer& from, rpc::weak_responder response,
-				method_id method, msgobj param, shared_zone& life);
-	};
-
-	CLISRV_DECL(HashSpaceRequest);
+	RPC_DECL(HashSpaceRequest);
 
 public:
 	void keep_alive();
@@ -101,8 +98,6 @@ private:
 
 	address m_partner;
 
-	CliSrv m_clisrv;
-
 	class ReplaceContext {
 	public:
 		ReplaceContext();
@@ -139,14 +134,12 @@ Manager::Manager(Config& cfg) :
 			cfg.connect_timeout_steps,
 			cfg.reconnect_timeout_msec),
 	m_partner(cfg.partner),
-	m_clisrv(this),
 	m_cfg_auto_replace(cfg.auto_replace),
 	m_cfg_replace_delay_clocks(cfg.replace_delay_clocks),
 	m_delayed_replace_clock(0)
 {
 	LOG_INFO("start manager ",addr());
 	listen_cluster(cfg.cluster_lsock);
-	m_clisrv.listen(cfg.clisrv_lsock);
 	listen_control(cfg.ctlsock_lsock);
 	start_timeout_step<Manager>(cfg.clock_interval_usec, this);
 	start_keepalive<Manager>(cfg.keepalive_interval_usec, this);

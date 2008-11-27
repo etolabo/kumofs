@@ -16,9 +16,6 @@ struct arg_t : rpc_cluster_args {
 	double keepalive_interval;  // sec
 	unsigned long keepalive_interval_usec;  // convert
 
-	sockaddr_in clisrv_addr_in;
-	int clisrv_lsock;  // convert
-
 	sockaddr_in ctlsock_addr_in;
 	int ctlsock_lsock;
 
@@ -26,7 +23,6 @@ struct arg_t : rpc_cluster_args {
 	{
 		partner = rpc::address(partner_in);
 		keepalive_interval_usec = keepalive_interval *1000 *1000;
-		clisrv_lsock = scoped_listen_tcp::listen(clisrv_addr_in);
 		ctlsock_lsock = scoped_listen_tcp::listen(ctlsock_addr_in);
 		rpc_cluster_args::convert();
 	}
@@ -37,8 +33,6 @@ struct arg_t : rpc_cluster_args {
 	{
 		using namespace kazuhiki;
 		set_basic_args();
-		on("-c", "--client",
-				type::listenable(&clisrv_addr_in, CLIENT_DEFAULT_PORT));
 		on("-a", "--admin",
 				type::listenable(&ctlsock_addr_in, CONTROL_DEFAULT_PORT));
 		on("-p", "--partner",  &partner_set,

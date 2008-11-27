@@ -19,6 +19,10 @@ public:
 			shared_node& from, role_type role, rpc::weak_responder response,
 			method_id method, msgobj param, shared_zone& life);
 
+	void subsystem_dispatch(
+			shared_peer& from, rpc::weak_responder response,
+			method_id method, msgobj param, shared_zone& life);
+
 	void new_node(address addr, role_type id, shared_node n);
 	void lost_node(address addr, role_type id);
 
@@ -37,16 +41,9 @@ public:
 	CLUSTER_DECL(ReplacePropose);
 	CLUSTER_DECL(ReplacePush);
 
-	class CliSrv : public CliSrvBase<Server>, public rpc::server {
-	public:
-		CliSrv(Server* srv);
-		void dispatch(shared_peer& from, rpc::weak_responder response,
-				method_id method, msgobj param, shared_zone& life);
-	};
-
-	CLISRV_DECL(Get);
-	CLISRV_DECL(Set);
-	CLISRV_DECL(Delete);
+	RPC_DECL(Get);
+	RPC_DECL(Set);
+	RPC_DECL(Delete);
 
 public:
 	void keep_alive();
@@ -121,8 +118,6 @@ private:
 	address m_manager1;
 	address m_manager2;
 
-	CliSrv m_clisrv;
-
 	class ReplaceContext {
 	public:
 		ReplaceContext();
@@ -168,12 +163,10 @@ Server::Server(Config& cfg) :
 			cfg.reconnect_timeout_msec),
 	m_db(*cfg.db),
 	m_manager1(cfg.manager1),
-	m_manager2(cfg.manager2),
-	m_clisrv(this)
+	m_manager2(cfg.manager2)
 {
 	LOG_INFO("start server ",addr());
 	listen_cluster(cfg.cluster_lsock);
-	m_clisrv.listen(cfg.clisrv_lsock);
 	start_timeout_step<Server>(cfg.clock_interval_usec, this);
 	start_keepalive<Server>(cfg.keepalive_interval_usec, this);
 }

@@ -18,7 +18,7 @@ try {
 RPC_CATCH(RHashSpaceRequest, response)
 
 
-CLISRV_FUNC(HashSpaceRequest, from, response, life, param)
+RPC_FUNC(HashSpaceRequest, from, response, life, param)
 try {
 	HashSpace::Seed* seed = life->allocate<HashSpace::Seed>(m_whs);
 	response.result(*seed, life);
@@ -65,7 +65,7 @@ void Manager::push_hash_space_clients()
 {
 	LOG_WARN("push hash space ...");
 	rpc::callback_t callback( BIND_RESPONSE(ResHashSpacePush) );
-	m_clisrv.for_each_peer( each_client_push(m_whs, callback) );
+	subsystem().for_each_peer( each_client_push(m_whs, callback) );
 }
 
 RPC_REPLY(ResHashSpacePush, from, res, err, life)

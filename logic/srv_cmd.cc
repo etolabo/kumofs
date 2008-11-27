@@ -17,9 +17,6 @@ struct arg_t : rpc_cluster_args {
 	double keepalive_interval;  // sec
 	unsigned long keepalive_interval_usec;  // convert
 
-	sockaddr_in clisrv_addr_in;
-	int clisrv_lsock;  // convert
-
 	Storage* db;
 
 	virtual void convert()
@@ -27,7 +24,6 @@ struct arg_t : rpc_cluster_args {
 		manager1 = rpc::address(manager1_in);
 		manager2 = rpc::address(manager2_in);
 		keepalive_interval_usec = keepalive_interval *1000 *1000;
-		clisrv_lsock = scoped_listen_tcp::listen(clisrv_addr_in);
 		rpc_cluster_args::convert();
 	}
 
@@ -36,8 +32,6 @@ struct arg_t : rpc_cluster_args {
 	{
 		using namespace kazuhiki;
 		set_basic_args();
-		on("-c", "--client",
-				type::listenable(&clisrv_addr_in, CLIENT_DEFAULT_PORT));
 		on("-b", "--database",
 				type::string(&dbpath));
 		on("-m", "--manager1",
@@ -57,7 +51,6 @@ std::cout <<
 "  -b  <path.tch>    --database      database path name\n"
 "  -m  <addr[:port="<<CLUSTER_DEFAULT_PORT<<"]>   --manager1      address of manager 1\n"
 "  -p  <addr[:port="<<CLUSTER_DEFAULT_PORT<<"]>   --manager2      address of manager 2\n"
-"  -c  <[addr:]port="<<CLIENT_DEFAULT_PORT<<">    --client        client listen port\n"
 "  -K  <number="<<keepalive_interval<<">      --keepalive-interval   keepalive interval in seconds.\n"
 ;
 rpc_cluster_args::show_usage();

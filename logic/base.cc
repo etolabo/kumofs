@@ -157,7 +157,6 @@ void rpc_cluster_args::show_usage()
 {
 std::cout <<
 "  -l  <addr[:port="<<CLUSTER_DEFAULT_PORT<<"]>   --listen      listen address\n"
-"  -c  <[addr:]port="<<CLIENT_DEFAULT_PORT<<">    --client        client listen port\n"
 "  -NY <number="<<connect_retry_limit<<">           --connect-retry-limit      connect retry limit\n"
 ;
 rpc_server_args::show_usage();

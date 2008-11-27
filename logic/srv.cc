@@ -7,9 +7,6 @@ Server::~Server()
 {
 }
 
-Server::CliSrv::CliSrv(Server* srv) :
-	CliSrvBase<Server>(srv) { }
-
 void Server::cluster_dispatch(
 		shared_node& from, role_type role, rpc::weak_responder response,
 		method_id method, msgobj param, shared_zone& life)
@@ -40,14 +37,14 @@ void Server::cluster_dispatch(
 }
 
 
-void Server::CliSrv::dispatch(
+void Server::subsystem_dispatch(
 		shared_peer& from, rpc::weak_responder response,
 		method_id method, msgobj param, shared_zone& life)
 {
 	switch(method) {
-	CLISRV_DISPATCH(Get);
-	CLISRV_DISPATCH(Set);
-	CLISRV_DISPATCH(Delete);
+	RPC_DISPATCH(Get);
+	RPC_DISPATCH(Set);
+	RPC_DISPATCH(Delete);
 	default:
 		throw std::runtime_error("unknown method");
 	}
@@ -57,7 +54,6 @@ void Server::CliSrv::dispatch(
 void Server::step_timeout()
 {
 	rpc::cluster::step_timeout();
-	m_clisrv.step_timeout();
 }
 
 

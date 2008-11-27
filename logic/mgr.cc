@@ -7,10 +7,6 @@ Manager::~Manager()
 {
 }
 
-Manager::CliSrv::CliSrv(Manager* srv) :
-	CliSrvBase<Manager>(srv) { }
-
-
 void Manager::cluster_dispatch(
 		shared_node& from, role_type role, rpc::weak_responder response,
 		method_id method, msgobj param, shared_zone& life)
@@ -41,12 +37,12 @@ void Manager::cluster_dispatch(
 }
 
 
-void Manager::CliSrv::dispatch(
+void Manager::subsystem_dispatch(
 		shared_peer& from, rpc::weak_responder response,
 		method_id method, msgobj param, shared_zone& life)
 {
 	switch(method) {
-	CLISRV_DISPATCH(HashSpaceRequest);
+	RPC_DISPATCH(HashSpaceRequest);
 	default:
 		throw std::runtime_error("unknown method");
 	}
@@ -62,7 +58,6 @@ void Manager::step_timeout()
 			replace_election();
 		}
 	}
-	m_clisrv.step_timeout();
 }
 
 

@@ -85,6 +85,9 @@ public:
 	typedef rpc::shared_peer shared_peer;
 	typedef rpc::weak_peer   weak_peer;
 
+	typedef shared_peer shared_session;
+	typedef weak_peer weak_session;
+
 	cluster(role_type self_id,
 			const address& self_addr,
 			unsigned short connect_retry_limit,
@@ -203,6 +206,7 @@ private:
 inline void cluster::step_timeout()
 {
 	client_t::step_timeout();
+	m_subsystem.step_timeout();
 }
 
 inline const address& cluster::addr() const

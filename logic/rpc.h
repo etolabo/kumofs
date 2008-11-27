@@ -124,15 +124,6 @@ private:
 		return
 
 
-#define CLISRV_DISPATCH(NAME) \
-	case protocol::NAME: \
-		mp::iothreads::submit( \
-				&ServerClass::NAME, m_srv, \
-				from, response, life, \
-				param.as<protocol::type::NAME>()); \
-		return
-
-
 #define RPC_DECL(NAME) \
 	void NAME(shared_session from, rpc::weak_responder, shared_zone, protocol::type::NAME)
 
@@ -145,13 +136,6 @@ private:
 
 #define CLUSTER_IMPL(CLASS, NAME, from, response, life, param) \
 	void CLASS::NAME(rpc::shared_node from, rpc::weak_responder response, shared_zone life, protocol::type::NAME param)
-
-
-#define CLISRV_DECL(NAME) \
-	void NAME(rpc::shared_peer from, rpc::weak_responder, shared_zone, protocol::type::NAME)
-
-#define CLISRV_IMPL(CLASS, NAME, from, response, life, param) \
-	void CLASS::NAME(rpc::shared_peer from, rpc::weak_responder response, shared_zone life, protocol::type::NAME param)
 
 
 #define RPC_REPLY_DECL(NAME, from, res, err, life, ...) \

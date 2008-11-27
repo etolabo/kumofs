@@ -38,9 +38,9 @@ struct arg_t : rpc_server_args {
 		using namespace kazuhiki;
 		set_basic_args();
 		on("-m", "--manager1",
-				type::connectable(&manager1_in, CLIENT_DEFAULT_PORT));
+				type::connectable(&manager1_in, CLUSTER_DEFAULT_PORT));
 		on("-p", "--manager2", &manager2_set,
-				type::connectable(&manager2_in, CLIENT_DEFAULT_PORT));
+				type::connectable(&manager2_in, CLUSTER_DEFAULT_PORT));
 		on("-t", "--memproto-text",
 				type::listenable(&memproto_text_addr_in, MEMPROTO_TEXT_DEFAULT_PORT));
 		on("-G", "--get-retry",
@@ -56,8 +56,8 @@ struct arg_t : rpc_server_args {
 	{
 std::cout <<
 "usage: "<<prog<<" -m <addr[:port]> -p <addr[:port]> [-c port]\n"
-"  -m  <addr[:port="<<CLIENT_DEFAULT_PORT<<"]>   --manager1      address of manager 1\n"
-"  -p  <addr[:port="<<CLIENT_DEFAULT_PORT<<"]>   --manager2      address of manager 2\n"
+"  -m  <addr[:port="<<CLUSTER_DEFAULT_PORT<<"]>   --manager1      address of manager 1\n"
+"  -p  <addr[:port="<<CLUSTER_DEFAULT_PORT<<"]>   --manager2      address of manager 2\n"
 "  -t  <[addr:]port="<<MEMPROTO_TEXT_DEFAULT_PORT<<">    --memproto-text        memcached text protocol listen port\n"
 ;
 rpc_server_args::show_usage();

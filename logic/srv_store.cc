@@ -36,7 +36,7 @@ void Server::check_master_assign(const char* key, uint32_t keylen)
 }
 
 
-CLISRV_FUNC(Get, from, response, life, param)
+RPC_FUNC(Get, from, response, life, param)
 try {
 	LOG_DEBUG("Get '",std::string(param.key(),param.keylen()),"'");
 
@@ -63,7 +63,7 @@ try {
 RPC_CATCH(Set, response)
 
 
-CLISRV_FUNC(Set, from, response, life, param)
+RPC_FUNC(Set, from, response, life, param)
 try {
 	LOG_DEBUG("Set '",std::string(param.key(),param.keylen()),"' => '",
 			std::string(param.meta_val()+DBFormat::LEADING_METADATA_SIZE,
@@ -116,7 +116,7 @@ try {
 RPC_CATCH(Set, response)
 
 
-CLISRV_FUNC(Delete, from, response, life, param)
+RPC_FUNC(Delete, from, response, life, param)
 try {
 	check_master_assign(param.key(), param.keylen());
 

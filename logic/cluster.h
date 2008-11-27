@@ -40,41 +40,6 @@ private:
 };
 
 
-template <typename Logic>
-class CliSrvBase {
-public:
-	typedef Logic ServerClass;
-
-	CliSrvBase(ServerClass* srv) : m_srv(srv) { }
-	~CliSrvBase() { }
-
-	void listen(int fd)
-	{
-		mp::iothreads::listen(fd, CliSrvBase<Logic>::checked_accepted, this);
-	}
-
-private:
-	static void checked_accepted(void* data, int fd)
-	{
-		CliSrvBase<Logic>* self = static_cast<CliSrvBase<Logic>*>(data);
-		if(fd < 0) {
-			LOG_FATAL("accept failed: ",strerror(-fd));
-			self->m_srv->signal_end(SIGTERM);
-			return;
-		}
-		mp::set_nonblock(fd);
-		static_cast<typename ServerClass::CliSrv*>(self)->accepted(fd);
-	}
-
-protected:
-	ServerClass* m_srv;
-
-private:
-	CliSrvBase();
-	CliSrvBase(const CliSrvBase&);
-};
-
-
 }  // namespace kumo
 
 #endif /* logic/cluster.h */

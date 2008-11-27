@@ -7,7 +7,6 @@
 
 #define NUM_REPLICATION 2
 #define CLUSTER_DEFAULT_PORT  19800
-#define CLIENT_DEFAULT_PORT   19900
 #define CONTROL_DEFAULT_PORT  19799
 
 namespace kumo {
