@@ -1,0 +1,209 @@
+#include "rpc/cluster.h"
+#include "rpc/sbuffer.h"
+
+namespace rpc {
+
+
+struct cluster::init_sender {
+	init_sender(int fd, const address& addr, role_type id)
+	{
+		sbuffer buf;
+		rpc_initmsg param(addr, id);
+		msgpack::pack(buf, param);
+		basic_transport::send_data(fd, (char*)buf.data(), buf.size(),
+				&mp::iothreads::writer::finalize_free,
+				buf.data());
+		buf.release();
+		LOG_TRACE("sent init message to ",addr);
+	}
+};
+
+
+class cluster::connection : private init_sender, public transport<connection> {
+public:
+	connection(int fd, const address& addr, shared_session s);
+	~connection();
+
+	void process_message(msgobj msg, auto_zone& z);
+
+private:
+	shared_node m_node;
+
+	cluster* get_server();
+	cluster* get_server(shared_session& s);
+};
+
+
+cluster::connection::connection(int fd, const address& addr, shared_session s) :
+	init_sender(fd, get_server(s)->m_self_addr, get_server(s)->m_self_id),
+	transport<connection>(fd, addr, s) { }
+
+cluster::connection::~connection() { }
+
+
+void cluster::connection::process_message(msgobj msg, auto_zone& z)
+{
+	// TODO self-modifying code
+	if(!m_node) {
+		rpc_initmsg init(msg.convert());
+		LOG_TRACE("receive init message: ",init.role_id()," ",init.addr());
+		shared_node n =
+		get_server()->bind_node(init.role_id(), init.addr());
+		m_node = n;
+		return;
+	}
+
+	LOG_TRACE("receive rpc message: ",msg);
+	rpc_message rpc(msg.convert());
+	if(rpc.is_request()) {
+		rpc_request<msgobj> msgreq(rpc);
+		responder response(fd(), msgreq.msgid());
+		m_node->dispatch_request(m_node,
+				msgreq.method(), msgreq.param(), response, z);
+	} else {
+		rpc_response<msgobj, msgobj> msgres(rpc);
+		transport<connection>::process_response(
+				msgres.result(), msgres.error(), msgres.msgid(), z);
+	}
+}
+
+inline cluster* cluster::connection::get_server()
+{
+	return get_server(basic_transport::m_session);
+}
+
+inline cluster* cluster::connection::get_server(shared_session& s)
+{
+	return reinterpret_cast<cluster*>(s->get_manager());
+}
+
+
+void cluster::add(int fd, const address& addr)
+{
+	server::add<connection>(fd, addr);
+}
+
+shared_session cluster::get_session(const address& addr)
+{
+	return server::get_session<connection>(addr);
+}
+
+shared_node cluster::bind_node(role_type id, const address& addr)
+{
+	mp::pthread_scoped_lock lk(m_role_table_mutex);
+
+	role_info* info = get_role_info(id);
+	if(!info) { throw msgpack::type_error(); }
+
+	return info->get_node(addr, this);
+}
+
+void cluster::transport_lost(const address& addr, shared_session& s)
+{
+	LOG_DEBUG("basic_transport lost: ",addr);
+	if(!s->empty()) {
+		if(s->connect_retried_count() > m_connect_retry_limit) {
+			LOG_DEBUG("give up to reconnect ",addr);
+		} else {
+			LOG_DEBUG("reconnect to ",addr);
+			connect_session<connection>(addr, s);
+		}
+	}
+}
+
+void cluster::step_timeout()
+{
+	LOG_TRACE("step timeout ",m_node_timeout_steps);
+	mp::pthread_scoped_lock lk(m_role_table_mutex);
+
+	for(role_table_t::size_type i=0; i < m_role_table.size(); ++i) {
+		if(m_role_table[i].is_valid()) {
+			m_role_table[i].step_timeout(i, this, m_node_timeout_steps);
+		}
+	}
+
+	server::step_timeout();
+}
+
+void cluster::role_info::step_timeout(role_type id, cluster* self,
+		unsigned short node_timeout_steps)
+{
+	for(nodes_t::iterator it(m_nodes.begin()), it_end(m_nodes.end());
+			it != it_end; ) {
+		if(!it->second->step_timeout(node_timeout_steps)) {
+			address a(it->first);
+			it->second->lost_node();
+			m_nodes.erase(it++);
+			LOG_WARN("node lost ",a);
+			self->lost_node(a, id);
+		} else {
+			++it;
+		}
+	}
+}
+
+bool basic_node::step_timeout(unsigned short node_timeout_steps)
+{
+	LOG_DEBUG("step ", m_timeout_steps," (",m_sessions.size(),")");
+
+	for(sessions_t::iterator it(m_sessions.begin());
+			it != m_sessions.end(); ) {
+		shared_session s(it->lock());
+		if(s) {
+			if(s->is_bound()) {
+				m_timeout_steps = node_timeout_steps;
+				return true;
+			}
+			++it;
+		} else {
+			it = m_sessions.erase(it);
+		}
+	}
+//	if(!m_sessions.empty()) {
+//		m_timeout_steps = node_timeout_steps;
+//		return true;
+//	}
+
+	if(m_timeout_steps >= node_timeout_steps) {
+		m_timeout_steps = node_timeout_steps-1;
+		return true;
+	} else if(m_timeout_steps > 0) {
+		--m_timeout_steps;
+		return true;
+	}
+
+	return false;
+}
+
+
+basic_node::~basic_node()
+{
+	lost_node();
+}
+
+void basic_node::lost_node()
+{
+	if(!m_server) { return; }
+
+	LOG_ERROR("node lost");
+	m_server = NULL;
+
+	msgpack::object res;
+	res.type = msgpack::type::NIL;
+	msgpack::object err;
+	err.type = msgpack::type::POSITIVE_INTEGER;
+	err.via.u64 = protocol::NODE_LOST_ERROR;
+
+	for(sessions_t::iterator it(m_sessions.begin()), it_end(m_sessions.end());
+			it != it_end; ++it) {
+		shared_session s(it->lock());
+		if(s) {
+			s->clear_callback(res, err);
+			s->cancel_pendings();
+		}
+	}
+}
+
+
+}  // namespace rpc
+

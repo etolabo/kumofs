@@ -1,0 +1,182 @@
+AC_INIT(protocol.h)
+AC_CONFIG_AUX_DIR(ac)
+AM_INIT_AUTOMAKE(kumo, 0.1.0)
+AC_CONFIG_HEADER(config.h)
+
+AC_SUBST(CXXFLAGS)
+if test "" = "$CXXFLAGS"; then
+	CXXFLAGS="-O4"
+fi
+CXXFLAGS="-O4 -Wall $CXXFLAGS"
+
+
+AC_CHECK_PROG(ERB, erb, erb)
+if test "x$ERB" = x; then
+	AC_MSG_ERROR([cannot find erb. Ruby is needed to build.])
+fi
+
+
+AC_CHECK_PROG(RAGEL, ragel, ragel)
+if test "x$RAGEL" = x; then
+	AC_MSG_ERROR([cannot find ragel. Ragel is needed to build.])
+fi
+
+
+AC_PROG_CXX
+
+AC_PROG_LIBTOOL
+AM_PROG_AS
+
+
+
+AC_ARG_WITH([mpio],
+	AS_HELP_STRING([--with-mpio=DIR],
+				   [specify the root directory for mpio library]),
+	[mpio_path="$withval"], [])
+if test "$mpio_path" != ""; then
+	CXXFLAGS="$CXXFLAGS -I$mpio_path/include"
+	CFLAGS="$CFLAGS -I$mpio_path/include"
+	LDFLAGS="$LDFLAGS -L$mpio_path/lib"
+fi
+
+
+AC_ARG_WITH([msgpack],
+	AS_HELP_STRING([--with-msgpack=DIR],
+				   [specify the root directory for msgpack library]),
+	[msgpack_path="$withval"], [])
+if test "$msgpack_path" != ""; then
+	CXXFLAGS="$CXXFLAGS -I$msgpack_path/include"
+	CFLAGS="$CFLAGS -I$msgpack_path/include"
+	LDFLAGS="$LDFLAGS -L$msgpack_path/lib"
+fi
+
+
+storage_type="tokyocabinet"
+
+
+AC_ARG_WITH([tokyocabinet],
+	AS_HELP_STRING([--with-tokyocabinet@<:@=DIR@:>@],
+				   [use Tokyo Cabinet for the backend storage]),
+	[tokyocabinet_path="$withval"], [])
+if test "$tokyocabinet_path" != ""; then
+	storage_type="tokyocabinet"
+	CXXFLAGS="$CXXFLAGS -I$tokyocabinet_path/include"
+	CFLAGS="$CFLAGS -I$tokyocabinet_path/include"
+	LDFLAGS="$LDFLAGS -L$tokyocabinet_path/lib"
+fi
+
+
+AC_ARG_WITH([luxio],
+	AS_HELP_STRING([--with-luxio@<:@=DIR@:>@],
+				   [use LuxIO for the backend storage]),
+	[luxio_path="$withval"], [])
+if test "$luxio_path" != ""; then
+	storage_type="luxio"
+	CXXFLAGS="$CXXFLAGS -I$luxio_path/include"
+	CFLAGS="$CFLAGS -I$luxio_path/include"
+	LDFLAGS="$LDFLAGS -L$luxio_path/lib"
+fi
+
+
+AC_MSG_CHECKING([if tcmalloc is enabled])
+AC_ARG_WITH([tcmalloc],
+	AS_HELP_STRING([--with-tcmalloc@<:@=DIR@:>@],
+				   [link libtcmalloc]),
+	[with_tcmalloc="$withval"], [with_tcmalloc="no"])
+AC_MSG_RESULT($with_tcmalloc)
+if test "$with_tcmalloc" != "no"; then
+	if test "$with_tcmalloc" != "yes"; then
+		LDFLAGS="$LDFLAGS -L$with_tcmalloc/lib"
+		LDFLAGS="$LDFLAGS -L$with_tcmalloc/lib64"
+	fi
+	AC_CHECK_LIB(tcmalloc,malloc,,
+		AC_MSG_ERROR([Can't find tcmalloc library]))
+fi
+
+
+AC_MSG_CHECKING([if libmemcached hook library is enabled])
+AC_ARG_WITH([libmemcached-hook],
+	AS_HELP_STRING([--with-libmemcached-hook@<:@=DIR@:>@],
+				   [build libmemcached hook library]),
+	[libmemcached_hook="$withval"], [libmemcached_hook="no"])
+AC_MSG_RESULT($libmemcached_hook)
+if test "$libmemcached_hook" != "no"; then
+	if test "$libmemcached_hook" != "yes"; then
+		CXXFLAGS="$CXXFLAGS -I$libmemcached_hook/include"
+		CFLAGS="$CFLAGS -I$libmemcached_hook/include"
+	fi
+	AC_CHECK_HEADERS(libmemcached/memcached.h,,
+		AC_MSG_ERROR([Can't find libmemcached/memcached.h header]))
+fi
+AM_CONDITIONAL(WITH_LIBMEMCACHED_HOOK, test "$libmemcached_hook" != "no")
+
+
+AC_CHECK_LIB(stdc++, main)
+
+AC_CHECK_LIB(pthread,pthread_create,,
+	AC_MSG_ERROR([Can't find pthread library]))
+
+AC_CHECK_HEADERS(openssl/sha.h,,
+	AC_MSG_ERROR([Can't find openssl header]))
+AC_CHECK_LIB(crypto,SHA1,,
+	AC_MSG_ERROR([Can't find openssl library]))
+
+AC_CHECK_LIB(mpio,main,,
+	AC_MSG_ERROR([Can't find mpio library]))
+
+AC_CHECK_LIB(msgpack,main,,
+	AC_MSG_ERROR([Can't find msgpack library]))
+
+AC_MSG_CHECKING([storage backend])
+AC_MSG_RESULT($storage_type)
+AM_CONDITIONAL(USE_TOKYOCABINET, test "$storage_type" = "tokyocabinet")
+if test "$storage_type" = "tokyocabinet"; then
+	AC_CHECK_HEADERS(tchdb.h,,
+		AC_MSG_ERROR([Can't find tokyo cabinet header]))
+	AC_CHECK_LIB(tokyocabinet,tchdbget,,
+		AC_MSG_ERROR([Can't find tokyocabinet library]))
+	CXXFLAGS="$CXXFLAGS -DUSE_TOKYOCABINET"
+	CFLAGS="$CFLAGS -DUSE_TOKYOCABINET"
+else
+	AC_LANG_PUSH(C++)
+	AC_CHECK_HEADERS(luxio/btree.h)   # FIXME luxio UINT8_MAX
+	#AC_CHECK_HEADERS(luxio/btree.h,,
+	#	AC_MSG_ERROR([Can't find luxio header]))
+	AC_LANG_POP
+fi
+
+
+AC_MSG_CHECKING([if debug option is enabled])
+AC_ARG_ENABLE(debug,
+	AS_HELP_STRING([--disable-debug],
+				   [disable assert macros and omit -g option.]) )
+if test "$enable_debug" != "no"; then
+	CXXFLAGS="$CXXFLAGS -g"
+	CFLAGS="$CFLAGS -g"
+else
+	CXXFLAGS="$CXXFLAGS -DNDEBUG"
+	CFLAGS="$CFLAGS -DNDEBUG"
+fi
+AC_MSG_RESULT($enable_debug)
+
+
+AC_MSG_CHECKING([if trace message is enabled])
+AC_ARG_ENABLE(trace,
+	AS_HELP_STRING([--enable-trace], [enable trace messages.]) )
+if test "$enable_trace" = "yes"; then
+	CXXFLAGS="$CXXFLAGS -DMLOGGER_LEVEL=0"
+	CFLAGS="$CFLAGS -DMLOGGER_LEVEL=0"
+else
+	CXXFLAGS="$CXXFLAGS -DMLOGGER_LEVEL=2"
+	CFLAGS="$CFLAGS -DMLOGGER_LEVEL=2"
+fi
+AC_MSG_RESULT($enable_trace)
+
+
+AC_OUTPUT([Makefile
+		   kazuhiki/Makefile
+		   log/Makefile
+		   memproto/Makefile
+		   rpc/Makefile
+		   storage/Makefile])
+
