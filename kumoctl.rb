@@ -1,4 +1,4 @@
-require 'rubygems'
+require 'rubygems' rescue LoadError nil
 require 'msgpack'
 require 'socket'
 
@@ -85,9 +85,41 @@ class KumoManager
 	end
 
 
+	def rpc_addr(raw)
+		if raw.length == 6
+			addr = Socket.pack_sockaddr_in(0, '0.0.0.0')
+			addr[2,6] = raw[0,6]
+		else
+			addr = Socket.pack_sockaddr_in(0, '::')
+			addr[2,2]  = raw[0,2]
+			addr[8,20] = raw[2,20]
+		end
+		Socket.unpack_sockaddr_in(addr).reverse
+	end
+
 	public
 	def GetStatus
-		send_request_sync_ex(84, [])
+		res = send_request_sync_ex(84, [])
+		form = {}
+		nodes = res[0]
+
+		clocktime = nodes.slice!(-1)
+		date = Time.at(clocktime >> 32)
+		clock = clocktime & ((1<<32)-1)
+
+		nodes.each {|nodes|
+			nodes.map! {|raw|
+				active = (raw.slice!(0) == "\1"[0])
+				rpc_addr(raw) << active
+			}
+		}
+
+		newcomers = res[1]
+		res[1].map! {|raw|
+			rpc_addr(raw)
+		}
+
+		return [nodes, newcomers, date, clock]
 	end
 
 	def StartReplace
@@ -98,15 +130,73 @@ class KumoManager
 		res = send_request_sync(86, [])
 	end
 
-	def CreateBackup
-		res = send_request_sync(87, [])
+	def CreateBackup(suffix)
+		res = send_request_sync(87, [suffix])
 	end
+
+	CONTROL_DEFAULT_PORT = 19799
 
 end
 
-mgr = KumoManager.new('127.0.0.1', 19799)
-p mgr.GetStatus
-#p mgr.DetachFaultServers
-p mgr.StartReplace
+$now = Time.now.strftime("%Y%m%d")
 
+def usage
+	puts "Usage: #{$0} address[:port=#{KumoManager::CONTROL_DEFAULT_PORT}] command [options]"
+	puts "command:"
+	puts "   stat                       get status"
+	puts "   replace                    start replace"
+	puts "   detach                     detach all fault servers"
+	puts "   backup  [suffix=#{$now }]  create backup with specified suffix"
+	exit 1
+end
+
+if ARGV.length < 2
+	usage
+end
+
+addr = ARGV.shift
+host, port = addr.split(':', 2)
+port ||= KumoManager::CONTROL_DEFAULT_PORT
+
+cmd = ARGV.shift
+case cmd
+when "stat"
+	usage if ARGV.length != 0
+	joined, not_joined, date, clock =
+			KumoManager.new(host, port).GetStatus
+	puts "hash space timestamp:"
+	puts "  #{date} clock #{clock}"
+	puts "joined node:"
+	joined.each {|addr, port, active|
+		puts "  #{addr}:#{port}  (#{active ? "active":"fault"})"
+	}
+	puts "not joined node:"
+	not_joined.each {|addr, port|
+		puts "  #{addr}:#{port}"
+	}
+
+when "replace"
+	usage if ARGV.length != 0
+	p KumoManager.new(host, port).StartReplace
+
+when "detach"
+	usage if ARGV.length != 0
+	p KumoManager.new(host, port).DetachFaultServers
+
+when "backup"
+	if ARGV.length == 0
+		suffix = $now
+	elsif ARGV.length == 1
+		suffix = ARGV.shift
+	else
+		usage
+	end
+	puts "suffix=#{suffix}"
+	p KumoManager.new(host, port).CreateBackup(suffix)
+
+else
+	puts "unknown command #{cmd}"
+	puts ""
+	usage
+end
 
