@@ -101,7 +101,7 @@ class KumoManager
 end
 
 mgr = KumoManager.new('127.0.0.1', 19799)
-p mgr.GetStatus
+#p mgr.GetStatus
 p mgr.StartReplace
 
 
