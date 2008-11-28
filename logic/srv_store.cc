@@ -29,10 +29,14 @@ void Server::check_master_assign(const char* key, uint32_t keylen)
 		throw std::runtime_error("server not ready");
 	}
 	uint64_t h = HashSpace::hash(key, keylen);
-	HashSpace::iterator it(m_whs.find(h));
-	if(it->addr() != addr() || !it->is_active()) {  // don't write to fault node
-		throw std::runtime_error("obsolete hash space");
-	}
+	EACH_ASSIGN(m_whs, h, r,
+			if(r.is_active()) {  // don't write to fault node
+				if(r.addr() != addr())
+					throw std::runtime_error("obsolete hash space");
+				else
+					return;
+			}
+			)
 }
 
 

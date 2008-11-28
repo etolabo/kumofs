@@ -218,7 +218,7 @@ template <typename Result, typename Error>
 void weak_responder::call(Result& res, Error& err)
 {
 	rpc::sbuffer buf;  // FIXME use vrefbuffer?
-	rpc_response<Result&, Error> msgres(res, err, m_msgid);
+	rpc_response<Result, Error> msgres(res, err, m_msgid);
 	msgpack::pack(buf, msgres);
 
 	basic_shared_session s(m_session.lock());
