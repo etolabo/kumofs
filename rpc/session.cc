@@ -29,6 +29,7 @@ void basic_session::process_response(
 {
 	auto_zone z(new_z);
 	callbacks_t::iterator it(m_callbacks.find(msgid));
+	LOG_DEBUG("process callback this=",(void*)this," id=",msgid," found:",(it != m_callbacks.end())," result:",result," error:",error);
 	if(it == m_callbacks.end()) { return; }
 	it->second.callback(self, result, error, z);
 	m_callbacks.erase(it);
@@ -214,6 +215,7 @@ void basic_session::step_timeout(basic_shared_session self)
 			it != it_end; ) {
 		if(!it->second.step_timeout()) {
 			//it->second.callback(self, res, err);  // FIXME client::step_timeout;
+			LOG_DEBUG("callback timeout this=",(void*)this," id=",it->first);
 			it->second.callback_submit(self, res, err);  // FIXME client::step_timeout;
 			m_callbacks.erase(it++);
 		} else {

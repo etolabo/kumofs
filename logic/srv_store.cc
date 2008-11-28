@@ -172,7 +172,7 @@ RPC_REPLY(ResReplicateSet, from, res, err, life,
 		unsigned short* copy_required,
 		rpc::weak_responder response, uint64_t clocktime)
 {
-	LOG_DEBUG("ResReplicateSet ",err," ",*copy_required);
+	LOG_DEBUG("ResReplicateSet ",res,",",err," remain:",*copy_required);
 	// retry if failed
 	if(!err.is_nil()) {
 		if(from) {

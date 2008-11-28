@@ -42,6 +42,8 @@ client<Transport, Session>::get_session(const address& addr)
 	}
 	LOG_TRACE("no session exist, connecting ",addr);
 	s.reset(new Session(this));
+	m_sessions.insert( typename sessions_t::value_type(
+				addr, weak_session(s)) );
 	connect_session(addr, s);
 	return s;
 }
@@ -60,7 +62,10 @@ client<Transport, Session>::create_session(const address& addr)
 		if(s && !s->is_lost()) { return s; }
 		m_sessions.erase(pair.first++);
 	}
+	LOG_TRACE("no session exist, creating ",addr);
 	s.reset(new Session(this));
+	m_sessions.insert( typename sessions_t::value_type(
+				addr, weak_session(s)) );
 	return s;
 }
 
@@ -86,8 +91,6 @@ bool client<Transport, Session>::connect_session(
 	entry.timeout_steps = m_connect_timeout_steps;
 	entry.session = s;
 	entry.addr = addr;
-
-	m_sessions.insert( typename sessions_t::value_type(addr, weak_session(entry.session)) );
 
 	// FIXME set m_reconnect_timeout_msec to
 	//       mp::iothreads::connect

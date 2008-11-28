@@ -181,6 +181,7 @@ inline weak_responder::~weak_responder() { }
 template <typename Result>
 void weak_responder::result(Result res)
 {
+	LOG_TRACE("send response data with Success id=",m_msgid);
 	msgpack::type::nil err;
 	call(res, err);
 }
@@ -188,6 +189,7 @@ void weak_responder::result(Result res)
 template <typename Result>
 void weak_responder::result(Result res, shared_zone& life)
 {
+	LOG_TRACE("send response data with Success id=",m_msgid);
 	msgpack::type::nil err;
 	call(res, err, life);
 }
@@ -195,6 +197,7 @@ void weak_responder::result(Result res, shared_zone& life)
 template <typename Error>
 void weak_responder::error(Error err)
 {
+	LOG_TRACE("send response data with Error id=",m_msgid);
 	msgpack::type::nil res;
 	call(res, err);
 }
@@ -202,6 +205,7 @@ void weak_responder::error(Error err)
 template <typename Error>
 void weak_responder::error(Error err, shared_zone& life)
 {
+	LOG_TRACE("send response data with Error id=",m_msgid);
 	msgpack::type::nil res;
 	call(res, err, life);
 }
@@ -213,6 +217,18 @@ inline void weak_responder::null()
 	call(res, err);
 }
 
+
+namespace detail {
+	struct response_zone_keeper {
+		response_zone_keeper(shared_zone z) : m(z) { }
+		~response_zone_keeper() { }
+		vrefbuffer buf;
+	private:
+		shared_zone m;
+		response_zone_keeper();
+		response_zone_keeper(const response_zone_keeper&);
+	};
+}
 
 template <typename Result, typename Error>
 void weak_responder::call(Result& res, Error& err)
@@ -229,21 +245,6 @@ void weak_responder::call(Result& res, Error& err)
 			reinterpret_cast<void*>(buf.data()));
 	buf.release();
 }
-
-
-
-namespace detail {
-	struct response_zone_keeper {
-		response_zone_keeper(shared_zone z) : m(z) { }
-		~response_zone_keeper() { }
-		vrefbuffer buf;
-	private:
-		shared_zone m;
-		response_zone_keeper();
-		response_zone_keeper(const response_zone_keeper&);
-	};
-}
-
 
 template <typename Result, typename Error>
 void weak_responder::call(Result& res, Error& err, shared_zone& life)
