@@ -57,7 +57,7 @@ while(1) {
 
 	for(i=0; i < num; ++i) {
 		int klen = sprintf(kbuf, KEY_PREFIX "%d", i);
-		printf("delete '%s' = '%s'\n", kbuf, vbuf);
+		printf("delete '%s'\n", kbuf);
 		memcached_delete(mc, kbuf, klen, 0);
 	}
 }
