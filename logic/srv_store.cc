@@ -108,7 +108,7 @@ try {
 				retry->call(n, life, 10);
 				++*copy_required;
 			})
-#ifdef SET_ASYNC
+#ifdef KUMO_SET_ASYNC
 	*copy_required = 0;
 #endif
 
@@ -156,7 +156,7 @@ try {
 				retry->call(node, life);
 				++*copy_required;
 			})
-#ifdef GET_ASYNC
+#ifdef KUMO_DELETE_ASYNC
 	*copy_required = 0;
 #endif
 
