@@ -53,6 +53,9 @@ struct rpc_server_args {
 
 	const char* prog;
 
+	double keepalive_interval;  // sec
+	unsigned long keepalive_interval_usec;  // convert
+
 	double clock_interval;  // sec
 	unsigned long clock_interval_usec;  // convert
 

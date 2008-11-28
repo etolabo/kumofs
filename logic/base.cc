@@ -83,6 +83,7 @@ void do_daemonize(bool close_stdio, const char* pidfile)
 
 
 rpc_server_args::rpc_server_args() :
+	keepalive_interval(2.0),
 	clock_interval(0.5),
 	connect_timeout_steps(3),
 	reconnect_interval(1.0),
@@ -114,11 +115,11 @@ void rpc_server_args::set_basic_args()
 			type::string(&logfile));
 	on("-d", "--daemon", &pidfile_set,
 			type::string(&pidfile));
-	on("-IC", "--clock-interval",
+	on("-Ci", "--clock-interval",
 			type::numeric(&clock_interval, clock_interval));
-	on("-SY", "--connect-timeout-steps",
+	on("-Ys", "--connect-timeout-steps",
 			type::numeric(&connect_timeout_steps, connect_timeout_steps));
-	on("-IR", "--reconnect-interval",
+	on("-Ri", "--reconnect-interval",
 			type::numeric(&reconnect_interval, reconnect_interval));
 	on("-TW", "--write-threads",
 			type::numeric(&wthreads, wthreads));
@@ -128,36 +129,39 @@ void rpc_server_args::set_basic_args()
 			type::numeric(&cthreads, cthreads));
 }
 
+void rpc_server_args::show_usage()
+{
+std::cout <<
+"  -Ys <number="<<connect_timeout_steps<<">    ""--connect-timeout-steps  connect timeout sptes\n"
+"  -Ci <number="<<clock_interval<<">  "         "--clock-interval         clock interval in seconds\n"
+"  -Ri <number="<<reconnect_interval<<">    "   "--reconnect-interval     reconnect inverval in seconds (not implemented)\n"
+"  -TW <number="<<wthreads<<">    "             "--write-threads          number of threads for asynchronous writing\n"
+"  -TR <number="<<rthreads<<">    "             "--read-threads           number of threads for asynchronous reading\n"
+"  -TC <number="<<cthreads<<">    "             "--connect-threads        number of threads for asynchronous connecting\n"
+"  -o  <path.log>    "                          "--log\n"
+"  -v                "                          "--verbose\n"
+"  -d  <path.pid>    "                          "--daemon\n"
+<< std::endl;
+}
+
 void rpc_cluster_args::set_basic_args()
 {
 	using namespace kazuhiki;
 	on("-l",  "--listen",
 			type::connectable(&cluster_addr_in, CLUSTER_DEFAULT_PORT));
-	on("-NY", "--connect-retry-limit",
+	on("-k", "--keepalive-interval",
+			type::numeric(&keepalive_interval, keepalive_interval));
+	on("-Yn", "--connect-retry-limit",
 			type::numeric(&connect_retry_limit, connect_retry_limit));
 	rpc_server_args::set_basic_args();
-}
-
-void rpc_server_args::show_usage()
-{
-std::cout <<
-"  -v                   --verbose\n"
-"  -o  <path.log>       --log\n"
-"  -d  <path.pid>       --daemon\n"
-"  -IC <number="<<clock_interval<<">    --clock-interval      clock interval in seconds\n"
-"  -SY <number="<<connect_timeout_steps<<">    --connect-timeout-steps      connect timeout sptes\n"
-"  -IR <number="<<reconnect_interval<<">    --reconnect-interval  reconnect inverval in seconds\n"
-"  -TW <number="<<wthreads<<">    --write-threads        number of threads for asynchronous writing\n"
-"  -TR <number="<<rthreads<<">    --read-threads         number of threads for asynchronous reading\n"
-"  -TC <number="<<cthreads<<">    --connect-threads      number of threads for asynchronous connecting\n"
-<< std::endl;
 }
 
 void rpc_cluster_args::show_usage()
 {
 std::cout <<
-"  -l  <addr[:port="<<CLUSTER_DEFAULT_PORT<<"]>   --listen      listen address\n"
-"  -NY <number="<<connect_retry_limit<<">           --connect-retry-limit      connect retry limit\n"
+"  -l  <addr[:port="<<CLUSTER_DEFAULT_PORT<<"]>   "     "--listen         listen address\n"
+"  -k  <number="<<keepalive_interval<<">    "   "--keepalive-interval     keepalive interval in seconds\n"
+"  -Yn <number="<<connect_retry_limit<<">    "  "--connect-retry-limit    connect retry limit\n"
 ;
 rpc_server_args::show_usage();
 }
@@ -185,6 +189,7 @@ void rpc_server_args::convert()
 
 void rpc_cluster_args::convert()
 {
+	keepalive_interval_usec = keepalive_interval *1000 *1000;
 	cluster_addr = rpc::address(cluster_addr_in);
 	cluster_lsock = scoped_listen_tcp::listen(cluster_addr);
 	rpc_server_args::convert();

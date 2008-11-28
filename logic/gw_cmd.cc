@@ -56,9 +56,10 @@ struct arg_t : rpc_server_args {
 	{
 std::cout <<
 "usage: "<<prog<<" -m <addr[:port]> -p <addr[:port]> [-c port]\n"
-"  -m  <addr[:port="<<CLUSTER_DEFAULT_PORT<<"]>   --manager1      address of manager 1\n"
-"  -p  <addr[:port="<<CLUSTER_DEFAULT_PORT<<"]>   --manager2      address of manager 2\n"
-"  -t  <[addr:]port="<<MEMPROTO_TEXT_DEFAULT_PORT<<">    --memproto-text        memcached text protocol listen port\n"
+"\n"
+"  -m  <addr[:port="<<CLUSTER_DEFAULT_PORT<<"]>   "       "--manager1       address of manager 1\n"
+"  -p  <addr[:port="<<CLUSTER_DEFAULT_PORT<<"]>   "       "--manager2       address of manager 2\n"
+"  -t  <[addr:]port="<<MEMPROTO_TEXT_DEFAULT_PORT<<">   " "--memproto-text  memcached text protocol listen port\n"
 ;
 rpc_server_args::show_usage();
 	}

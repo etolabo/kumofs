@@ -13,23 +13,18 @@ struct arg_t : rpc_cluster_args {
 	struct sockaddr_in partner_in;
 	rpc::address partner;  // convert
 
-	double keepalive_interval;  // sec
-	unsigned long keepalive_interval_usec;  // convert
-
 	sockaddr_in ctlsock_addr_in;
 	int ctlsock_lsock;
 
 	virtual void convert()
 	{
 		partner = rpc::address(partner_in);
-		keepalive_interval_usec = keepalive_interval *1000 *1000;
 		ctlsock_lsock = scoped_listen_tcp::listen(ctlsock_addr_in);
 		rpc_cluster_args::convert();
 	}
 
 	arg_t(int argc, char** argv) :
-		replace_delay_clocks(4),
-		keepalive_interval(2)
+		replace_delay_clocks(4)
 	{
 		using namespace kazuhiki;
 		set_basic_args();
@@ -39,24 +34,20 @@ struct arg_t : rpc_cluster_args {
 				type::connectable(&partner_in, CLUSTER_DEFAULT_PORT));
 		on("-a", "--auto-replace",
 				type::boolean(&auto_replace));
-		on("-SR", "--replace-delay-steps",
+		on("-Rs", "--replace-delay",
 				type::numeric(&replace_delay_clocks, replace_delay_clocks));
-		on("-K", "--keepalive-interval",
-				type::numeric(&keepalive_interval, keepalive_interval));
 		parse(argc, argv);
 	}
 
 	void show_usage()
 	{
 std::cout <<
-"usage: "<<prog<<" -l <addr[:port]> -p <addr[:port]>\n"
+"usage: "<<prog<<" -l <addr[:port="<<CLUSTER_DEFAULT_PORT<<"]> -p <addr[:port="<<CLUSTER_DEFAULT_PORT<<"]>\n"
 "\n"
-"  -c  <path.tch>    --database      database path name\n"
-"  -p  <addr[:port="<<CLUSTER_DEFAULT_PORT<<"]>   --partner       address of master-slave replication partner\n"
-"  -a  <[addr:]port="<<CONTROL_DEFAULT_PORT<<">   --admin       dynamic control socket\n"
-"  -a                --auto-replace  enable auto replacing\n"
-"  -SR <number="<<replace_delay_clocks<<">     --replace-delay-clocks    delay steps of auto replacing\n"
-"  -K  <number="<<keepalive_interval<<">      --keepalive-interval   keepalive interval in seconds.\n"
+"  -p  <addr[:port="<<CLUSTER_DEFAULT_PORT  <<"]>   "      "--partner        master-slave replication partner\n"
+"  -a  <[addr:]port="<<CONTROL_DEFAULT_PORT <<">   "       "--admin          dynamic control socket\n"
+"  -a                        "                             "--auto-replace   enable auto replacing\n"
+"  -Rs <number="<<replace_delay_clocks  <<">            "  "--replace-delay  delay steps of auto replacing\n"
 ;
 rpc_cluster_args::show_usage();
 	}
