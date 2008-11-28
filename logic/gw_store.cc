@@ -191,7 +191,7 @@ RPC_REPLY(ResSet, from, res, err, life,
 
 	} else if( retry->retry_incr(m_cfg_set_retry_num) ) {
 		incr_error_count();
-		if(from->is_lost()) {
+		if(!from || from->is_lost()) {
 			// FIXME renew hash space?
 			// FIXME delayed retry
 			from = server_for(retry->param().key(), retry->param().keylen());
@@ -235,7 +235,7 @@ RPC_REPLY(ResDelete, from, res, err, life,
 
 	} else if( retry->retry_incr(m_cfg_delete_retry_num) ) {
 		incr_error_count();
-		if(from->is_lost()) {
+		if(!from || from->is_lost()) {
 			// FIXME renew hash space?
 			// FIXME delayed retry
 			from = server_for(retry->param().key(), retry->param().keylen());

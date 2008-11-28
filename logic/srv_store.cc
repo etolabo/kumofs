@@ -175,7 +175,7 @@ RPC_REPLY(ResReplicateSet, from, res, err, life,
 	LOG_DEBUG("ResReplicateSet ",res,",",err," remain:",*copy_required);
 	// retry if failed
 	if(!err.is_nil()) {
-		if(from) {
+		if(from && !from->is_lost()) {
 			// FIXME delayed retry?
 			if(retry->retry_incr(5)) {  // FIXME 5
 				retry->call(from, life);
@@ -203,7 +203,7 @@ RPC_REPLY(ResReplicateDelete, from, res, err, life,
 {
 	// retry if failed
 	if(!err.is_nil()) {
-		if(from) {
+		if(from && !from->is_lost()) {
 			// FIXME delayed retry?
 			if(retry->retry_incr(5)) {  // FIXME 5
 				retry->call(from, life);

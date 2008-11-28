@@ -26,6 +26,7 @@ void Server::cluster_dispatch(
 		switch(method) {
 		RPC_DISPATCH(ReplicateSet);
 		RPC_DISPATCH(ReplicateDelete);
+		RPC_DISPATCH(ReplacePropose);
 		RPC_DISPATCH(ReplacePush);
 		default:
 			throw std::runtime_error("unknown method");
