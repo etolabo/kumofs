@@ -153,6 +153,10 @@ RPC_REPLY(ResGet, from, res, err, life,
 		LOG_INFO("Get error: ",err,", fallback to offset +",offset," node");
 
 	} else {
+		if(err.via.u64 == rpc::protocol::TRANSPORT_LOST_ERROR ||
+				err.via.u64 == rpc::protocol::SERVER_ERROR) {
+			renew_hash_space();   // FIXME
+		}
 		get_response ret;
 		ret.error     = 1;  // ERROR
 		ret.life      = life;
@@ -194,7 +198,10 @@ RPC_REPLY(ResSet, from, res, err, life,
 		LOG_WARN("Set error: ",err,", retry ",retry->num_retried());
 
 	} else {
-		renew_hash_space();   // FIXME
+		if(err.via.u64 == rpc::protocol::TRANSPORT_LOST_ERROR ||
+				err.via.u64 == rpc::protocol::SERVER_ERROR) {
+			renew_hash_space();   // FIXME
+		}
 		set_response ret;
 		ret.error     = 1;  // ERROR
 		ret.life      = life;
@@ -234,7 +241,10 @@ RPC_REPLY(ResDelete, from, res, err, life,
 		LOG_WARN("Delete error: ",err,", retry ",retry->num_retried());
 
 	} else {
-		renew_hash_space();   // FIXME
+		if(err.via.u64 == rpc::protocol::TRANSPORT_LOST_ERROR ||
+				err.via.u64 == rpc::protocol::SERVER_ERROR) {
+			renew_hash_space();   // FIXME
+		}
 		delete_response ret;
 		ret.error     = 1;  // ERROR
 		ret.life      = life;

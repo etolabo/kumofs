@@ -36,7 +36,7 @@ namespace {
 
 		void operator() (rpc::shared_peer p)
 		{
-			LOG_WARN("push hash space");
+			LOG_WARN("push hash space to ",(void*)p.get());
 			p->call(protocol::HashSpacePush, arg, life, callback, 10);
 		}
 
