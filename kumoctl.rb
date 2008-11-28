@@ -9,7 +9,7 @@ class KumoManager
 		@pk = MessagePack::Unpacker.new
 		@buffer = ''
 		@nread = 0
-		@seqid = rand(1<<32)
+		@seqid = rand(1<<16)  # FIXME 1 << 32
 		@callback = {}
 	end
 
@@ -60,7 +60,8 @@ class KumoManager
 
 	def send_request_async(cmd, param, &callback)
 		seqid = @seqid
-		@seqid += 1; if @seqid >= 1<<32 then @seqid = 0 end
+		# FIXME 1 << 32
+		@seqid += 1; if @seqid >= 1<<16 then @seqid = 0 end
 		@callback[seqid] = callback if callback
 		send_request(seqid, cmd, param)
 		seqid
