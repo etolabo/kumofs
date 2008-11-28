@@ -128,32 +128,46 @@ void Server::replace_copy(const address& manager_addr, HashSpace& hs)
 	typedef addrs_t::iterator addrs_it;
 
 	addrs_t fault_nodes;
-	{
-		addrs_t src_nodes;
-		addrs_t dst_nodes;
-	
-		srchs.get_active_nodes(src_nodes);
-		dsths.get_active_nodes(dst_nodes);
-	
-		if(src_nodes.empty() || dst_nodes.empty()) {
-			LOG_INFO("empty hash space. skip replacing.");
-			finish_replace_copy(replace_time);
-		}
-	
-		std::sort(src_nodes.begin(), src_nodes.end());
-		std::sort(dst_nodes.begin(), dst_nodes.end());
-	
-		for(addrs_it it(src_nodes.begin()); it != src_nodes.end(); ++it) {
-			if(!std::binary_search(dst_nodes.begin(), dst_nodes.end(), *it)) {
-				fault_nodes.push_back(*it);
-			}
-		}
-	
-		if(std::binary_search(fault_nodes.begin(), fault_nodes.end(), addr())) {
-			LOG_WARN("I'm marked as fault. skip replacing.");
+{
+	addrs_t src_nodes;
+	addrs_t dst_nodes;
+
+	srchs.get_active_nodes(src_nodes);
+	dsths.get_active_nodes(dst_nodes);
+
+	for(addrs_it it(src_nodes.begin()); it != src_nodes.end(); ++it) {
+		LOG_INFO("src active node: ",*it);
+	}
+	for(addrs_it it(dst_nodes.begin()); it != dst_nodes.end(); ++it) {
+		LOG_INFO("dst active node: ",*it);
+	}
+
+	if(src_nodes.empty() || dst_nodes.empty()) {
+		LOG_INFO("empty hash space. skip replacing.");
+		goto skip_replace;
+	}
+
+	std::sort(src_nodes.begin(), src_nodes.end());
+	std::sort(dst_nodes.begin(), dst_nodes.end());
+
+	for(addrs_it it(src_nodes.begin()); it != src_nodes.end(); ++it) {
+		if(!std::binary_search(dst_nodes.begin(), dst_nodes.end(), *it)) {
+			fault_nodes.push_back(*it);
 		}
 	}
 
+	for(addrs_it it(fault_nodes.begin()); it != fault_nodes.end(); ++it) {
+		LOG_INFO("fault node: ",*it);
+	}
+
+	if(std::binary_search(fault_nodes.begin(), fault_nodes.end(), addr())) {
+		LOG_WARN("I'm marked as fault. skip replacing.");
+		goto skip_replace;
+	}
+}
+
+
+{
 	addrs_t Sa;
 	addrs_t Da;
 	addrs_t current_owners;
@@ -168,8 +182,10 @@ void Server::replace_copy(const address& manager_addr, HashSpace& hs)
 	while(m_db.iterator_next(kv)) {
 		const char* key = kv.key();
 		size_t keylen = kv.keylen();
+		const char* meta_val = kv.val();
+		size_t meta_vallen = kv.vallen();
 
-		if(keylen < DBFormat::LEADING_METADATA_SIZE) { continue; }
+		if(meta_vallen < DBFormat::LEADING_METADATA_SIZE) { continue; }
 
 		uint64_t h = HashSpace::hash(key, keylen);
 
@@ -197,9 +213,6 @@ void Server::replace_copy(const address& manager_addr, HashSpace& hs)
 			}
 		}
 
-		const char* meta_val = kv.val();
-		size_t meta_vallen = kv.vallen();
-
 		uint64_t clocktime = DBFormat(meta_val, meta_vallen).clocktime();
 
 		shared_zone z(new mp::zone());
@@ -216,7 +229,9 @@ void Server::replace_copy(const address& manager_addr, HashSpace& hs)
 			}
 		}
 	}
+}
 
+skip_replace:
 	m_whs = hs;
 
 	if(m_replacing.is_finished(replace_time)) {
@@ -326,7 +341,7 @@ try {
 	} else {
 		// key is already deleted while replacing
 		// do nothing
-		LOG_TRACE("obsolete replace push");
+		LOG_TRACE("obsolete or same replace push");
 		response.null();
 	}
 }
