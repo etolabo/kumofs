@@ -239,8 +239,8 @@ void client<Transport, Session>::step_timeout()
 			s->step_timeout(basic_shared_session(s));
 			++it;
 		} else {
-			lock_avoid_ses.push_back(it++);
-			//m_sessions.erase(it++);
+			//lock_avoid_ses.push_back(it++);
+			m_sessions.erase(it++);
 		}
 	}
 

@@ -12,6 +12,32 @@ namespace rpc {
 
 
 class cluster;
+class cluster_transport;
+
+
+class node : public session {
+public:
+	node(session_manager* mgr);
+	~node();
+
+public:
+	const address& addr() const { return m_addr; }
+	bool is_role_set() const { return m_role >= 0; }
+	role_type role() const { return m_role; }
+
+private:
+	address m_addr;
+	friend class cluster;
+
+private:
+	void set_role(role_type role_id) { m_role = role_id; }
+	friend class cluster_transport;
+	short m_role;
+};
+
+typedef mp::shared_ptr<node> shared_node;
+typedef mp::weak_ptr<node>   weak_node;
+
 
 struct cluster_init_sender {
 	cluster_init_sender();
@@ -40,35 +66,29 @@ private:
 	static const short PEER_SERVER  = -2;
 	short m_role;
 
+	struct wait_t {
+		wait_t() { }
+		wait_t(rpc_message& m, msgpack::zone* z) :
+			msg(m), zone(z) { }
+		rpc_message msg;
+		msgpack::zone* zone;
+	};
+	typedef std::vector<wait_t> bind_wait_t;
+	bind_wait_t* m_bind_wait;
+
+	void bind_wait_push(rpc_message& m, auto_zone& z);
+	void bind_wait_clear();
+	void bind_wait_proceed();
+
+private:
+	static void session_bound(mp::iothreads::handler& h, shared_node n);
+	friend class cluster;
+
 private:
 	cluster_transport();
 	cluster_transport(const cluster_transport&);
 };
 
-
-class node : public session {
-public:
-	node(session_manager* mgr);
-	~node();
-
-public:
-	const address& addr() const { return m_addr; }
-	bool is_role_set() const { return m_role >= 0; }
-	role_type role() const { return m_role; }
-
-private:
-	address m_addr;
-	friend class cluster;
-
-private:
-	void set_role(role_type role_id) { m_role = role_id; }
-	friend class cluster_transport;
-	short m_role;
-};
-
-
-typedef mp::shared_ptr<node> shared_node;
-typedef mp::weak_ptr<node>   weak_node;
 
 
 class cluster : protected client<cluster_transport, node> {
@@ -155,7 +175,7 @@ public:
 	server& subsystem();
 
 private:
-	shared_node bind_session(const address& addr);
+	void bind_session(int fd, address addr, role_type role);
 
 	friend class cluster_transport;
 
