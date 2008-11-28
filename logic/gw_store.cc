@@ -146,6 +146,7 @@ RPC_REPLY(ResGet, from, res, err, life,
 		(*callback)(user, ret);
 
 	} else if( retry->retry_incr((NUM_REPLICATION+1) * m_cfg_get_retry_num - 1) ) {
+		incr_error_count();
 		unsigned short offset = retry->num_retried() % (NUM_REPLICATION+1);
 		retry->call(
 				server_for(retry->param().key(), retry->param().keylen(), offset),
@@ -153,8 +154,8 @@ RPC_REPLY(ResGet, from, res, err, life,
 		LOG_INFO("Get error: ",err,", fallback to offset +",offset," node");
 
 	} else {
-		if(err.via.u64 == rpc::protocol::TRANSPORT_LOST_ERROR ||
-				err.via.u64 == rpc::protocol::SERVER_ERROR) {
+		if(err.via.u64 == (uint64_t)rpc::protocol::TRANSPORT_LOST_ERROR ||
+				err.via.u64 == (uint64_t)rpc::protocol::SERVER_ERROR) {
 			renew_hash_space();   // FIXME
 		}
 		get_response ret;
@@ -189,6 +190,7 @@ RPC_REPLY(ResSet, from, res, err, life,
 		(*callback)(user, ret);
 
 	} else if( retry->retry_incr(m_cfg_set_retry_num) ) {
+		incr_error_count();
 		if(from->is_lost()) {
 			// FIXME renew hash space?
 			// FIXME delayed retry
@@ -198,8 +200,8 @@ RPC_REPLY(ResSet, from, res, err, life,
 		LOG_WARN("Set error: ",err,", retry ",retry->num_retried());
 
 	} else {
-		if(err.via.u64 == rpc::protocol::TRANSPORT_LOST_ERROR ||
-				err.via.u64 == rpc::protocol::SERVER_ERROR) {
+		if(err.via.u64 == (uint64_t)rpc::protocol::TRANSPORT_LOST_ERROR ||
+				err.via.u64 == (uint64_t)rpc::protocol::SERVER_ERROR) {
 			renew_hash_space();   // FIXME
 		}
 		set_response ret;
@@ -232,6 +234,7 @@ RPC_REPLY(ResDelete, from, res, err, life,
 		(*callback)(user, ret);
 
 	} else if( retry->retry_incr(m_cfg_delete_retry_num) ) {
+		incr_error_count();
 		if(from->is_lost()) {
 			// FIXME renew hash space?
 			// FIXME delayed retry
@@ -241,8 +244,8 @@ RPC_REPLY(ResDelete, from, res, err, life,
 		LOG_WARN("Delete error: ",err,", retry ",retry->num_retried());
 
 	} else {
-		if(err.via.u64 == rpc::protocol::TRANSPORT_LOST_ERROR ||
-				err.via.u64 == rpc::protocol::SERVER_ERROR) {
+		if(err.via.u64 == (uint64_t)rpc::protocol::TRANSPORT_LOST_ERROR ||
+				err.via.u64 == (uint64_t)rpc::protocol::SERVER_ERROR) {
 			renew_hash_space();   // FIXME
 		}
 		delete_response ret;

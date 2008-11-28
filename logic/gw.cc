@@ -66,5 +66,17 @@ void Gateway::session_lost(const address& addr, shared_session& s)
 }
 
 
+void Gateway::incr_error_count()
+{
+	LOG_DEBUG("increment error count ",m_error_count);
+	if(m_error_count >= m_cfg_renew_threshold) {
+		m_error_count = 0;
+		renew_hash_space();
+	} else {
+		++m_error_count;
+	}
+}
+
+
 }  // namespace kumo
 

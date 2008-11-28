@@ -19,6 +19,8 @@ struct arg_t : rpc_server_args {
 	unsigned short set_retry_num;
 	unsigned short delete_retry_num;
 
+	unsigned short renew_threshold;
+
 	sockaddr_in memproto_text_addr_in;
 	int memproto_text_lsock;  // convert
 
@@ -33,7 +35,8 @@ struct arg_t : rpc_server_args {
 	arg_t(int& argc, char* argv[]) :
 		get_retry_num(5),
 		set_retry_num(20),
-		delete_retry_num(20)
+		delete_retry_num(20),
+		renew_threshold(5)
 	{
 		using namespace kazuhiki;
 		set_basic_args();
@@ -49,6 +52,8 @@ struct arg_t : rpc_server_args {
 				type::numeric(&set_retry_num, set_retry_num));
 		on("-D", "--get-retry",
 				type::numeric(&delete_retry_num, delete_retry_num));
+		on("-rn", "--renew-threshold",
+				type::numeric(&renew_threshold, renew_threshold));
 		parse(argc, argv);
 	}
 
@@ -60,6 +65,10 @@ std::cout <<
 "  -m  <addr[:port="<<CLUSTER_DEFAULT_PORT<<"]>   "       "--manager1       address of manager 1\n"
 "  -p  <addr[:port="<<CLUSTER_DEFAULT_PORT<<"]>   "       "--manager2       address of manager 2\n"
 "  -t  <[addr:]port="<<MEMPROTO_TEXT_DEFAULT_PORT<<">   " "--memproto-text  memcached text protocol listen port\n"
+"  -G  <number="<<get_retry_num<<"> "                     "--get-retry      get retry\n"
+"  -S  <number="<<set_retry_num<<"> "                     "--set-retry      set retry\n"
+"  -D  <number="<<delete_retry_num<<"> "                  "--delete-retry   delete retry\n"
+"  -rn <number="<<renew_threshold<<"> "                   "--renew-threshold renew threshold\n"
 ;
 rpc_server_args::show_usage();
 	}
