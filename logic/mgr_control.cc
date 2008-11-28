@@ -17,9 +17,10 @@ namespace control {
 	};
 
 	enum command_type {
-		GetStatus       = 84,
-		StartReplace    = 85,
-		CreateBackup    = 86,
+		GetStatus			= 84,
+		StartReplace    	= 85,
+		DetachFaultServers	= 86,
+		CreateBackup		= 87,
 	};
 }  // namespace control
 
@@ -41,16 +42,25 @@ void Manager::GetStatus(rpc::responder response)
 
 void Manager::StartReplace(rpc::responder response)
 {
-	// FIXME
 	start_replace();
-	msgpack::type::nil res;
-	response.result(res);
+	response.null();
+}
+
+void Manager::DetachFaultServers(rpc::responder response)
+{
+	ClockTime ct = m_clock.now_incr();
+	m_whs.remove_fault_servers(ct);
+
+	start_replace();
+
+	response.null();
 }
 
 void Manager::CreateBackup(rpc::responder response)
 {
 	// FIXME stub
 	response.null();
+
 }
 
 
@@ -112,6 +122,9 @@ void Manager::ControlConnection::dispatch_request(method_id method, msgobj param
 		iothreads::submit(&ControlConnection::GetStatus, response, m_mgr);
 		break;
 	case control::StartReplace:
+		iothreads::submit(&ControlConnection::StartReplace, response, m_mgr);
+		break;
+	case control::DetachFaultServers:
 		iothreads::submit(&ControlConnection::StartReplace, response, m_mgr);
 		break;
 	case control::CreateBackup:

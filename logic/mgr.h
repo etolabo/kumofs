@@ -78,6 +78,7 @@ public:
 
 	void GetStatus(rpc::responder response);
 	void StartReplace(rpc::responder response);
+	void DetachFaultServers(rpc::responder response);
 	void CreateBackup(rpc::responder response);
 
 private:

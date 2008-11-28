@@ -72,6 +72,7 @@ public:
 	bool remove_server(ClockTime clocktime, const address& addr);
 	bool fault_server(ClockTime clocktime, const address& addr);
 	bool recover_server(ClockTime clocktime, const address& addr);
+	bool remove_fault_servers(ClockTime clocktime);
 
 	bool empty() const;
 

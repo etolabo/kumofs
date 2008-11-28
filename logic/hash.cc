@@ -83,6 +83,25 @@ bool HashSpace::recover_server(ClockTime clocktime, const address& addr)
 	return false;
 }
 
+bool HashSpace::remove_fault_servers(ClockTime clocktime)
+{
+	bool ret = false;
+	for(nodes_t::iterator it(m_nodes.begin()); it != m_nodes.end(); ) {
+		if(!it->is_active()) {
+			ret = true;
+			it = m_nodes.erase(it);
+		} else {
+			++it;
+		}
+	}
+	if(ret) {
+		m_timestamp = clocktime;
+		rehash();
+		return true;
+	}
+	return false;
+}
+
 void HashSpace::add_virtual_nodes(const node& n)
 {
 	uint64_t x = HashSpace::hash(n.addr().dump(), n.addr().dump_size());

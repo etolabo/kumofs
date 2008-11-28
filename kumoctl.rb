@@ -94,14 +94,19 @@ class KumoManager
 		send_request_sync_ex(85, [])
 	end
 
-	def CreateBackup
+	def DetachFaultServers
 		res = send_request_sync(86, [])
+	end
+
+	def CreateBackup
+		res = send_request_sync(87, [])
 	end
 
 end
 
 mgr = KumoManager.new('127.0.0.1', 19799)
-#p mgr.GetStatus
+p mgr.GetStatus
+#p mgr.DetachFaultServers
 p mgr.StartReplace
 
 
