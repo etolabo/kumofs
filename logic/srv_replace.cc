@@ -7,11 +7,13 @@ namespace kumo {
 bool Server::test_replicator_assign(HashSpace& hs, uint64_t h, const address& target)
 {
 	EACH_ASSIGN(hs, h, r,
-			if(r.addr() == target) { return true; }
-			)
+			if(r.is_active()) {  // don't write to fault node
+				if(r.addr() == target) return true;
+			})
 	return false;
 }
 
+/* obsolete code
 bool Server::test_replicator_assign(HashSpace& hs, uint64_t h,
 		const std::vector<address>& targets)
 {
@@ -35,6 +37,7 @@ bool Server::test_replicator_assign(HashSpace& hs, uint64_t h,
 		})
 	return !result.empty();
 }
+*/
 
 
 Server::ReplaceContext::ReplaceContext() :

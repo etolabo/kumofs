@@ -18,25 +18,25 @@ void Server::check_replicator_assign(HashSpace& hs, const char* key, uint32_t ke
 	}
 	uint64_t h = HashSpace::hash(key, keylen);
 	EACH_ASSIGN(hs, h, r,
-			if(r.addr() == addr()) { return; }
-			)
+			if(r.is_active()) {  // don't write to fault node
+				if(r.addr() == addr()) return;
+			})
 	throw std::runtime_error("obsolete hash space");
 }
 
-void Server::check_master_assign(const char* key, uint32_t keylen)
+void Server::check_coordinator_assign(HashSpace& hs, const char* key, uint32_t keylen)
 {
-	if(m_whs.empty()) {
+	if(hs.empty()) {
 		throw std::runtime_error("server not ready");
 	}
 	uint64_t h = HashSpace::hash(key, keylen);
-	EACH_ASSIGN(m_whs, h, r,
+	EACH_ASSIGN(hs, h, r,
 			if(r.is_active()) {  // don't write to fault node
 				if(r.addr() != addr())
 					throw std::runtime_error("obsolete hash space");
 				else
 					return;
-			}
-			)
+			})
 }
 
 
@@ -73,7 +73,7 @@ try {
 			std::string(param.meta_val()+DBFormat::LEADING_METADATA_SIZE,
 				param.meta_vallen()-DBFormat::LEADING_METADATA_SIZE),"'");
 
-	check_master_assign(param.key(), param.keylen());
+	check_coordinator_assign(m_whs, param.key(), param.keylen());
 
 	ClockTime ct(m_clock.now_incr());
 
@@ -124,7 +124,7 @@ RPC_FUNC(Delete, from, response, life, param)
 try {
 	LOG_DEBUG("Delete '",std::string(param.key(),param.keylen()),"'");
 
-	check_master_assign(param.key(), param.keylen());
+	check_coordinator_assign(m_whs, param.key(), param.keylen());
 
 	if(!m_db.erase(param.key(), param.keylen())) {
 		// the key is not stored

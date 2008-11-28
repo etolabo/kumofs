@@ -59,7 +59,7 @@ private:
 
 	// srv_store.cc
 	void check_replicator_assign(HashSpace& hs, const char* key, uint32_t keylen);
-	void check_master_assign(const char* key, uint32_t keylen);
+	void check_coordinator_assign(HashSpace& hs, const char* key, uint32_t keylen);
 
 	typedef RPC_RETRY(ReplicateSet) RetryReplicateSet;
 	RPC_REPLY_DECL(ResReplicateSet, from, res, err, life,
@@ -76,11 +76,13 @@ private:
 	// srv_replace.cc
 	static bool test_replicator_assign(HashSpace& hs, uint64_t h, const address& target);
 
+	/*
 	static bool test_replicator_assign(HashSpace& hs, uint64_t h,
 			const std::vector<address>& targets);
 
 	static bool test_replicator_assign(HashSpace& hs, uint64_t h,
 			const std::vector<address>& targets, std::vector<address>& result);
+			*/
 
 	void replace_delete(shared_node& manager, HashSpace& hs);
 	RPC_REPLY_DECL(ResReplaceDeleteEnd, from, res, err, life);
