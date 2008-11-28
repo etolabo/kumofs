@@ -191,7 +191,6 @@ protected:
 
 	typedef std::vector<int> binds_t;
 	binds_t m_binds;
-	mp::pthread_mutex m_binds_mutex;
 
 	bool m_lost;
 	unsigned short m_connect_retried_count;

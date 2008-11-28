@@ -113,7 +113,6 @@ void basic_session::call(
 {
 	if(m_lost) { throw std::runtime_error("lost session"); }
 
-	mp::pthread_scoped_lock lk(m_binds_mutex);
 	if(!is_bound()) {
 		throw std::runtime_error("session not bound");
 	}
@@ -128,7 +127,6 @@ void basic_session::call(
 			reinterpret_cast<void*>(buf.get()));
 	buf.release();
 
-	lk.unlock();
 	set_callback(msgid, callback, life, timeout_steps);
 }
 
@@ -143,7 +141,6 @@ void session::call(
 
 	if(!life) { life.reset(new mp::zone()); }
 
-	mp::pthread_scoped_lock lk(m_binds_mutex);
 	if(is_bound()) {
 		std::auto_ptr<vrefbuffer> buf(new vrefbuffer());   // FIXME optimize
 		msgid_t msgid = pack(*buf, method, params);
@@ -154,7 +151,6 @@ void session::call(
 			reinterpret_cast<void*>(buf.get()));
 		buf.release();
 
-		lk.unlock();
 		set_callback(msgid, callback, life, timeout_steps);
 
 	} else {
@@ -165,14 +161,12 @@ void session::call(
 		LOG_TRACE("push pending queue ",m_pending_queue.size());
 		// FIXME clear pending queue if it is too big
 
-		lk.unlock();
 		set_callback(msgid, callback, life, timeout_steps);
 	}
 }
 
 inline void session::cancel_pendings()
 {
-	mp::pthread_scoped_lock lk(m_binds_mutex);
 	m_pending_queue.clear();
 }
 

@@ -83,7 +83,6 @@ void basic_session::send_bufferv(vrefbuffer* buf,
 void basic_session::send_response_data(const char* buf,
 		size_t buflen, void (*finalize)(void*), void* data)
 {
-	mp::pthread_scoped_lock lk(m_binds_mutex);
 	if(!is_bound()) {
 		throw std::runtime_error("session not bound");
 	}
@@ -93,7 +92,6 @@ void basic_session::send_response_data(const char* buf,
 void basic_session::send_response_datav(vrefbuffer* buf,
 		void (*finalize)(void*), void* data)
 {
-	mp::pthread_scoped_lock lk(m_binds_mutex);
 	if(!is_bound()) {
 		throw std::runtime_error("session not bound");
 	}
@@ -103,8 +101,6 @@ void basic_session::send_response_datav(vrefbuffer* buf,
 
 bool basic_session::bind_transport(int fd)
 {
-	mp::pthread_scoped_lock lk(m_binds_mutex);
-
 	m_connect_retried_count = 0;
 
 	bool ret = m_binds.empty() ? true : false;
@@ -115,8 +111,6 @@ bool basic_session::bind_transport(int fd)
 
 bool session::bind_transport(int fd)
 {
-	mp::pthread_scoped_lock lk(m_binds_mutex);
-
 	m_connect_retried_count = 0;
 
 	bool ret = m_binds.empty() ? true : false;
@@ -124,8 +118,6 @@ bool session::bind_transport(int fd)
 
 	pending_queue_t pendings;
 	pendings.swap(m_pending_queue);
-
-	lk.unlock();
 
 	for(pending_queue_t::iterator it(pendings.begin()), it_end(pendings.end());
 			it != it_end; ++it) {
@@ -138,10 +130,8 @@ bool session::bind_transport(int fd)
 
 bool basic_session::unbind_transport(int fd, basic_shared_session& self)
 {
-	mp::pthread_scoped_lock lk(m_binds_mutex);
 	m_binds.erase(std::remove(m_binds.begin(), m_binds.end(), fd), m_binds.end());
 	if(m_binds.empty()) {
-		lk.unlock();
 		if(m_manager) {
 			if(mp::iothreads::is_end()) { return true; }
 			mp::iothreads::submit(&session_manager::transport_lost_notify, m_manager, self);
@@ -170,14 +160,12 @@ void basic_session::force_lost(msgobj res, msgobj err)
 
 void basic_session::destroy(msgobj res, msgobj err)
 {
-	//mp::pthread_scoped_lock lk(m_binds_mutex);
 	m_lost = true;
 	basic_shared_session nulls;
 	for(callbacks_t::iterator it(m_callbacks.begin()), it_end(m_callbacks.end());
 			it != it_end; ++it) {
 		it->second.callback_submit(nulls, res, err);
 	}
-	//m_callbacks.clear();
 }
 
 

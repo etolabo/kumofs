@@ -30,7 +30,6 @@ typename client<Transport, Session>::shared_session
 client<Transport, Session>::get_session(const address& addr)
 {
 	LOG_TRACE("get session ",addr);
-	mp::pthread_scoped_lock lk(m_session_mutex);
 	std::pair<typename sessions_t::iterator, typename sessions_t::iterator> pair =
 		m_sessions.equal_range(addr);
 
@@ -38,12 +37,12 @@ client<Transport, Session>::get_session(const address& addr)
 	while(pair.first != pair.second) {
 		s = pair.first->second.lock();
 		if(s && !s->is_lost()) { return s; }
-		++pair.first;
-		//m_sessions.erase(pair.first++);  // lock avoid
+		//++pair.first;
+		m_sessions.erase(pair.first++);
 	}
 	LOG_TRACE("no session exist, connecting ",addr);
 	s.reset(new Session(this));
-	connect_session(addr, s, &lk);
+	connect_session(addr, s);
 	return s;
 }
 
@@ -52,7 +51,6 @@ typename client<Transport, Session>::shared_session
 client<Transport, Session>::create_session(const address& addr)
 {
 	LOG_TRACE("create session ",addr);
-	mp::pthread_scoped_lock lk(m_session_mutex);
 	std::pair<typename sessions_t::iterator, typename sessions_t::iterator> pair =
 		m_sessions.equal_range(addr);
 
@@ -60,8 +58,7 @@ client<Transport, Session>::create_session(const address& addr)
 	while(pair.first != pair.second) {
 		s = pair.first->second.lock();
 		if(s && !s->is_lost()) { return s; }
-		++pair.first;
-		//m_sessions.erase(pair.first++);  // lock avoid
+		m_sessions.erase(pair.first++);
 	}
 	s.reset(new Session(this));
 	return s;
@@ -73,7 +70,6 @@ client<Transport, Session>::add(int fd, const address& addr)
 {
 	shared_session s(new Session(this));
 	mp::iothreads::add<Transport>(fd, s, this);
-	mp::pthread_scoped_lock lk(m_session_mutex);
 	m_sessions.insert( typename sessions_t::value_type(addr, s) );
 	return s;
 }
@@ -81,14 +77,10 @@ client<Transport, Session>::add(int fd, const address& addr)
 
 template <typename Transport, typename Session>
 bool client<Transport, Session>::connect_session(
-		const address& addr, shared_session& s,
-		mp::pthread_scoped_lock* lk)
+		const address& addr, shared_session& s)
 {
 	if(!s->is_lost() && s->is_bound()) { return false; }
 	//if(m_unbounds.find(addr) != m_unbounds.end()) { return false; }
-
-	mp::pthread_scoped_lock xlk;
-	if(!lk) { xlk.relock(m_session_mutex); }
 
 	unbound_entry& entry(m_unbounds[addr]);
 	entry.timeout_steps = m_connect_timeout_steps;
@@ -136,8 +128,6 @@ void client<Transport, Session>::connect_success(const address& addr, int fd)
 	if(mp::iothreads::is_end()) { ::close(fd); return; }
 	LOG_INFO("connect success: ",addr," fd(",fd,")");
 
-	mp::pthread_scoped_lock lk(m_session_mutex);
-
 	typename unbounds_t::iterator it = m_unbounds.find(addr);
 	if(it == m_unbounds.end()) {
 		::close(fd);
@@ -162,8 +152,6 @@ void client<Transport, Session>::connect_failed(const address& addr, int error)
 	if(mp::iothreads::is_end()) { return; }
 	LOG_INFO("connect failed: ",addr,": ",strerror(error));
 
-	mp::pthread_scoped_lock lk(m_session_mutex);
-
 	typename unbounds_t::iterator it(m_unbounds.find(addr));
 	if(it == m_unbounds.end()) {
 		return;
@@ -182,11 +170,8 @@ void client<Transport, Session>::connect_failed(const address& addr, int error)
 			&connect_pack::callback, reinterpret_cast<void*>(asc.get()));
 	asc.release();
 #else
-	shared_session lock_avoid(it->second.session);
-	m_unbounds.erase(it);
-	lk.unlock();
-
-	transport_lost(lock_avoid);
+	shared_session delete_after(it->second.session);
+	transport_lost(delete_after);
 #endif
 }
 
@@ -204,25 +189,14 @@ template <typename Transport, typename Session>
 void client<Transport, Session>::step_timeout()
 {
 	LOG_TRACE("step timeout ",m_connect_timeout_steps);
-	mp::pthread_scoped_lock lk(m_session_mutex);
-
-	typedef std::vector<
-		std::pair<address, shared_session>
-		> lock_avoid_cons_t;
-	lock_avoid_cons_t lock_avoid_cons;
-
-	typedef std::vector<typename sessions_t::iterator> lock_avoid_ses_t;
-	lock_avoid_ses_t lock_avoid_ses;
 
 	for(typename unbounds_t::iterator it(m_unbounds.begin()), it_end(m_unbounds.end());
 			it != it_end; ) {
 		if(it->second.timeout_steps == 0) {
 			address addr(it->second.addr);
-			lock_avoid_cons.push_back( typename lock_avoid_cons_t::value_type(
-						addr, it->second.session
-						) );
-			//connect_timeout(addr, it->second.session);
+			shared_session s(it->second.session);
 			m_unbounds.erase(it++);
+			connect_timeout(addr, s);
 			LOG_DEBUG("connect timed out: ",addr," ",m_unbounds.size());
 		} else {
 			--it->second.timeout_steps;
@@ -239,19 +213,8 @@ void client<Transport, Session>::step_timeout()
 			s->step_timeout(basic_shared_session(s));
 			++it;
 		} else {
-			//lock_avoid_ses.push_back(it++);
 			m_sessions.erase(it++);
 		}
-	}
-
-	lk.unlock();
-	for(typename lock_avoid_ses_t::iterator it(lock_avoid_ses.begin()),
-			it_end(lock_avoid_ses.end()); it != it_end; ++it) {
-		m_sessions.erase(*it);
-	}
-	for(typename lock_avoid_cons_t::iterator it(lock_avoid_cons.begin()),
-			it_end(lock_avoid_cons.end()); it != it_end; ++it) {
-		connect_timeout(it->first, it->second);
 	}
 }
 

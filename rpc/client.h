@@ -58,14 +58,11 @@ public:
 protected:
 	// connect session to the address and return true if
 	// it is not bound.
-	bool connect_session(const address& addr, shared_session& s,
-			mp::pthread_scoped_lock* lk = NULL);
+	bool connect_session(const address& addr, shared_session& s);
 
 private:
 	typedef std::multimap<address, weak_session> sessions_t;
 	sessions_t m_sessions;
-
-	mp::pthread_mutex m_session_mutex;
 
 	struct unbound_entry {
 		shared_session session;
