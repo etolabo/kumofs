@@ -67,8 +67,32 @@ void Manager::CreateBackup(rpc::responder response)
 
 class Manager::ControlConnection : public rpc::connection<ControlConnection> {
 public:
-	ControlConnection(int fd, Manager* mgr);
-	~ControlConnection();
+	ControlConnection(int fd, Manager* mgr) :
+		rpc::connection<ControlConnection>(fd),
+		m_mgr(mgr) { }
+
+	~ControlConnection() { }
+
+private:
+	static void GetStatus(rpc::responder response, Manager* mgr)
+	{
+		mgr->GetStatus(response);
+	}
+
+	static void StartReplace(rpc::responder response, Manager* mgr)
+	{
+		mgr->StartReplace(response);
+	}
+
+	static void DetachFaultServers(rpc::responder response, Manager* mgr)
+	{
+		mgr->DetachFaultServers(response);
+	}
+
+	static void CreateBackup(rpc::responder response, Manager* mgr)
+	{
+		mgr->CreateBackup(response);
+	}
 
 public:
 	void dispatch_request(method_id method, msgobj param, rpc::responder& response, auto_zone& z);
@@ -78,15 +102,31 @@ private:
 	Manager* m_mgr;
 
 private:
-	static void GetStatus(rpc::responder response, Manager* mgr);
-	static void StartReplace(rpc::responder response, Manager* mgr);
-	static void CreateBackup(rpc::responder response, Manager* mgr);
-
-private:
 	ControlConnection();
 	ControlConnection(const ControlConnection&);
 };
 
+
+void Manager::ControlConnection::dispatch_request(method_id method, msgobj param, rpc::responder& response, auto_zone& z)
+{
+	LOG_TRACE("receive control message");
+	switch((control::command_type)method) {
+	case control::GetStatus:
+		iothreads::submit(&ControlConnection::GetStatus, response, m_mgr);
+		break;
+	case control::StartReplace:
+		iothreads::submit(&ControlConnection::StartReplace, response, m_mgr);
+		break;
+	case control::DetachFaultServers:
+		iothreads::submit(&ControlConnection::DetachFaultServers, response, m_mgr);
+		break;
+	case control::CreateBackup:
+		iothreads::submit(&ControlConnection::CreateBackup, response, m_mgr);
+		break;
+	default:
+		throw std::runtime_error("unknown method");
+	}
+}
 
 void Manager::control_checked_accepted(void* data, int fd)
 {
@@ -107,53 +147,9 @@ void Manager::listen_control(int lsock)
 			reinterpret_cast<void*>(this));
 }
 
-Manager::ControlConnection::ControlConnection(int fd, Manager* mgr) :
-	rpc::connection<ControlConnection>(fd),
-	m_mgr(mgr) { }
-
-Manager::ControlConnection::~ControlConnection() { }
-
-
-void Manager::ControlConnection::dispatch_request(method_id method, msgobj param, rpc::responder& response, auto_zone& z)
-{
-	LOG_TRACE("receive control message");
-	switch((control::command_type)method) {
-	case control::GetStatus:
-		iothreads::submit(&ControlConnection::GetStatus, response, m_mgr);
-		break;
-	case control::StartReplace:
-		iothreads::submit(&ControlConnection::StartReplace, response, m_mgr);
-		break;
-	case control::DetachFaultServers:
-		iothreads::submit(&ControlConnection::StartReplace, response, m_mgr);
-		break;
-	case control::CreateBackup:
-		iothreads::submit(&ControlConnection::CreateBackup, response, m_mgr);
-		break;
-	default:
-		throw std::runtime_error("unknown method");
-	}
-}
-
 void Manager::ControlConnection::process_response(msgobj result, msgobj error, msgid_t msgid, auto_zone& z)
 {
 	throw msgpack::type_error();
-}
-
-
-void Manager::ControlConnection::GetStatus(rpc::responder response, Manager* mgr)
-{
-	mgr->GetStatus(response);
-}
-
-void Manager::ControlConnection::StartReplace(rpc::responder response, Manager* mgr)
-{
-	mgr->StartReplace(response);
-}
-
-void Manager::ControlConnection::CreateBackup(rpc::responder response, Manager* mgr)
-{
-	mgr->CreateBackup(response);
 }
 
 

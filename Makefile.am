@@ -11,7 +11,6 @@ libkumo_logic_a_SOURCES = \
 bin_PROGRAMS = kumo-manager kumo-server kumo-gateway
 
 kumo_manager_SOURCES = \
-		control/control.cc \
 		logic/mgr_replace.cc \
 		logic/mgr.cc \
 		logic/mgr_rpc.cc \
@@ -84,7 +83,6 @@ noinst_HEADERS = \
 		logic/mgr_impl.h \
 		logic/gw.h \
 		logic/gw_impl.h \
-		control/control.h \
 		protocol.h \
 		gateway/memproto.h \
 		gateway/memproto_text.h \
