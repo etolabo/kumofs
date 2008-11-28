@@ -71,7 +71,7 @@ void Manager::new_node(address addr, role_type id, shared_node n)
 			return;
 		}
 		LOG_INFO("partner connected ",addr);
-		sync_hash_space();
+		sync_hash_space_partner();
 		return;
 
 	} else if(id == protocol::SERVER) {

@@ -33,7 +33,7 @@ public:
 
 	CLUSTER_DECL(ReplicateSet);
 	CLUSTER_DECL(ReplicateDelete);
-	CLUSTER_DECL(HashSpacePush);
+	CLUSTER_DECL(HashSpaceSync);
 	CLUSTER_DECL(CreateBackup);
 
 	CLUSTER_DECL(ReplaceCopyStart);

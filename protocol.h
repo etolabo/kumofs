@@ -64,7 +64,6 @@ enum message_type {
 	RHashSpaceRequest		= 35,
 
 	// Manager -> Client
-	// Manager -> Server
 	HashSpacePush			= 48,
 
 	// Server -> Server
@@ -75,6 +74,9 @@ enum message_type {
 
 	// Manager -> Manager
 	ReplaceElection			= 80,
+
+	// Manager -> Manager
+	// Manager -> Server
 	HashSpaceSync			= 81,
 
 	// Client -> Server

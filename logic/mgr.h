@@ -48,10 +48,10 @@ private:
 	// mgr_rpc.cc
 	RPC_REPLY_DECL(ResKeepAlive, from, res, err, life);
 
-	void sync_hash_space();
+	void sync_hash_space_servers();
+	void sync_hash_space_partner();
 	RPC_REPLY_DECL(ResHashSpaceSync, from, res, err, life);
 
-	//void push_hash_space();
 	void push_hash_space_clients();
 	RPC_REPLY_DECL(ResHashSpacePush, from, res, err, life);
 

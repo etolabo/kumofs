@@ -14,7 +14,7 @@ void Server::cluster_dispatch(
 	if(role == protocol::MANAGER) {
 		switch(method) {
 		RPC_DISPATCH(KeepAlive);
-		RPC_DISPATCH(HashSpacePush);
+		RPC_DISPATCH(HashSpaceSync);
 		RPC_DISPATCH(ReplaceCopyStart);
 		RPC_DISPATCH(ReplaceDeleteStart);
 		RPC_DISPATCH(CreateBackup);
@@ -60,7 +60,7 @@ void Server::step_timeout()
 void Server::new_node(address addr, role_type id, shared_node n)
 {
 	// XXX
-	LOG_WARN("new node ",id," ",addr);
+	LOG_WARN("new node ",(uint16_t)id," ",addr);
 	if(addr == m_manager1) {
 		renew_r_hash_space();
 		renew_w_hash_space();
@@ -73,7 +73,7 @@ void Server::new_node(address addr, role_type id, shared_node n)
 void Server::lost_node(address addr, role_type id)
 {
 	// XXX
-	LOG_WARN("lost node ",id," ",addr);
+	LOG_WARN("lost node ",(uint16_t)id," ",addr);
 }
 
 

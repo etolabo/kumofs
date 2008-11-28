@@ -101,20 +101,33 @@ RPC_REPLY(ResRHashSpaceRequest, from, res, err, life)
 }
 
 
-
-
-
-CLUSTER_FUNC(HashSpacePush, from, response, life, param)
+CLUSTER_FUNC(HashSpaceSync, from, response, life, param)
 try {
-	LOG_DEBUG("HashSpacePush");
+	LOG_DEBUG("HashSpaceSync");
 
-	if(m_rhs.empty() || m_rhs.clocktime() < param.hsseed().clocktime()) {
-		m_rhs = m_whs = HashSpace(param.hsseed());
+	m_clock.update(param.clock());
+
+	bool ret = false;
+
+	if(!param.wseed().empty() && (m_whs.empty() ||
+			m_whs.clocktime() <= ClockTime(param.wseed().clocktime()))) {
+		m_whs = HashSpace(param.wseed());
+		ret = true;
 	}
 
-	response.result(true);
+	if(!param.rseed().empty() && (m_rhs.empty() ||
+			m_rhs.clocktime() <= ClockTime(param.rseed().clocktime()))) {
+		m_rhs = HashSpace(param.rseed());
+		ret = true;
+	}
+
+	if(ret) {
+		response.result(true);
+	} else {
+		response.null();
+	}
 }
-RPC_CATCH(HashSpacePush, response)
+RPC_CATCH(HashSpaceSync, response)
 
 
 

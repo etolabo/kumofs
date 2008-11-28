@@ -69,9 +69,9 @@ public:
 
 public:
 	void add_server(ClockTime clocktime, const address& addr);
-	void remove_server(ClockTime clocktime, const address& addr);
-	void fault_server(ClockTime clocktime, const address& addr);
-	void recover_server(ClockTime clocktime, const address& addr);
+	bool remove_server(ClockTime clocktime, const address& addr);
+	bool fault_server(ClockTime clocktime, const address& addr);
+	bool recover_server(ClockTime clocktime, const address& addr);
 
 	bool empty() const;
 

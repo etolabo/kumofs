@@ -21,10 +21,12 @@ void Manager::remove_server(const address& addr)
 	LOG_INFO("Remove server ",addr);
 
 	ClockTime ct = m_clock.now_incr();
-	m_whs.fault_server(ct, addr);
-	m_rhs.fault_server(ct, addr);
-	//push_hash_space();
-	push_hash_space_clients();
+	bool wfault = m_whs.fault_server(ct, addr);
+	bool rfault = m_rhs.fault_server(ct, addr);
+	if(wfault || rfault) {
+		sync_hash_space_servers();
+		push_hash_space_clients();
+	}
 
 	m_servers.erase(addr);
 

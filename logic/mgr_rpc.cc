@@ -27,20 +27,6 @@ RPC_CATCH(HashSpaceRequest, response)
 
 
 
-//void Manager::push_hash_space()
-//{
-//	shared_zone life(new mp::zone());
-//	HashSpace::Seed* seed = life->allocate<HashSpace::Seed>(m_whs);
-//	// FIXME protocol::type::HashSpacePush has HashSpace::Seed:
-//	//       not so good efficiency
-//	protocol::type::HashSpacePush arg(*seed);
-//
-//	EACH_ACTIVE_SERVERS_BEGIN(node)
-//		node->call(protocol::HashSpacePush, arg, life, callback, 10);
-//	EACH_ACTIVE_SERVERS_END
-//}
-
-
 namespace {
 	struct each_client_push {
 		each_client_push(HashSpace& hs, rpc::callback_t cb) :
@@ -74,7 +60,21 @@ RPC_REPLY(ResHashSpacePush, from, res, err, life)
 }
 
 
-void Manager::sync_hash_space()
+void Manager::sync_hash_space_servers()
+{
+	shared_zone life(new mp::zone());
+	HashSpace::Seed* wseed = life->allocate<HashSpace::Seed>(m_whs);
+	HashSpace::Seed* rseed = life->allocate<HashSpace::Seed>(m_rhs);
+	protocol::type::HashSpaceSync arg(*wseed, *rseed, m_clock.get_incr());
+
+	rpc::callback_t callback( BIND_RESPONSE(ResHashSpaceSync) );
+	EACH_ACTIVE_SERVERS_BEGIN(node)
+		node->call(protocol::HashSpaceSync, arg, life, callback, 10);
+	EACH_ACTIVE_SERVERS_END
+}
+
+
+void Manager::sync_hash_space_partner()
 {
 	shared_zone life(new mp::zone());
 	HashSpace::Seed* wseed = life->allocate<HashSpace::Seed>(m_whs);
