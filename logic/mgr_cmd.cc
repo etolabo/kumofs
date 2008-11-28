@@ -28,7 +28,7 @@ struct arg_t : rpc_cluster_args {
 	{
 		using namespace kazuhiki;
 		set_basic_args();
-		on("-a", "--admin",
+		on("-c", "--control",
 				type::listenable(&ctlsock_addr_in, CONTROL_DEFAULT_PORT));
 		on("-p", "--partner",  &partner_set,
 				type::connectable(&partner_in, CLUSTER_DEFAULT_PORT));
@@ -42,10 +42,10 @@ struct arg_t : rpc_cluster_args {
 	void show_usage()
 	{
 std::cout <<
-"usage: "<<prog<<" -l <addr[:port="<<CLUSTER_DEFAULT_PORT<<"]> -p <addr[:port="<<CLUSTER_DEFAULT_PORT<<"]>\n"
+"usage: "<<prog<<" -l <addr[:port="<<CLUSTER_DEFAULT_PORT<<"]> -p <addr[:port="<<CLUSTER_DEFAULT_PORT<<"]> [-c port="<<CONTROL_DEFAULT_PORT<<"]\n"
 "\n"
 "  -p  <addr[:port="<<CLUSTER_DEFAULT_PORT  <<"]>   "      "--partner        master-slave replication partner\n"
-"  -a  <[addr:]port="<<CONTROL_DEFAULT_PORT <<">   "       "--admin          dynamic control socket\n"
+"  -c  <[addr:]port="<<CONTROL_DEFAULT_PORT <<">   "       "--control          dynamic control socket\n"
 "  -a                        "                             "--auto-replace   enable auto replacing\n"
 "  -Rs <number="<<replace_delay_clocks  <<">            "  "--replace-delay  delay steps of auto replacing\n"
 ;

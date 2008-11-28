@@ -124,6 +124,7 @@ void cluster_transport::process_message(msgobj msg, auto_zone& z)
 			// cluster node
 			LOG_TRACE("receive init message: ",(uint16_t)init.role_id()," ",init.addr());
 
+			m_role = init.role_id();
 			if(!m_session) {
 				if(!init.addr().connectable()) {
 					throw std::runtime_error("invalid address");
@@ -143,8 +144,6 @@ void cluster_transport::process_message(msgobj msg, auto_zone& z)
 							mp::static_pointer_cast<node>(m_session));
 				}
 			}
-
-			m_role = init.role_id();
 			return;
 
 		} else {

@@ -80,7 +80,7 @@ void Manager::new_node(address addr, role_type id, shared_node n)
 		return;
 
 	} else {
-		LOG_ERROR("unkown node id ",id);
+		LOG_ERROR("unkown node id ",(uint16_t)id);
 	}
 }
 
