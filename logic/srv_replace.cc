@@ -13,32 +13,6 @@ bool Server::test_replicator_assign(HashSpace& hs, uint64_t h, const address& ta
 	return false;
 }
 
-/* obsolete code
-bool Server::test_replicator_assign(HashSpace& hs, uint64_t h,
-		const std::vector<address>& targets)
-{
-	EACH_ASSIGN(hs, h, r, {
-			if(r.is_active())
-				for(std::vector<address>::const_iterator it(targets.begin()),
-						it_end(targets.end()); it != it_end; ++it)
-					if(r.addr() == *it) return true;
-		})
-	return false;
-}
-
-bool Server::test_replicator_assign(HashSpace& hs, uint64_t h,
-		const std::vector<address>& targets, std::vector<address>& result)
-{
-	EACH_ASSIGN(hs, h, r, {
-		if(r.is_active())
-			for(std::vector<address>::const_iterator it(targets.begin()),
-					it_end(targets.end()); it != it_end; ++it)
-				if(r.addr() == *it) result.push_back(*it);
-		})
-	return !result.empty();
-}
-*/
-
 
 Server::ReplaceContext::ReplaceContext() :
 	m_propose_waiting(0),
