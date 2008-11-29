@@ -32,21 +32,6 @@ CONTROL_IMPL(DetachFaultServers, param, response)
 	response.null();
 }
 
-CONTROL_IMPL(SetAutoReplace, param, response)
-{
-	// FIXME stub
-	if(m_cfg_auto_replace && !param.enable()) {
-		m_cfg_auto_replace = false;
-		response.result(false);
-	} else if(!m_cfg_auto_replace && param.enable()) {
-		m_cfg_auto_replace = true;
-		attach_new_servers();
-		detach_fault_servers();
-		response.result(true);
-	}
-	response.null();
-}
-
 CONTROL_IMPL(CreateBackup, param, response)
 {
 	if(param.suffix().empty()) {
@@ -64,7 +49,21 @@ CONTROL_IMPL(CreateBackup, param, response)
 }
 
 RPC_REPLY(ResCreateBackup, from, res, err, life)
+{ }
+
+CONTROL_IMPL(SetAutoReplace, param, response)
 {
+	// FIXME stub
+	if(m_cfg_auto_replace && !param.enable()) {
+		m_cfg_auto_replace = false;
+		response.result(false);
+	} else if(!m_cfg_auto_replace && param.enable()) {
+		m_cfg_auto_replace = true;
+		attach_new_servers();
+		detach_fault_servers();
+		response.result(true);
+	}
+	response.null();
 }
 
 
@@ -102,6 +101,7 @@ void Manager::ControlConnection::dispatch_request(method_id method, msgobj param
 	CONTROL_DISPATCH(AttachNewServers);
 	CONTROL_DISPATCH(DetachFaultServers);
 	CONTROL_DISPATCH(CreateBackup);
+	CONTROL_DISPATCH(SetAutoReplace);
 	default:
 		throw std::runtime_error("unknown method");
 	}

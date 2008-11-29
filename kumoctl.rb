@@ -122,16 +122,20 @@ class KumoManager
 		return [nodes, newcomers, date, clock]
 	end
 
-	def AttachNewServers
-		send_request_sync_ex(85, [])
+	def AttachNewServers(replace)
+		send_request_sync_ex(85, [replace])
 	end
 
-	def DetachFaultServers
-		res = send_request_sync(86, [])
+	def DetachFaultServers(replace)
+		send_request_sync_ex(86, [replace])
 	end
 
 	def CreateBackup(suffix)
-		res = send_request_sync(87, [suffix])
+		send_request_sync_ex(87, [suffix])
+	end
+
+	def SetAutoReplace(enable)
+		send_request_sync_ex(88, [enable])
 	end
 
 	CONTROL_DEFAULT_PORT = 19799
@@ -145,7 +149,11 @@ def usage
 	puts "command:"
 	puts "   stat                       get status"
 	puts "   attach                     attach all new servers and start replace"
+	puts "   attach-noreplace           attach all new servers"
 	puts "   detach                     detach all fault servers and start replace"
+	puts "   detach-noreplace           detach all fault servers"
+	puts "   enable-auto-replace        enable auto replace"
+	puts "   disable-auto-replace       disable auto replace"
 	puts "   backup  [suffix=#{$now }]  create backup with specified suffix"
 	exit 1
 end
@@ -177,11 +185,27 @@ when "stat"
 
 when "attach"
 	usage if ARGV.length != 0
-	p KumoManager.new(host, port).AttachNewServers
+	p KumoManager.new(host, port).AttachNewServers(true)
+
+when "attach-noreplace"
+	usage if ARGV.length != 0
+	p KumoManager.new(host, port).AttachNewServers(false)
 
 when "detach"
 	usage if ARGV.length != 0
-	p KumoManager.new(host, port).DetachFaultServers
+	p KumoManager.new(host, port).DetachFaultServers(true)
+
+when "detach-noreplace"
+	usage if ARGV.length != 0
+	p KumoManager.new(host, port).DetachFaultServers(false)
+
+when "enable-auto-replace"
+	usage if ARGV.length != 0
+	p KumoManager.new(host, port).SetAutoReplace(true)
+
+when "disable-auto-replace"
+	usage if ARGV.length != 0
+	p KumoManager.new(host, port).SetAutoReplace(false)
 
 when "backup"
 	if ARGV.length == 0
