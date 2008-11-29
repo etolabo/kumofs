@@ -18,27 +18,36 @@ CONTROL_IMPL(GetStatus, param, response)
 	response.result(res);
 }
 
-CONTROL_IMPL(AttachNewServers, parma, response)
+CONTROL_IMPL(AttachNewServers, param, response)
 {
 	attach_new_servers();
 	start_replace();
 	response.null();
 }
 
-CONTROL_IMPL(DetachFaultServers, parma, response)
+CONTROL_IMPL(DetachFaultServers, param, response)
 {
 	detach_fault_servers();
 	start_replace();
 	response.null();
 }
 
-CONTROL_IMPL(SetAutoReplace, parma, response)
+CONTROL_IMPL(SetAutoReplace, param, response)
 {
 	// FIXME stub
+	if(m_cfg_auto_replace && !param.enable()) {
+		m_cfg_auto_replace = false;
+		response.result(false);
+	} else if(!m_cfg_auto_replace && param.enable()) {
+		m_cfg_auto_replace = true;
+		attach_new_servers();
+		detach_fault_servers();
+		response.result(true);
+	}
 	response.null();
 }
 
-CONTROL_IMPL(CreateBackup, parma, response)
+CONTROL_IMPL(CreateBackup, param, response)
 {
 	// FIXME stub
 	response.null();
@@ -52,27 +61,6 @@ public:
 		m_mgr(mgr) { }
 
 	~ControlConnection() { }
-
-private:
-	static void GetStatus(rpc::responder response, Manager* mgr)
-	{
-		mgr->GetStatus(response);
-	}
-
-	static void AttachNewServers(rpc::responder response, Manager* mgr)
-	{
-		mgr->AttachNewServers(response);
-	}
-
-	static void DetachFaultServers(rpc::responder response, Manager* mgr)
-	{
-		mgr->DetachFaultServers(response);
-	}
-
-	static void CreateBackup(rpc::responder response, Manager* mgr)
-	{
-		mgr->CreateBackup(response);
-	}
 
 public:
 	void dispatch_request(method_id method, msgobj param, rpc::responder& response, auto_zone& z);
@@ -89,7 +77,7 @@ private:
 
 #define CONTROL_DISPATCH(NAME) \
 	case control::NAME: \
-		iothreads::submit(&Manager::NAME, m_mgr, param.as<control::type::NAME>, response); \
+		iothreads::submit(&Manager::NAME, m_mgr, param.as<control::type::NAME>(), response); \
 		break
 
 void Manager::ControlConnection::dispatch_request(method_id method, msgobj param, rpc::responder& response, auto_zone& z)
