@@ -95,7 +95,7 @@ private:
 
 void Manager::ControlConnection::dispatch_request(method_id method, msgobj param, rpc::responder& response, auto_zone& z)
 {
-	LOG_TRACE("receive control message");
+	LOG_TRACE("receive control message: ",param);
 	switch((control::command_type)method) {
 	CONTROL_DISPATCH(GetStatus);
 	CONTROL_DISPATCH(AttachNewServers);
