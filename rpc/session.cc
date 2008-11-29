@@ -131,7 +131,9 @@ bool session::bind_transport(int fd)
 
 bool basic_session::unbind_transport(int fd, basic_shared_session& self)
 {
-	m_binds.erase(std::remove(m_binds.begin(), m_binds.end(), fd), m_binds.end());
+	binds_t::iterator remove_from =
+		std::remove(m_binds.begin(), m_binds.end(), fd);
+	m_binds.erase(remove_from, m_binds.end());
 	if(m_binds.empty()) {
 		if(m_manager) {
 			if(mp::iothreads::is_end()) { return true; }

@@ -122,7 +122,7 @@ class KumoManager
 		return [nodes, newcomers, date, clock]
 	end
 
-	def StartReplace
+	def AttachNewServers
 		send_request_sync_ex(85, [])
 	end
 
@@ -144,8 +144,8 @@ def usage
 	puts "Usage: #{$0} address[:port=#{KumoManager::CONTROL_DEFAULT_PORT}] command [options]"
 	puts "command:"
 	puts "   stat                       get status"
-	puts "   replace                    start replace"
-	puts "   detach                     detach all fault servers"
+	puts "   attach                     attach all new servers and start replace"
+	puts "   detach                     detach all fault servers and start replace"
 	puts "   backup  [suffix=#{$now }]  create backup with specified suffix"
 	exit 1
 end
@@ -175,9 +175,9 @@ when "stat"
 		puts "  #{addr}:#{port}"
 	}
 
-when "replace"
+when "attach"
 	usage if ARGV.length != 0
-	p KumoManager.new(host, port).StartReplace
+	p KumoManager.new(host, port).AttachNewServers
 
 when "detach"
 	usage if ARGV.length != 0

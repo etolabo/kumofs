@@ -18,9 +18,10 @@ namespace control {
 
 	enum command_type {
 		GetStatus			= 84,
-		StartReplace    	= 85,
+		AttachNewServers   	= 85,
 		DetachFaultServers	= 86,
 		CreateBackup		= 87,
+		SetAutoReplace      = 88,
 	};
 }  // namespace control
 
@@ -40,29 +41,29 @@ void Manager::GetStatus(rpc::responder response)
 	response.result(res);
 }
 
-void Manager::StartReplace(rpc::responder response)
+void Manager::AttachNewServers(rpc::responder response)
 {
+	attach_new_servers();
 	start_replace();
 	response.null();
 }
 
 void Manager::DetachFaultServers(rpc::responder response)
 {
-	ClockTime ct = m_clock.now_incr();
-	m_whs.remove_fault_servers(ct);
-
+	detach_fault_servers();
 	start_replace();
-
 	response.null();
 }
+
+//void Manager::SetAutoReplace(rpc::response response)
+//{
+//}
 
 void Manager::CreateBackup(rpc::responder response)
 {
 	// FIXME stub
 	response.null();
-
 }
-
 
 
 class Manager::ControlConnection : public rpc::connection<ControlConnection> {
@@ -79,9 +80,9 @@ private:
 		mgr->GetStatus(response);
 	}
 
-	static void StartReplace(rpc::responder response, Manager* mgr)
+	static void AttachNewServers(rpc::responder response, Manager* mgr)
 	{
-		mgr->StartReplace(response);
+		mgr->AttachNewServers(response);
 	}
 
 	static void DetachFaultServers(rpc::responder response, Manager* mgr)
@@ -114,8 +115,8 @@ void Manager::ControlConnection::dispatch_request(method_id method, msgobj param
 	case control::GetStatus:
 		iothreads::submit(&ControlConnection::GetStatus, response, m_mgr);
 		break;
-	case control::StartReplace:
-		iothreads::submit(&ControlConnection::StartReplace, response, m_mgr);
+	case control::AttachNewServers:
+		iothreads::submit(&ControlConnection::AttachNewServers, response, m_mgr);
 		break;
 	case control::DetachFaultServers:
 		iothreads::submit(&ControlConnection::DetachFaultServers, response, m_mgr);

@@ -85,6 +85,8 @@ public:
 	void nodes_diff(const HashSpace& other, std::vector<address>& result) const;
 
 	bool server_is_include(const address& addr) const;
+	bool server_is_active(const address& addr) const;
+	bool server_is_fault(const address& addr) const;
 
 private:
 	void add_virtual_nodes(const node& n);
@@ -258,8 +260,31 @@ inline void HashSpace::nodes_diff(const HashSpace& other, std::vector<address>& 
 
 inline bool HashSpace::server_is_include(const address& addr) const
 {
-	return std::find_if(m_nodes.begin(), m_nodes.end(),
+	return std::find_if(
+			m_nodes.begin(), m_nodes.end(),
 			node_address_equal(addr)) != m_nodes.end();
+}
+
+inline bool HashSpace::server_is_active(const address& addr) const
+{
+	nodes_t::const_iterator it = std::find_if(
+			m_nodes.begin(), m_nodes.end(),
+			node_address_equal(addr));
+	if(it != m_nodes.end() && it->is_active()) {
+		return true;
+	}
+	return false;
+}
+
+inline bool HashSpace::server_is_fault(const address& addr) const
+{
+	nodes_t::const_iterator it = std::find_if(
+			m_nodes.begin(), m_nodes.end(),
+			node_address_equal(addr));
+	if(it != m_nodes.end() && !it->is_active()) {
+		return true;
+	}
+	return false;
 }
 
 

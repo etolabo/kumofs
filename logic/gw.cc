@@ -72,6 +72,7 @@ void Gateway::incr_error_count()
 	if(m_error_count >= m_cfg_renew_threshold) {
 		m_error_count = 0;
 		renew_hash_space();
+		sleep(1);   // FIXME ad-hoc delay
 	} else {
 		++m_error_count;
 	}

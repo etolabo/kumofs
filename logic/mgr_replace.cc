@@ -6,9 +6,11 @@ namespace kumo {
 
 void Manager::add_server(const address& addr, shared_node& s)
 {
-	LOG_INFO("Add server ",s->addr());
+	LOG_INFO("server connected",s->addr());
 
-	m_newcomer_servers.push_back( weak_node(s) );
+	if(!m_whs.server_is_fault(addr)) {
+		m_newcomer_servers.push_back( weak_node(s) );
+	}
 
 	if(m_cfg_auto_replace) {
 		// delayed replace
@@ -18,19 +20,30 @@ void Manager::add_server(const address& addr, shared_node& s)
 
 void Manager::remove_server(const address& addr)
 {
-	LOG_INFO("Remove server ",addr);
+	LOG_INFO("server lost",addr);
 
 	ClockTime ct = m_clock.now_incr();
 	bool wfault = m_whs.fault_server(ct, addr);
 	bool rfault = m_rhs.fault_server(ct, addr);
 	if(wfault || rfault) {
-		sync_hash_space_servers();
-		push_hash_space_clients();
+		if(!m_cfg_auto_replace) {
+			sync_hash_space_partner();
+			sync_hash_space_servers();
+			push_hash_space_clients();
+		}
 	}
 
 	m_servers.erase(addr);
 
-	// FIXME check m_newcomer_servers
+	for(newcomer_servers_t::iterator it(m_newcomer_servers.begin()), it_end(m_newcomer_servers.end());
+			it != it_end; ) {
+		shared_node n(it->lock());
+		if(!n || n->addr() == addr) {
+			it = m_newcomer_servers.erase(it);
+		} else {
+			++it;
+		}
+	}
 
 	if(m_cfg_auto_replace) {
 		// delayed replace
@@ -87,6 +100,41 @@ RPC_REPLY(ResReplaceElection, from, res, err, life)
 
 
 
+void Manager::attach_new_servers()
+{
+	// update hash space
+	ClockTime ct = m_clock.now_incr();
+	LOG_INFO("update hash space at time(",ct.get(),")");
+	for(newcomer_servers_t::iterator it(m_newcomer_servers.begin()), it_end(m_newcomer_servers.end());
+			it != it_end; ++it) {
+		shared_node srv(it->lock());
+		if(srv) {
+			if(m_whs.server_is_include(srv->addr())) {
+				LOG_INFO("recover server: ",srv->addr());
+				m_whs.recover_server(ct, srv->addr());
+			} else {
+				LOG_INFO("new server: ",srv->addr());
+				m_whs.add_server(ct, srv->addr());
+			}
+			m_servers[srv->addr()] = *it;
+		}
+	}
+	m_newcomer_servers.clear();
+	sync_hash_space_partner();
+	sync_hash_space_servers();
+	push_hash_space_clients();
+}
+
+void Manager::detach_fault_servers()
+{
+	ClockTime ct = m_clock.now_incr();
+	m_whs.remove_fault_servers(ct);
+	sync_hash_space_partner();
+	sync_hash_space_servers();
+	push_hash_space_clients();
+}
+
+
 Manager::ReplaceContext::ReplaceContext() :
 	m_num(0), m_clocktime(0) {}
 
@@ -117,28 +165,8 @@ bool Manager::ReplaceContext::pop(ClockTime ct)
 }
 
 
-
 void Manager::start_replace()
 {
-	// update hash space
-	ClockTime ct = m_clock.now_incr();
-	LOG_INFO("update hash space at time(",ct.get(),")");
-	for(newcomer_servers_t::iterator it(m_newcomer_servers.begin()), it_end(m_newcomer_servers.end());
-			it != it_end; ++it) {
-		shared_node srv(it->lock());
-		if(srv) {
-			if(m_whs.server_is_include(srv->addr())) {
-				LOG_INFO("recover server: ",srv->addr());
-				m_whs.recover_server(ct, srv->addr());
-			} else {
-				LOG_INFO("new server: ",srv->addr());
-				m_whs.add_server(ct, srv->addr());
-			}
-			m_servers[srv->addr()] = *it;
-		}
-	}
-	m_newcomer_servers.clear();
-
 	LOG_INFO("start replace copy");
 
 	shared_zone life(new mp::zone());

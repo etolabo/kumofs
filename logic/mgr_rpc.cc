@@ -76,6 +76,7 @@ void Manager::sync_hash_space_servers()
 
 void Manager::sync_hash_space_partner()
 {
+	if(!m_partner.connectable()) { return; }
 	shared_zone life(new mp::zone());
 	HashSpace::Seed* wseed = life->allocate<HashSpace::Seed>(m_whs);
 	HashSpace::Seed* rseed = life->allocate<HashSpace::Seed>(m_rhs);

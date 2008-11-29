@@ -49,7 +49,8 @@ void HashSpace::add_server(ClockTime clocktime, const address& addr)
 bool HashSpace::remove_server(ClockTime clocktime, const address& addr)
 {
 	nodes_t::iterator it =
-		std::find_if(m_nodes.begin(), m_nodes.end(), node_address_equal(addr));
+		std::find_if(m_nodes.begin(), m_nodes.end(),
+				node_address_equal(addr));
 	if(it != m_nodes.end()) {
 		m_nodes.erase(it);
 		m_timestamp = clocktime;
@@ -62,7 +63,8 @@ bool HashSpace::remove_server(ClockTime clocktime, const address& addr)
 bool HashSpace::fault_server(ClockTime clocktime, const address& addr)
 {
 	nodes_t::iterator it =
-		std::find_if(m_nodes.begin(), m_nodes.end(), node_address_equal(addr));
+		std::find_if(m_nodes.begin(), m_nodes.end(),
+				node_address_equal(addr));
 	if(it != m_nodes.end()) {
 		it->fault();
 		m_timestamp = clocktime;
@@ -74,7 +76,8 @@ bool HashSpace::fault_server(ClockTime clocktime, const address& addr)
 bool HashSpace::recover_server(ClockTime clocktime, const address& addr)
 {
 	nodes_t::iterator it =
-		std::find_if(m_nodes.begin(), m_nodes.end(), node_address_equal(addr));
+		std::find_if(m_nodes.begin(), m_nodes.end(),
+				node_address_equal(addr));
 	if(it != m_nodes.end()) {
 		it->recover();
 		m_timestamp = clocktime;

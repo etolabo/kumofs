@@ -63,6 +63,9 @@ private:
 
 	RPC_REPLY_DECL(ResReplaceElection, from, res, err, life);
 
+	void attach_new_servers();
+	void detach_fault_servers();
+
 	void start_replace();
 	RPC_REPLY_DECL(ResReplaceCopyStart, from, res, err, life);
 	RPC_REPLY_DECL(ResReplaceDeleteStart, from, res, err, life);
@@ -77,7 +80,7 @@ public:
 	void listen_control(int lsock);
 
 	void GetStatus(rpc::responder response);
-	void StartReplace(rpc::responder response);
+	void AttachNewServers(rpc::responder response);
 	void DetachFaultServers(rpc::responder response);
 	void CreateBackup(rpc::responder response);
 
