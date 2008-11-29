@@ -30,7 +30,7 @@ namespace kumo {
 	for(servers_t::iterator _it_(m_servers.begin()), it_end(m_servers.end()); \
 			_it_ != it_end; ++_it_) { \
 		shared_node NODE(_it_->second.lock()); \
-		if(NODE && !NODE->is_lost()) {
+		if(SESSION_IS_ACTIVE(NODE)) {
 			// FIXME m_servers.erase(it) ?
 
 #define EACH_ACTIVE_SERVERS_END \
@@ -42,7 +42,7 @@ namespace kumo {
 	for(newcomer_servers_t::iterator _it_(m_newcomer_servers.begin()), it_end(m_newcomer_servers.end()); \
 			_it_ != it_end; ++_it_) { \
 		shared_node NODE(_it_->lock()); \
-		if(NODE && !NODE->is_lost()) {
+		if(SESSION_IS_ACTIVE(NODE)) {
 			// FIXME m_newcomer_servers.erase(it) ?
 
 #define EACH_ACTIVE_NEW_COMERS_END \

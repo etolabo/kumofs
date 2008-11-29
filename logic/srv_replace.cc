@@ -353,7 +353,7 @@ RPC_REPLY(ResReplacePropose, from, res, err, life,
 {
 	// retry if failed
 	if(!err.is_nil()) {
-		if(from && !from->is_lost()) {
+		if(SESSION_IS_ACTIVE(from)) {
 			// FIXME delayed retry
 			if(retry->retry_incr(20)) {  // FIXME 20
 				retry->call(from, life);
@@ -366,7 +366,7 @@ RPC_REPLY(ResReplacePropose, from, res, err, life,
 
 	m_replacing.propose_returned(replace_time);
 
-	if(!res.is_nil() && from && !from->is_lost()) {
+	if(!res.is_nil() && SESSION_IS_ACTIVE(from)) {
 		const char* key = retry->param().key();
 		size_t keylen = retry->param().keylen();
 		uint32_t meta_vallen;
@@ -387,7 +387,7 @@ RPC_REPLY(ResReplacePush, from, res, err, life,
 {
 	// retry if failed
 	if(!err.is_nil()) {
-		if(from && !from->is_lost()) {
+		if(SESSION_IS_ACTIVE(from)) {
 			// FIXME delayed retry
 			if(retry->retry_incr(20)) {  // FIXME 20
 				retry->call(from, life);

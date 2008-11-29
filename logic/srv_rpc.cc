@@ -52,7 +52,7 @@ RPC_REPLY(ResWHashSpaceRequest, from, res, err, life)
 	// FIXME is this function needed?
 	if(!err.is_nil()) {
 		LOG_DEBUG("WHashSpaceRequest failed ",err);
-		if(from && !from->is_lost()) {
+		if(SESSION_IS_ACTIVE(from)) {
 			shared_zone nullz;
 			protocol::type::WHashSpaceRequest arg;
 			//              ^
@@ -79,7 +79,7 @@ RPC_REPLY(ResRHashSpaceRequest, from, res, err, life)
 	// FIXME is this function needed?
 	if(!err.is_nil()) {
 		LOG_DEBUG("WHashSpaceRequest failed ",err);
-		if(from && !from->is_lost()) {
+		if(SESSION_IS_ACTIVE(from)) {
 			shared_zone nullz;
 			protocol::type::RHashSpaceRequest arg;
 			//              ^

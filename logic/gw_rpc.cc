@@ -32,7 +32,7 @@ RPC_REPLY(ResHashSpaceRequest, from, res, err, life)
 {
 	if(!err.is_nil()) {
 		LOG_DEBUG("HashSpaceRequest failed ",err);
-		if(from && !from->is_lost()) {
+		if(SESSION_IS_ACTIVE(from)) {
 			shared_zone nullz;
 			protocol::type::HashSpaceRequest arg;
 

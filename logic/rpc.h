@@ -111,6 +111,11 @@ private:
 	retry_pack(const retry_pack&);
 };
 
+
+#define SESSION_IS_ACTIVE(SESSION) \
+	(SESSION && !SESSION->is_lost())
+
+
 #define RPC_RETRY(NAME) \
 	retry_pack<protocol::NAME, protocol::type::NAME>
 
