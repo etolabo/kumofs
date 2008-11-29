@@ -1,35 +1,12 @@
 #include "logic/mgr_impl.h"
+#include "logic/mgr_control.h"
 
 namespace kumo {
 
 
-namespace control {
-	using msgpack::define;
-	using msgpack::type::tuple;
-	using msgpack::type::raw_ref;
-	typedef HashSpace::Seed HSSeed;
-
-	struct Status : define< tuple<
-			HSSeed,
-			std::vector<address> > > {
-		HSSeed& hsseed() { return get<0>(); }
-		std::vector<address>& newcomers() { return get<1>(); }
-	};
-
-	enum command_type {
-		GetStatus			= 84,
-		AttachNewServers   	= 85,
-		DetachFaultServers	= 86,
-		CreateBackup		= 87,
-		SetAutoReplace      = 88,
-	};
-}  // namespace control
-
-
-void Manager::GetStatus(rpc::responder response)
+CONTROL_IMPL(GetStatus, param, response)
 {
-	// FIXME stub
-	control::Status res;
+	control::type::Status res;
 	res.hsseed() = HashSpace::Seed(m_whs);
 	for(newcomer_servers_t::iterator it(m_newcomer_servers.begin()), it_end(m_newcomer_servers.end());
 			it != it_end; ++it) {
@@ -41,25 +18,27 @@ void Manager::GetStatus(rpc::responder response)
 	response.result(res);
 }
 
-void Manager::AttachNewServers(rpc::responder response)
+CONTROL_IMPL(AttachNewServers, parma, response)
 {
 	attach_new_servers();
 	start_replace();
 	response.null();
 }
 
-void Manager::DetachFaultServers(rpc::responder response)
+CONTROL_IMPL(DetachFaultServers, parma, response)
 {
 	detach_fault_servers();
 	start_replace();
 	response.null();
 }
 
-//void Manager::SetAutoReplace(rpc::response response)
-//{
-//}
+CONTROL_IMPL(SetAutoReplace, parma, response)
+{
+	// FIXME stub
+	response.null();
+}
 
-void Manager::CreateBackup(rpc::responder response)
+CONTROL_IMPL(CreateBackup, parma, response)
 {
 	// FIXME stub
 	response.null();
@@ -108,22 +87,19 @@ private:
 };
 
 
+#define CONTROL_DISPATCH(NAME) \
+	case control::NAME: \
+		iothreads::submit(&Manager::NAME, m_mgr, param.as<control::type::NAME>, response); \
+		break
+
 void Manager::ControlConnection::dispatch_request(method_id method, msgobj param, rpc::responder& response, auto_zone& z)
 {
 	LOG_TRACE("receive control message");
 	switch((control::command_type)method) {
-	case control::GetStatus:
-		iothreads::submit(&ControlConnection::GetStatus, response, m_mgr);
-		break;
-	case control::AttachNewServers:
-		iothreads::submit(&ControlConnection::AttachNewServers, response, m_mgr);
-		break;
-	case control::DetachFaultServers:
-		iothreads::submit(&ControlConnection::DetachFaultServers, response, m_mgr);
-		break;
-	case control::CreateBackup:
-		iothreads::submit(&ControlConnection::CreateBackup, response, m_mgr);
-		break;
+	CONTROL_DISPATCH(GetStatus);
+	CONTROL_DISPATCH(AttachNewServers);
+	CONTROL_DISPATCH(DetachFaultServers);
+	CONTROL_DISPATCH(CreateBackup);
 	default:
 		throw std::runtime_error("unknown method");
 	}

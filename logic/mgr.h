@@ -2,6 +2,7 @@
 #define LOGIC_MGR_H__
 
 #include "logic/cluster.h"
+#include "logic/mgr_control.h"
 #include "rpc/server.h"
 #include "rpc/sbuffer.h"
 
@@ -79,10 +80,11 @@ public:
 	static void control_checked_accepted(void* data, int fd);
 	void listen_control(int lsock);
 
-	void GetStatus(rpc::responder response);
-	void AttachNewServers(rpc::responder response);
-	void DetachFaultServers(rpc::responder response);
-	void CreateBackup(rpc::responder response);
+	CONTROL_DECL(GetStatus);
+	CONTROL_DECL(AttachNewServers);
+	CONTROL_DECL(DetachFaultServers);
+	CONTROL_DECL(CreateBackup);
+	CONTROL_DECL(SetAutoReplace);
 
 private:
 	Clock m_clock;

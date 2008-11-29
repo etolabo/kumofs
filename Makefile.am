@@ -81,6 +81,7 @@ noinst_HEADERS = \
 		logic/srv.h \
 		logic/srv_impl.h \
 		logic/mgr_impl.h \
+		logic/mgr_control.h \
 		logic/gw.h \
 		logic/gw_impl.h \
 		protocol.h \
