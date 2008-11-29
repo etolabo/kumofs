@@ -62,7 +62,7 @@ public:
 			const char* val, uint32_t vallen)
 	{
 		if(!tchdbput(m_db, key, keylen, val, vallen)) {
-			LOG_ERROR("DB error: ",tchdberrmsg(tchdbecode(m_db)));
+			LOG_ERROR("DB set error: ",tchdberrmsg(tchdbecode(m_db)));
 			throw std::runtime_error("store failed");
 		}
 	}
@@ -137,6 +137,14 @@ public:
 	void close()
 	{
 		tchdbclose(m_db);
+	}
+
+	void copy(const char* dstpath)
+	{
+		if(!tchdbcopy(m_db, dstpath)) {
+			LOG_ERROR("DB copy error: ",tchdberrmsg(tchdbecode(m_db)));
+			throw std::runtime_error("copy failed");
+		}
 	}
 
 private:

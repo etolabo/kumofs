@@ -140,6 +140,8 @@ private:
 
 	ReplaceContext m_replacing;
 
+	std::string m_cfg_db_backup_basename;
+
 private:
 	Server();
 	Server(const Server&);
@@ -157,7 +159,8 @@ Server::Server(Config& cfg) :
 			cfg.reconnect_timeout_msec),
 	m_db(*cfg.db),
 	m_manager1(cfg.manager1),
-	m_manager2(cfg.manager2)
+	m_manager2(cfg.manager2),
+	m_cfg_db_backup_basename(cfg.db_backup_basename)
 {
 	LOG_INFO("start server ",addr());
 	listen_cluster(cfg.cluster_lsock);

@@ -15,11 +15,13 @@ struct arg_t : rpc_cluster_args {
 	rpc::address manager2;  // convert
 
 	Storage* db;
+	std::string db_backup_basename;  // convert?
 
 	virtual void convert()
 	{
 		manager1 = rpc::address(manager1_in);
 		manager2 = rpc::address(manager2_in);
+		db_backup_basename = dbpath + "-";
 		rpc_cluster_args::convert();
 	}
 

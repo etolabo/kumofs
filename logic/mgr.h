@@ -86,6 +86,8 @@ public:
 	CONTROL_DECL(CreateBackup);
 	CONTROL_DECL(SetAutoReplace);
 
+	RPC_REPLY_DECL(ResCreateBackup, from, res, err, life);
+
 private:
 	Clock m_clock;
 	HashSpace m_rhs;

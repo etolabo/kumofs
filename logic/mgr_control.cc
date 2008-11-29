@@ -49,8 +49,22 @@ CONTROL_IMPL(SetAutoReplace, param, response)
 
 CONTROL_IMPL(CreateBackup, param, response)
 {
-	// FIXME stub
+	if(param.suffix().empty()) {
+		std::string msg("empty suffix");
+		response.error(msg);
+		return;
+	}
+	protocol::type::CreateBackup arg(param.suffix());
+	rpc::callback_t callback( BIND_RESPONSE(ResCreateBackup) );
+	shared_zone nullz;
+	EACH_ACTIVE_SERVERS_BEGIN(node)
+		node->call(protocol::CreateBackup, arg, nullz, callback, 10);
+	EACH_ACTIVE_SERVERS_END
 	response.null();
+}
+
+RPC_REPLY(ResCreateBackup, from, res, err, life)
+{
 }
 
 

@@ -135,9 +135,10 @@ namespace type {
 
 	struct CreateBackup : define< tuple<std::string> > {
 		CreateBackup() {}
-		CreateBackup(std::string& postfix) :
+		CreateBackup(const std::string& postfix) :
 			define_type(msgpack_type( postfix )) {}
-		const std::string& postfix() const { return get<0>(); }
+		const std::string& suffix() const { return get<0>(); }
+		// success: true
 	};
 
 	struct ReplaceCopyEnd : define< tuple<uint64_t, uint32_t> > {
@@ -146,7 +147,7 @@ namespace type {
 			define_type(msgpack_type( clocktime, clock )) {}
 		uint64_t clocktime() const		{ return get<0>(); }
 		uint32_t clock() const			{ return get<1>(); }
-		//   acknowledge: true
+		// acknowledge: true
 	};
 
 	struct ReplaceDeleteEnd : define< tuple<uint64_t, uint32_t> > {
@@ -155,7 +156,7 @@ namespace type {
 			define_type(msgpack_type( clocktime, clock )) {}
 		uint64_t clocktime() const		{ return get<0>(); }
 		uint32_t clock() const			{ return get<1>(); }
-		//   acknowledge: true
+		// acknowledge: true
 	};
 
 	struct HashSpacePush : define< tuple<HSSeed> > {
