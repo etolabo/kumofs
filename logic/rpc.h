@@ -151,26 +151,20 @@ private:
 
 
 #define RPC_CATCH(NAME, response) \
-catch (std::runtime_error& e) { \
+catch (msgpack::type_error& e) { \
+	LOG_ERROR(#NAME " FAILED: type error"); \
+	try { \
+		response.error((uint8_t)protocol::SERVER_ERROR); \
+	} catch (...) { } \
+	throw; \
+} catch (std::exception& e) { \
 	LOG_WARN(#NAME " FAILED: ",e.what()); \
 	try { \
 		response.error((uint8_t)protocol::SERVER_ERROR); \
 	} catch (...) { } \
 	throw; \
-} catch (msgpack::type_error& e) { \
-	LOG_WARN(#NAME " FAILED: type error"); \
-	try { \
-		response.error((uint8_t)protocol::PROTOCOL_ERROR); \
-	} catch (...) { } \
-	throw; \
-} catch (std::bad_alloc& e) { \
-	LOG_WARN(#NAME " FAILED: bad alloc"); \
-	try { \
-		response.error((uint8_t)protocol::SERVER_ERROR); \
-	} catch (...) { } \
-	throw; \
 } catch (...) { \
-	LOG_WARN(#NAME " FAILED: unknown error"); \
+	LOG_ERROR(#NAME " FAILED: unknown error"); \
 	try { \
 		response.error((uint8_t)protocol::UNKNOWN_ERROR); \
 	} catch (...) { } \

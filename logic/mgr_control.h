@@ -16,10 +16,11 @@ typedef HashSpace::Seed HSSeed;
 
 enum command_type {
 	GetStatus			= 84,
-	AttachNewServers   	= 85,
+	AttachNewServers	= 85,
 	DetachFaultServers	= 86,
 	CreateBackup		= 87,
-	SetAutoReplace      = 88,
+	SetAutoReplace		= 88,
+	StartReplace		= 89,
 };
 
 namespace type {
@@ -62,6 +63,10 @@ namespace type {
 		bool enable() const			{ return get<0>(); }
 	};
 
+	struct StartReplace : define< tuple<> > {
+		StartReplace() { }
+	};
+
 	struct Error : define< tuple<std::string> > {
 		Error() { }
 		Error(const std::string& msg) :
@@ -76,6 +81,30 @@ namespace type {
 
 #define CONTROL_IMPL(NAME, param, response) \
 	void Manager::NAME(control::type::NAME param, rpc::responder response)
+
+#define CONTROL_CATCH(NAME, response) \
+catch (msgpack::type_error& e) { \
+	LOG_ERROR(#NAME " FAILED: type error"); \
+	try { \
+		control::type::Error res("type error"); \
+		response.error(res); \
+	} catch (...) { } \
+	throw; \
+} catch (std::exception& e) { \
+	LOG_WARN(#NAME " FAILED: ",e.what()); \
+	try { \
+		control::type::Error res(e.what()); \
+		response.error(res); \
+	} catch (...) { } \
+	throw; \
+} catch (...) { \
+	LOG_ERROR(#NAME " FAILED: unknown error"); \
+	try { \
+		control::type::Error res("unknown error"); \
+		response.error(res); \
+	} catch (...) { } \
+	throw; \
+}
 
 
 }  // namespace control

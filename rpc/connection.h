@@ -150,11 +150,11 @@ try {
 		static_cast<IMPL*>(this)->process_message(msg, z);
 	}
 
-} catch(std::runtime_error& e) {
-	LOG_WARN("rpc packet: ", e.what());
-	throw;
 } catch(msgpack::type_error& e) {
 	LOG_ERROR("rpc packet: type error");
+	throw;
+} catch(std::exception& e) {
+	LOG_WARN("rpc packet: ", e.what());
 	throw;
 } catch(...) {
 	LOG_ERROR("rpc packet: unknown error");

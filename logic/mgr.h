@@ -85,6 +85,7 @@ public:
 	CONTROL_DECL(DetachFaultServers);
 	CONTROL_DECL(CreateBackup);
 	CONTROL_DECL(SetAutoReplace);
+	CONTROL_DECL(StartReplace);
 
 	RPC_REPLY_DECL(ResCreateBackup, from, res, err, life);
 

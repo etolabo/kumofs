@@ -152,6 +152,7 @@ def usage
 	puts "   attach-noreplace           attach all new servers"
 	puts "   detach                     detach all fault servers and start replace"
 	puts "   detach-noreplace           detach all fault servers"
+	puts "   replace                    start replace without attach/detach"
 	puts "   enable-auto-replace        enable auto replace"
 	puts "   disable-auto-replace       disable auto replace"
 	puts "   backup  [suffix=#{$now }]  create backup with specified suffix"
@@ -168,6 +169,10 @@ port ||= KumoManager::CONTROL_DEFAULT_PORT
 
 cmd = ARGV.shift
 case cmd
+when "x"
+	KumoManager.new(host, port).instance_eval {
+	@sock.write("kkk")
+	}
 when "stat"
 	usage if ARGV.length != 0
 	joined, not_joined, date, clock =

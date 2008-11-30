@@ -5,7 +5,7 @@ namespace kumo {
 
 
 CONTROL_IMPL(GetStatus, param, response)
-{
+try {
 	control::type::Status res;
 	res.hsseed() = HashSpace::Seed(m_whs);
 	for(newcomer_servers_t::iterator it(m_newcomer_servers.begin()), it_end(m_newcomer_servers.end());
@@ -17,23 +17,26 @@ CONTROL_IMPL(GetStatus, param, response)
 	}
 	response.result(res);
 }
+CONTROL_CATCH(GetStatus, response);
 
 CONTROL_IMPL(AttachNewServers, param, response)
-{
+try {
 	attach_new_servers();
 	start_replace();
 	response.null();
 }
+CONTROL_CATCH(AttachNewServers, response);
 
 CONTROL_IMPL(DetachFaultServers, param, response)
-{
+try {
 	detach_fault_servers();
 	start_replace();
 	response.null();
 }
+CONTROL_CATCH(DetachFaultServers, response);
 
 CONTROL_IMPL(CreateBackup, param, response)
-{
+try {
 	if(param.suffix().empty()) {
 		std::string msg("empty suffix");
 		response.error(msg);
@@ -47,13 +50,13 @@ CONTROL_IMPL(CreateBackup, param, response)
 	EACH_ACTIVE_SERVERS_END
 	response.null();
 }
+CONTROL_CATCH(CreateBackup, response);
 
 RPC_REPLY(ResCreateBackup, from, res, err, life)
 { }
 
 CONTROL_IMPL(SetAutoReplace, param, response)
-{
-	// FIXME stub
+try {
 	if(m_cfg_auto_replace && !param.enable()) {
 		m_cfg_auto_replace = false;
 		response.result(false);
@@ -65,6 +68,14 @@ CONTROL_IMPL(SetAutoReplace, param, response)
 	}
 	response.null();
 }
+CONTROL_CATCH(SetAutoReplace, response);
+
+CONTROL_IMPL(StartReplace, param, response)
+try {
+	start_replace();
+	response.null();
+}
+CONTROL_CATCH(StartReplace, response);
 
 
 class Manager::ControlConnection : public rpc::connection<ControlConnection> {
@@ -102,6 +113,7 @@ void Manager::ControlConnection::dispatch_request(method_id method, msgobj param
 	CONTROL_DISPATCH(DetachFaultServers);
 	CONTROL_DISPATCH(CreateBackup);
 	CONTROL_DISPATCH(SetAutoReplace);
+	CONTROL_DISPATCH(StartReplace);
 	default:
 		throw std::runtime_error("unknown method");
 	}
