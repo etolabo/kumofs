@@ -1,6 +1,6 @@
 AC_INIT(protocol.h)
 AC_CONFIG_AUX_DIR(ac)
-AM_INIT_AUTOMAKE(kumo, 0.1.0)
+AM_INIT_AUTOMAKE(kumofs, 0.1.0)
 AC_CONFIG_HEADER(config.h)
 
 AC_SUBST(CXXFLAGS)

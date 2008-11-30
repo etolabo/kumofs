@@ -1,3 +1,5 @@
+#!/usr/bin/env ruby
+
 require 'rubygems' rescue LoadError nil
 require 'msgpack'
 require 'socket'
@@ -149,7 +151,7 @@ end
 $now = Time.now.strftime("%Y%m%d")
 
 def usage
-	puts "Usage: #{$0} address[:port=#{KumoManager::CONTROL_DEFAULT_PORT}] command [options]"
+	puts "Usage: #{File.basename($0)} address[:port=#{KumoManager::CONTROL_DEFAULT_PORT}] command [options]"
 	puts "command:"
 	puts "   stat                       get status"
 	puts "   attach                     attach all new servers and start replace"

@@ -21,7 +21,9 @@ noinst_HEADERS = \
 		sbuffer.h \
 		client.h \
 		client_tmpl.h \
+		server.h \
 		session.h \
 		session_tmpl.h \
+		transport.h \
 		vrefbuffer.h
 

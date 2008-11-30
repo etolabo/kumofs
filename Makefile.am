@@ -9,6 +9,8 @@ libkumo_logic_a_SOURCES = \
 		logic/base.cc
 
 bin_PROGRAMS = kumo-manager kumo-server kumo-gateway
+bin_SCRIPTS = kumoctl
+EXTRA_DIST = $(bin_SCRIPTS)
 
 kumo_manager_SOURCES = \
 		logic/mgr_replace.cc \
@@ -54,32 +56,34 @@ kumo_gateway_LDADD  = \
 		log/libkumo_log.a \
 		rpc/libkumo_rpc.a
 
-if WITH_LIBMEMCACHED_HOOK
-
-lib_LTLIBRARIES = libkumo_libmemcached.la
-
-libkumo_libmemcached_la_SOURCES = \
-		$(libkumo_a_SOURCES) \
-		user/libmemcached.cc \
-		memproto/memproto.c \
-		logic/cli_dispatch.cc \
-		logic/cli_rpc.cc
-
-# work around for "created both with libtool and without"
-libkumo_libmemcached_la_CFLAGS = $(AM_CFLAGS)
-libkumo_libmemcached_la_CXXFLAGS = $(AM_CXXFLAGS)
-
-endif
+#if WITH_LIBMEMCACHED_HOOK
+#
+#lib_LTLIBRARIES = libkumo_libmemcached.la
+#
+#libkumo_libmemcached_la_SOURCES = \
+#		$(libkumo_a_SOURCES) \
+#		user/libmemcached.cc \
+#		memproto/memproto.c \
+#		logic/cli_dispatch.cc \
+#		logic/cli_rpc.cc
+#
+## work around for "created both with libtool and without"
+#libkumo_libmemcached_la_CFLAGS = $(AM_CFLAGS)
+#libkumo_libmemcached_la_CXXFLAGS = $(AM_CXXFLAGS)
+#
+#endif
 
 
 noinst_HEADERS = \
 		logic/base.h \
 		logic/clock.h \
+		logic/global.h \
 		logic/hash.h \
 		logic/rpc.h \
 		logic/cluster.h \
 		logic/srv.h \
 		logic/srv_impl.h \
+		logic/mgr.h \
 		logic/mgr_impl.h \
 		logic/mgr_control.h \
 		logic/gw.h \
