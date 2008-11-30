@@ -138,6 +138,10 @@ class KumoManager
 		send_request_sync_ex(88, [enable])
 	end
 
+	def StartReplace()
+		send_request_sync_ex(89, [])
+	end
+
 	CONTROL_DEFAULT_PORT = 19799
 
 end
@@ -153,9 +157,9 @@ def usage
 	puts "   detach                     detach all fault servers and start replace"
 	puts "   detach-noreplace           detach all fault servers"
 	puts "   replace                    start replace without attach/detach"
+	puts "   backup  [suffix=#{$now }]  create backup with specified suffix"
 	puts "   enable-auto-replace        enable auto replace"
 	puts "   disable-auto-replace       disable auto replace"
-	puts "   backup  [suffix=#{$now }]  create backup with specified suffix"
 	exit 1
 end
 
@@ -169,10 +173,6 @@ port ||= KumoManager::CONTROL_DEFAULT_PORT
 
 cmd = ARGV.shift
 case cmd
-when "x"
-	KumoManager.new(host, port).instance_eval {
-	@sock.write("kkk")
-	}
 when "stat"
 	usage if ARGV.length != 0
 	joined, not_joined, date, clock =
@@ -222,6 +222,10 @@ when "backup"
 	end
 	puts "suffix=#{suffix}"
 	p KumoManager.new(host, port).CreateBackup(suffix)
+
+when "replace"
+	usage if ARGV.length != 0
+	p KumoManager.new(host, port).StartReplace()
 
 else
 	puts "unknown command #{cmd}"

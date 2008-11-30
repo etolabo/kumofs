@@ -6,7 +6,7 @@ namespace kumo {
 
 void Manager::add_server(const address& addr, shared_node& s)
 {
-	LOG_INFO("server connected",s->addr());
+	LOG_INFO("server connected ",s->addr());
 
 	if(!m_whs.server_is_fault(addr)) {
 		m_newcomer_servers.push_back( weak_node(s) );
@@ -20,7 +20,7 @@ void Manager::add_server(const address& addr, shared_node& s)
 
 void Manager::remove_server(const address& addr)
 {
-	LOG_INFO("server lost",addr);
+	LOG_INFO("server lost ",addr);
 
 	ClockTime ct = m_clock.now_incr();
 	bool wfault = m_whs.fault_server(ct, addr);
@@ -66,6 +66,8 @@ void Manager::replace_election()
 {
 	// XXX
 	// election: smaller address has priority
+	attach_new_servers();
+	detach_fault_servers();
 	if(m_partner.connectable() && m_partner < addr()) {
 		LOG_INFO("replace delegate to ",m_partner);
 		try {
@@ -205,6 +207,8 @@ RPC_REPLY(ResReplaceCopyStart, from, res, err, life)
 
 CLUSTER_FUNC(ReplaceElection, from, response, life, param)
 try {
+	LOG_DEBUG("ReplaceElection");
+
 	if(from->addr() != m_partner) {
 		throw std::runtime_error("unknown partner node");
 	}
@@ -218,18 +222,17 @@ try {
 		return;
 	}
 
-	if(m_whs == param.hsseed()) {
-		LOG_DEBUG("double replace guard ",m_partner);
-		response.result(true);  // FIXME
-
+	if(m_whs.clocktime() < param.hsseed().clocktime()) {
+		LOG_INFO("double replace guard ",m_partner);
 	} else {
-		m_whs = HashSpace(param.hsseed());
 		// election: smaller address has priority
 		if(m_partner < addr()) {
 			LOG_INFO("replace re-delegate to ",m_partner);
 			response.null();
 		} else {
 			LOG_INFO("replace delegated from ",m_partner);
+			attach_new_servers();
+			detach_fault_servers();
 			start_replace();
 			response.result(true);
 		}

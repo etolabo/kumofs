@@ -424,6 +424,8 @@ void Server::replace_delete(shared_node& manager, HashSpace& hs)
 	using namespace mp::placeholders;
 	manager->call(protocol::ReplaceDeleteEnd, arg, nullz,
 			BIND_RESPONSE(ResReplaceDeleteEnd), 10);
+
+	LOG_INFO("finish replace for time(",m_whs.clocktime().get(),")");
 }
 
 RPC_REPLY(ResReplaceDeleteEnd, from, res, err, life)
