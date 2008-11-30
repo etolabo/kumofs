@@ -35,8 +35,8 @@ void Manager::remove_server(const address& addr)
 
 	m_servers.erase(addr);
 
-	for(newcomer_servers_t::iterator it(m_newcomer_servers.begin()), it_end(m_newcomer_servers.end());
-			it != it_end; ) {
+	for(newcomer_servers_t::iterator it(m_newcomer_servers.begin());
+			it != m_newcomer_servers.end(); ) {
 		shared_node n(it->lock());
 		if(!n || n->addr() == addr) {
 			it = m_newcomer_servers.erase(it);
