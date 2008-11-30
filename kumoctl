@@ -1,6 +1,9 @@
 #!/usr/bin/env ruby
 
-require 'rubygems' rescue LoadError nil
+begin
+	require 'rubygems'
+rescue LoadError
+end
 require 'msgpack'
 require 'socket'
 
@@ -144,7 +147,7 @@ class KumoManager
 		send_request_sync_ex(89, [])
 	end
 
-	CONTROL_DEFAULT_PORT = 19799
+	CONTROL_DEFAULT_PORT = 19750
 
 end
 
@@ -177,16 +180,16 @@ cmd = ARGV.shift
 case cmd
 when "stat"
 	usage if ARGV.length != 0
-	joined, not_joined, date, clock =
+	attached, not_attached, date, clock =
 			KumoManager.new(host, port).GetStatus
 	puts "hash space timestamp:"
 	puts "  #{date} clock #{clock}"
-	puts "joined node:"
-	joined.each {|addr, port, active|
+	puts "attached node:"
+	attached.each {|addr, port, active|
 		puts "  #{addr}:#{port}  (#{active ? "active":"fault"})"
 	}
-	puts "not joined node:"
-	not_joined.each {|addr, port|
+	puts "not attached node:"
+	not_attached.each {|addr, port|
 		puts "  #{addr}:#{port}"
 	}
 

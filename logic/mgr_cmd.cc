@@ -18,6 +18,8 @@ struct arg_t : rpc_cluster_args {
 
 	virtual void convert()
 	{
+		cluster_addr = rpc::address(cluster_addr_in);
+		cluster_lsock = scoped_listen_tcp::listen(cluster_addr);
 		partner = rpc::address(partner_in);
 		ctlsock_lsock = scoped_listen_tcp::listen(ctlsock_addr_in);
 		rpc_cluster_args::convert();
@@ -28,10 +30,12 @@ struct arg_t : rpc_cluster_args {
 	{
 		using namespace kazuhiki;
 		set_basic_args();
+		on("-l",  "--listen",
+				type::connectable(&cluster_addr_in, MANAGER_DEFAULT_PORT));
 		on("-c", "--control",
 				type::listenable(&ctlsock_addr_in, CONTROL_DEFAULT_PORT));
 		on("-p", "--partner",  &partner_set,
-				type::connectable(&partner_in, CLUSTER_DEFAULT_PORT));
+				type::connectable(&partner_in, MANAGER_DEFAULT_PORT));
 		on("-a", "--auto-replace",
 				type::boolean(&auto_replace));
 		on("-Rs", "--replace-delay",
@@ -42,9 +46,9 @@ struct arg_t : rpc_cluster_args {
 	void show_usage()
 	{
 std::cout <<
-"usage: "<<prog<<" -l <addr[:port="<<CLUSTER_DEFAULT_PORT<<"]> -p <addr[:port="<<CLUSTER_DEFAULT_PORT<<"]> [-c port="<<CONTROL_DEFAULT_PORT<<"]\n"
+"usage: "<<prog<<" -l <addr[:port="<<MANAGER_DEFAULT_PORT<<"]> -p <addr[:port="<<MANAGER_DEFAULT_PORT<<"]> [-c port="<<CONTROL_DEFAULT_PORT<<"]\n"
 "\n"
-"  -p  <addr[:port="<<CLUSTER_DEFAULT_PORT  <<"]>   "      "--partner        master-slave replication partner\n"
+"  -p  <addr[:port="<<MANAGER_DEFAULT_PORT  <<"]>   "      "--partner        master-slave replication partner\n"
 "  -c  <[addr:]port="<<CONTROL_DEFAULT_PORT <<">   "       "--control          dynamic control socket\n"
 "  -a                        "                             "--auto-replace   enable auto replacing\n"
 "  -Rs <number="<<replace_delay_clocks  <<">            "  "--replace-delay  delay steps of auto replacing\n"

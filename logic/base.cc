@@ -147,8 +147,6 @@ std::cout <<
 void rpc_cluster_args::set_basic_args()
 {
 	using namespace kazuhiki;
-	on("-l",  "--listen",
-			type::connectable(&cluster_addr_in, CLUSTER_DEFAULT_PORT));
 	on("-k", "--keepalive-interval",
 			type::numeric(&keepalive_interval, keepalive_interval));
 	on("-Yn", "--connect-retry-limit",
@@ -159,7 +157,6 @@ void rpc_cluster_args::set_basic_args()
 void rpc_cluster_args::show_usage()
 {
 std::cout <<
-"  -l  <addr[:port="<<CLUSTER_DEFAULT_PORT<<"]>   "     "--listen         listen address\n"
 "  -k  <number="<<keepalive_interval<<">    "   "--keepalive-interval     keepalive interval in seconds\n"
 "  -Yn <number="<<connect_retry_limit<<">    "  "--connect-retry-limit    connect retry limit\n"
 ;
@@ -190,8 +187,6 @@ void rpc_server_args::convert()
 void rpc_cluster_args::convert()
 {
 	keepalive_interval_usec = keepalive_interval *1000 *1000;
-	cluster_addr = rpc::address(cluster_addr_in);
-	cluster_lsock = scoped_listen_tcp::listen(cluster_addr);
 	rpc_server_args::convert();
 }
 

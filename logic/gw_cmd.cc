@@ -5,7 +5,7 @@
 
 using namespace kumo;
 
-#define MEMPROTO_TEXT_DEFAULT_PORT 19788
+#define MEMPROTO_TEXT_DEFAULT_PORT 19799
 
 struct arg_t : rpc_server_args {
 
@@ -41,9 +41,9 @@ struct arg_t : rpc_server_args {
 		using namespace kazuhiki;
 		set_basic_args();
 		on("-m", "--manager1",
-				type::connectable(&manager1_in, CLUSTER_DEFAULT_PORT));
+				type::connectable(&manager1_in, MANAGER_DEFAULT_PORT));
 		on("-p", "--manager2", &manager2_set,
-				type::connectable(&manager2_in, CLUSTER_DEFAULT_PORT));
+				type::connectable(&manager2_in, MANAGER_DEFAULT_PORT));
 		on("-t", "--memproto-text",
 				type::listenable(&memproto_text_addr_in, MEMPROTO_TEXT_DEFAULT_PORT));
 		on("-G", "--get-retry",
@@ -62,8 +62,8 @@ struct arg_t : rpc_server_args {
 std::cout <<
 "usage: "<<prog<<" -m <addr[:port]> -p <addr[:port]> [-c port="<<MEMPROTO_TEXT_DEFAULT_PORT<<"]\n"
 "\n"
-"  -m  <addr[:port="<<CLUSTER_DEFAULT_PORT<<"]>   "       "--manager1       address of manager 1\n"
-"  -p  <addr[:port="<<CLUSTER_DEFAULT_PORT<<"]>   "       "--manager2       address of manager 2\n"
+"  -m  <addr[:port="<<MANAGER_DEFAULT_PORT<<"]>   "       "--manager1       address of manager 1\n"
+"  -p  <addr[:port="<<MANAGER_DEFAULT_PORT<<"]>   "       "--manager2       address of manager 2\n"
 "  -t  <[addr:]port="<<MEMPROTO_TEXT_DEFAULT_PORT<<">   " "--memproto-text  memcached text protocol listen port\n"
 "  -G  <number="<<get_retry_num<<"> "                     "--get-retry      get retry\n"
 "  -S  <number="<<set_retry_num<<"> "                     "--set-retry      set retry\n"
