@@ -8,9 +8,9 @@ void Manager::add_server(const address& addr, shared_node& s)
 {
 	LOG_INFO("server connected ",s->addr());
 
-	if(!m_whs.server_is_fault(addr)) {
+	//if(!m_whs.server_is_fault(addr)) {
 		m_newcomer_servers.push_back( weak_node(s) );
-	}
+	//}
 
 	if(m_cfg_auto_replace) {
 		// delayed replace
