@@ -123,8 +123,8 @@ void Manager::attach_new_servers()
 	}
 	m_newcomer_servers.clear();
 	sync_hash_space_partner();
-	sync_hash_space_servers();
-	push_hash_space_clients();
+	//sync_hash_space_servers();
+	//push_hash_space_clients();
 }
 
 void Manager::detach_fault_servers()
@@ -132,8 +132,8 @@ void Manager::detach_fault_servers()
 	ClockTime ct = m_clock.now_incr();
 	m_whs.remove_fault_servers(ct);
 	sync_hash_space_partner();
-	sync_hash_space_servers();
-	push_hash_space_clients();
+	//sync_hash_space_servers();
+	//push_hash_space_clients();
 }
 
 
