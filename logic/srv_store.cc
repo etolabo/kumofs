@@ -64,7 +64,7 @@ try {
 		response.null();
 	}
 }
-RPC_CATCH(Set, response)
+RPC_CATCH(Get, response)
 
 
 RPC_FUNC(Set, from, response, life, param)
@@ -164,7 +164,7 @@ try {
 		response.result(true);
 	}
 }
-RPC_CATCH(Set, response)
+RPC_CATCH(Delete, response)
 
 
 RPC_REPLY(ResReplicateSet, from, res, err, life,
