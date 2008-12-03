@@ -16,22 +16,140 @@ static const size_t MEMPROTO_INITIAL_ALLOCATION_SIZE = 2048;
 static const size_t MEMPROTO_RESERVE_SIZE = 1024;
 
 
-#define BIND_RESPONSE(gw_cmd, res_cmd, ...) \
-	Gateway::user ##gw_cmd ##_callback_t( \
-			mp::bind(&SharedResponder::memproto ##res_cmd ##_response, \
-				m_responder, __VA_ARGS__))
-
-
-Memproto::Memproto(Gateway& gw) :
-	m_gw(gw) {}
+Memproto::Memproto(int lsock) :
+	m_lsock(lsock) { }
 
 Memproto::~Memproto() {}
 
 
-void Memproto::add_connection(int fd)
+void Memproto::accepted(void* data, int fd)
 {
-	mp::iothreads::add<Connection>(fd, &m_gw);
+	Gateway* gw = reinterpret_cast<Gateway*>(data);
+	if(fd < 0) {
+		LOG_FATAL("accept failed: ",strerror(-fd));
+		gw->signal_end(SIGTERM);
+		return;
+	}
+	mp::set_nonblock(fd);
+	mp::iothreads::add<Connection>(fd, gw);
 }
+
+void Memproto::listen(Gateway* gw)
+{
+	mp::iothreads::listen(m_lsock,
+			&Memproto::accepted,
+			reinterpret_cast<void*>(gw));
+}
+
+
+
+class Memproto::Connection : public iothreads::handler {
+public:
+	Connection(int fd, Gateway* gw);
+	~Connection();
+
+public:
+	void read_event();
+
+private:
+	// get, getq, getk, getkq
+	inline void memproto_getx(memproto_header* h, const char* key, uint16_t keylen);
+
+	// set
+	inline void memproto_set(memproto_header* h, const char* key, uint16_t keylen,
+			const char* val, uint16_t vallen,
+			uint32_t flags, uint32_t expiration);
+
+	// delete
+	inline void memproto_delete(memproto_header* h, const char* key, uint16_t keylen,
+			uint32_t expiration);
+
+	// noop
+	inline void memproto_noop(memproto_header* h);
+
+private:
+	memproto_text m_memproto;
+	char* m_buffer;
+	size_t m_free;
+	size_t m_used;
+	size_t m_off;
+	Gateway* m_gw;
+
+	class Responder;
+
+	class Queue {
+	public:
+		bool is_valid() const { return m_valid; }
+		void process_queue();
+	private:
+		int m_fd;
+		typedef std::deque<Responder*> queue_t;
+		queue_t m_queue;
+		bool m_valid;
+	};
+	typedef mp::shared_ptr<Queue> SharedQueue;
+	SharedQueue m_valid;
+
+	typedef Gateway::get_request get_request;
+	typedef Gateway::set_request set_request;
+	typedef Gateway::delete_request delete_request;
+
+	typedef Gateway::get_response get_response;
+	typedef Gateway::set_response set_response;
+	typedef Gateway::delete_response delete_response;
+
+	typedef rpc::shared_zone shared_zone;
+
+
+	struct LifeKeeper {
+		LifeKeeper(shared_zone& z) : m(z) { }
+		~LifeKeeper() { }
+	private:
+		shared_zone m;
+		LifeKeeper();
+	};
+
+
+	struct Responder {
+		Responder(int fd, SharedQueue& valid) :
+			m_fd(fd), m_valid(valid) { }
+		~Responder() { }
+
+		bool is_valid() const { return *m_valid; }
+
+		int fd() const { return m_fd; }
+
+		void send_data(const char* buf, size_t buflen);
+		void send_datav(struct iovec* vb, size_t count, shared_zone& life);
+
+	private:
+		int m_fd;
+		SharedQueue m_valid;
+	};
+
+	struct ResGet : Responder {
+		ResGet(int fd, SharedQueue& valid) :
+			Responder(fd, valid) { }
+		~ResGet() { }
+		void response(get_response& res);
+		void response_q(get_response& res);
+		void response_k(get_response& res);
+		void response_kq(get_response& res);
+	};
+
+
+	template <typename T>
+	char* alloc_responder_buf(shared_zone& z, size_t size, T** rp);
+
+	template <typename T>
+	static void object_destruct_free(void* data);
+
+private:
+	Connection();
+	Connection(const Connection&);
+};
+
+
 
 
 class Memproto::Connection : public iothreads::handler {
@@ -148,6 +266,12 @@ private:
 	SharedResponder();
 	SharedResponder(const SharedResponder&);
 };
+
+
+#define BIND_RESPONSE(gw_cmd, res_cmd, ...) \
+	Gateway::user ##gw_cmd ##_callback_t( \
+			mp::bind(&SharedResponder::memproto ##res_cmd ##_response, \
+				m_responder, __VA_ARGS__))
 
 
 Memproto::Connection::Connection(int fd, Gateway* gw) :

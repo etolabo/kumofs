@@ -16,7 +16,6 @@ public:
 
 private:
 	class Connection;
-	class SharedResponder;
 	int m_lsock;
 
 private:

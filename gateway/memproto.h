@@ -11,12 +11,13 @@ public:
 	Memproto(Gateway& cli);
 	~Memproto();
 
-	void add_connection(int fd);
+	static void accepted(void* data, int fd);
+	void listen(Gateway* gw);
 
 private:
 	class Connection;
 	class SharedResponder;
-	Gateway& m_gw;
+	int m_lsock;
 
 private:
 	Memproto();

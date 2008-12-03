@@ -1,0 +1,282 @@
+?title Kumofs memo -- Kumo Fast Storage
+?author FURUHASHI Sadayuki
+
+
+*概要
+kumofsはkey-value型のデータを保存する分散ストレージ。key=>valueを保存する''set''、keyを取得する''get''、keyを削除する''delete''の3つの操作をサポートする。
+データを保持する''Server''、Server群を管理する''Manager''、アプリケーションからのリクエストをServerに中継する''Gateway''の3種類のノードでシステムを構成する。
+データは3台のServerにコピーされて保存される。2台までならServerがダウンしても動作し続ける。
+データの取得は複数のServerに分散して行われ、Serverを追加するほど性能が向上する。
+システムを止めずにServerを追加したり、切り離したりすることができる。Serverの追加と切り離しは自動的には行われず、''kumoctlコマンド''を使ってマニュアルで行う。
+Serverを追加したときと切り離したときに、レプリケーションされたデータの再配置が行われる。
+Server群はManagerによって死活監視されている。1台か2台のManagerが起動していないとServerがダウンしたときにシステムが停止してしまう。またServerの追加と切り離しはManagerが起動していないと行えない。
+
+
+**Consistent Hashing
+Consistent Hashingを使ってデータを分散して保存する((ハッシュ関数はSHA-1で、下位64ビットのみ使う。仮想ノードは128台))。
+Serverがダウンしたときは、そのServerの仮想ノードに''faultフラグ''がセットされる。set/get/deleteはfaultフラグがセットされたServerをスキップして行われる。つまり、通常動作時はレプリケーションは3つ作成されるが、1台がfault状態ならコピーは2つ、2台がfault状態ならコピーは1つしか作成されないkeyが存在することになる。fault状態のServerが3台以上になると、get/set/deleteが失敗し続けるkeyが存在することになる。
+Serverがダウンしてもfaultフラグがセットされるだけで、レプリケーションの再配置は行われない。faultフラグがセットされたServerが存在する状態で、kumoctlコマンドを使って''detach''コマンドをManagerに送信すると、faultフラグがセットされたServerがハッシュ空間から取り除かれる。同時にレプリケーションの再配置が行われ、すべてのkeyに対してレプリケーションが3つ作成されるようにデータがコピーされる。
+Serverが追加されてもすぐにはハッシュ空間には追加されず、レプリケーションの再配置は行われない。新たなServerが起動している状態で、kumoctlコマンドを使って''attach''コマンドをManagerに送信すると、新しいServerがハッシュ空間に追加される。同時にレプリケーションの再配置が行われ、すべてのkeyに対してレプリケーションが3つだけ存在するようにデータが移動される。
+
+# TODO: auto-replace
+
+**set/get/deleteの保証範囲
+***set(key, value)
+key=>valueを保存する。保存できれば成功を返す。保存できなければエラーを返す。
+既にkeyが保存されていたとき、setが成功した場合はkeyの値は確実に上書きされている。
+setが失敗した場合はkeyの値は不定になっている。これは失敗したときにロールバックを行わないため。ロールバックを一貫性を損なうことなく行うための高級なアルゴリズムは実装されていない/使うと性能が低下してしまう。
+Serverはレプリケーション先の2台〜0台のすべてのServerにデータが受信されたことを確認してからGatewayにレスポンスを返す。どれか1台でもコピー処理が失敗したらエラーを返す。つまりアプリケーションに成功が返されたときはfault状態でないすべてのServerにレプリケーションがコピーされており、それ以降に古いデータが読み出されることはない。しかしディスクに書き込まれているとは限らない。
+
+***get(key)
+keyをsetするリクエストが成功していた場合は、そのkeyに対応するvalueを返す。setが失敗していた場合は、nullか、setに失敗したvalueが返る。それ以外であればnullを返す。
+keyをsetするリクエストが成功してvalueが保存されていたとしても、レプリケーションされたすべてのServerの負荷が非常に高いために応答できない場合は、getがタイムアウトする可能性がある。
+keyが保存されていなかった場合はエラーにならないが、タイムアウトした場合はエラーになる。
+
+***delete(key)
+keyを削除する。
+再配置処理を行っている間にdeleteを行うと、削除されないことがある。これはレプリケーションをコピーするServer同士のやりとりが、Gatewayが送出したdeleteリクエストと入れ違う可能性があるため。
+
+@footnote
+
+
+*インストールと実行
+**依存関係
+***コンパイル時に必要なもの
+-g++ >= 4.1
+-ragel
+-bzaar >= 1.0
+
+***コンパイル時と実行時に必要なもの
+-ruby >= 1.8
+-libcrypto(openssl)
+-Tokyo Cabinet >= 1.3.8
+
+**コンパイル
+まず最新のMessagePackとmpioライブラリをインストールする。
+>|sh|
+$ bzr branch lp:msgpack
+$ cd msgpack
+$ ./configure && make && make install
+$ cd ruby
+$ ./gengem
+$ gem install gem/pkg/msgpack-*.gem
+||<
+^title MessagePackのインストール
+
+>|sh|
+$ bzr branch lp:mpio
+$ cd mpio
+$ ./configure && make && make install
+||<
+^title mpioのインストール
+
+次にkumofsをインストールする。
+>|sh|
+$ ./configure && make && make install
+||<
+
+***configureフラグ
+:--with-mpio=DIR:mpioがインストールされているディレクトリを指定する
+:--with-msgpack=DIR:MessagePackがインストールされているディレクトリを指定する
+:--with-tokyocabinet=DIR:TokyoCabinetがインストールされているディレクトリを指定する
+:--with-tcmalloc[=DIR]:tcmallocとリンクする
+:--enable-async-replicate-set:set操作でレプリケーションするとき他のServerからの応答を待たずに成功を返すようにする
+:--enable-async-replicate-delete:delete操作でレプリケーションするとき他のServerからの応答を待たずに成功を返すようにする
+:--enable-trace:画面を埋め尽くすほど冗長なデバッグ用のメッセージを出力するようにする
+
+**実行例
+''s1''〜''s4''の4台のホストでクラスタを構成し、''c1''と''c2''のホストで動作するアプリケーションから利用する例。
+s1〜s4でServerを動かし、''s1''と''s2''では同時にManagerも動かす。''c1''と''c2''ではGatewayを動かす。
+>|sh|
+[s1]$ kumo-manager -v -l s1 -p s2    # Manager同士は互いに指定する
+[s2]$ kumo-manager -v -l s2 -p s1    # Manager同士は互いに指定する
+[s1]$ kumo-server -v -m s1 -p s2 -l s1 -s database.tch    # -mと-pでManagerを指定する
+[s2]$ kumo-server -v -m s1 -p s2 -l s2 -s database.tch    # -lは常に自ホストのアドレス
+[s3]$ kumo-server -v -m s1 -p s2 -l s3 -s database.tch    # -sはデータベース名
+[s4]$ kumo-server -v -m s1 -p s2 -l s4 -s database.tch    # -vは冗長なメッセージを出力
+[c1]$ kumo-gateway -v -m s1 -p s2 -c 11211    # 11211/tcpでmemcache
+[c2]$ kumo-gateway -v -m s1 -p s2 -c 11211    # text protocolをlistenする
+||<
+
+**主な引数
+***kumo-manager
+:-l <address>:待ち受けるアドレス。''他のノードから見て''接続できるホスト名とポート番号を指定する
+:-p <address>:もし存在するなら、もう一台のManagerのホスト名とポート番号を指定する
+:--auto-replace:Serverが追加・切断されたときに、マニュアル操作を待たずにレプリケーションの再配置を自動的に行うようにする。実行時でもkumoctlコマンドから変更できる
+:-c <port>:kumoctlからのコマンドを受け付けるポート番号を指定する
+
+***kumo-server
+:-l <address>:待ち受けるアドレス。''他のノードから見て''接続できるホスト名とポート番号を指定する
+:-m <address>:kumo-managerのホスト名とポート番号を指定する
+:-p <address>:もし存在するなら、もう一台のManagerのアドレスを指定する
+:-s <path.tch>:データを保存するデータベースのパスを指定する
+
+***kumo-gateway
+:-m <address>:kumo-managerのホスト名とポート番号を指定する
+:-p <address>:もし存在するなら、もう一台のManagerのアドレスを指定する
+:-c <port>:memcache text protocolを待ち受けるポート番号を指定する
+
+**その他の引数
+:-o <path.log>:ログを標準出力ではなく指定されたファイルに出力する
+:-d <path.pid>:デーモンになる。指定されたファイルにpidを書き出す
+:-v:WARNよりレベルの低いメッセージを出力する
+
+# TODO その他の引数
+
+@footnote
+
+
+*kumoctl
+kumoctlコマンドを使うとManagerの状態を取得したり、コマンドを送ったりできる。
+Rubyで書かれたスクリプト。実行するにはgemでmsgpackパッケージをインストールする。
+第1引数にManagerのホスト名とポート番号を指定し、第2引数にコマンドを指定する。
+>|sh|
+$ kumoctl --help
+Usage: kumoctl address[:port=19799] command [options]
+command:
+   stat                       get status
+   attach                     attach all new servers and start replace
+   attach-noreplace           attach all new servers
+   detach                     detach all fault servers and start replace
+   detach-noreplace           detach all fault servers
+   replace                    start replace without attach/detach
+   backup  [suffix=????????]  create backup with specified suffix
+   enable-auto-replace        enable auto replace
+   disable-auto-replace       disable auto replace
+||<
+
+**stat
+Managerが持っているハッシュ空間を取得して表示する。
+>||
+$ kumoctl localhost stat
+hash space timestamp:
+  Wed Dec 03 22:15:45 +0900 2008 clock 58
+attached node:
+  127.0.0.1:8000  (active)
+  127.0.0.1:8001  (fault)
+not attached node:
+  127.0.0.1:8002
+||<
+^title statの実行例
+''attached node''はハッシュ空間に入っているServerの一覧を示している。''(active)''は正常動作中のServerで、''(fault)''はfaultフラグが立っているServerを示している。
+''not attached node''はハッシュ空間に入っていないか、入っているが(fault)状態でまだ再attachされていないServerの一覧を示している。
+
+**attach
+statで''not attached node''に表示されているServerをハッシュ空間に組み入れ、レプリケーションの再配置を開始する。
+
+**attach-noreplace
+attachと同じだがレプリケーションの再配置を開始しない。再配置をしないまま長い間放置してはいけない。再配置を行わないと、エラーが積もってGatewayから最新のハッシュ空間を要求されたとき（後述）、Gatewayが持っているハッシュ空間とServerが持っているハッシュ空間が食い違ってしまう。食い違うとsetやdeleteがいつまで経っても成功しない。
+
+**detach
+statで''attached node''に表示されていて(fault)状態のServerをハッシュ空間から取り除き、レプリケーションの再配置を開始する。
+
+**detach-noreplace
+detachと同じだがレプリケーションの再配置を開始しない。再配置をしないまま長い間放置してはいけない。
+
+**replace
+レプリケーションの再配置を開始する。
+
+**backup
+コールドバックアップを作成する。バックアップはServerで作成され、元のデータベース名にsuffixを付けた名前のファイルにデータベースがコピーされる。手元にバックアップを持ってくるには、rsyncやscpなどを使ってServerからダウンロードする。
+suffixは省略するとその日の日付（YYMMDD）が使われる。
+
+
+*死活監視と再配置
+**ダウンの検出
+Manager/Server同士の接続では、あるノードにリクエストまたはレスポンスを送信しようとしたときに、そのノードとのコネクションが一本も存在せず、その上connect(2)が4回((--connect-retry-limitで指定))連続して失敗したら、そのノードはダウンしたと見なす。
+ManagerとServerは2秒間隔((--keep-alive-interval引数で指定))でkeepaliveメッセージをやりとりしているので、いつも何らかのリクエストかレスポンスを送ろうとしている状態になっている。
+connect(2)は次の条件で失敗する：
+-接続相手から明示的に接続を拒否された（Connection Refused）
+-接続相手からの応答がない時間が3ステップ((--connect-timeout-steps引数で指定))続いた。1ステップは0.5秒((--clock-interval引数で指定))
+
+
+GatewayとManager、GatewayとServerの接続は、TCPコネクションが切断されたらそのGatewayはダウンしたと見なす。Gatewayはデータの一貫性に何も影響しないのでこの実装になっている。
+
+
+**接続の検出
+Manager/Server同士の接続では、あるノードから接続を受け付けた後、そのノードから初期ネゴシエーションメッセージを受け取り、かつそのメッセージのフォーマットが正しければ、そのノードが新たに起動したと見なす。
+こちらから接続するときは、最初に必ず初期ネゴシエーションメッセージを送信する。
+
+
+GatewayとManager、GatewayとServerの接続は、TCPコネクションが確立されたらそのGatewayは新たに起動したと見なす。Gatewayはデータの一貫性に何も影響しないのでこの実装になっている。
+
+
+**ハッシュ空間の更新
+Consistent Hashingのハッシュ空間を更新できるのはManagerだけで、最新のハッシュ空間は常にManagerが持っている。
+通常動作時には1種類のハッシュ空間しか存在しないが、レプリケーションの再配置を行っている間は2種類のバージョンが存在する。最新のもの（Serverの追加/切り離しの更新が反映されている）は''whs''、1つ前のバージョン（Serverの追加/切り離しの更新が反映されていない）は''rhs''という名前が付いている。ManagerとServerは2種類のハッシュ空間を持っており、Gatewayは1種類しか持っていない。
+
+
+Managerはkumoctlコマンドでレプリケーションの再配置を行うように指令されると、まずServerの追加/切り離しをwhsに反映する。もう1台のManagerが存在すればそのManagerに更新したwhsを送信する。
+次に認識しているすべてのServerにwhsを送信し、レプリケーションのコピーを行うようにコマンドを送る。Serverは自分が持っているwhsとManagerから送られてきたwhsを比較し、必要なら他のServerにデータのコピーを行う（このときデータベースを上から下まで読み込む）。Serverはコピーが終わったらwhsをrhsにコピーする。
+Serverはすべてのデータを確認し終えたら、Managerにコピーが終了した旨を通知する。ManagerはすべてのServerでコピーが終了した通知を受け取ったら、whsをrhsにコピーする。また、認識しているすべてのサーバーにレプリケーションの削除を行うようにコマンドを送る。Serverはwhsを参照して、自分が持っている必要がないデータがデータベースの中に入っていたら、それを削除する（このときデータベースを上から下まで読み込む）。
+
+Managerはレプリケーションのコピーを行っている最中にServerがダウンしたことを検知したら、すべてのServerからレプリケーションのコピーが終了した通知を受け取っても、レプリケーションの削除を行わない。
+
+Serverはクライアントからget/set/deleteリクエストを受け取ったとき、そのkeyに対する割り当てノードが本当に自分であるか確認するために、getの場合はrhsを、set/deleteの場合はwhsを参照する。
+
+
+**レプリケーションの再配置アルゴリズム
+# TODO レプリケーションの再配置アルゴリズム
+logic/srv_replace.cc:Server::replace_copy()
+
+
+*レプリケーション
+**set/deleteの伝播
+Gatewayにsetリクエストを送信すると、keyをハッシュ関数に掛けてハッシュ空間から検索し、一番最初にヒットしたServerに対してsetリクエストが送信される。
+setリクエストを受け取ったServerは、まずkeyをハッシュ関数に掛けてハッシュ空間から検索し、自分が確かに最初にヒットするServerかどうか確かめる。そうでなければGatewayに「ハッシュ空間が古いぞ」とエラーを返す。
+次にServerは、自分の次のServerと次の次のServerにデータをコピーする。このときコピー先のServerにfaultフラグが立っていたら、そのServerにはコピーしない。
+
+Gatewayはset/deleteが何回失敗しても、次のServerにフォールバックすることはない。set先のServerが別のServerに切り替わるのは、Managerから新しいハッシュ空間を届いたときのみ。
+
+以上の仕組みから、あるkeyをset/deleteするときは必ず単一のServerを経由することになる。このためほぼ同時にset/deleteされても必ず順序が付けられ、常に最新の結果がだけが残る。
+
+
+**getのフォールバック
+Gatewayはgetリクエストがタイムアウトしたり失敗したりすると、ハッシュ空間上の次のServerにリクエストする。それでもタイムアウトしたときは次の次のServerにリクエストする。リトライ回数の上限に達するまで、最初のServer→次のServer→次の次のServer→最初のServer→…とリトライが繰り返される。
+
+getはManagerから新しいハッシュ空間が届くのを待つことなくフォールバックする。
+
+
+**タイムアウト
+GatewayでもServerでもManagerでも、リクエストを送ってから10ステップ（1ステップは0.5秒((--clock-interval引数で指定))）の間にレスポンスが返ってこないと、そのリクエストはタイムアウトしてエラーになる。
+プログラムから見てTCPコネクションが確立しているか否かはタイムアウトには関係しない。コネクションが確立していなくても時間以内に再接続してレスポンスが返れば正常通り処理が続行され、コネクションが確立していても時間以内にレスポンスが返ってこなければタイムアウトする。
+
+GatewayはServerに送ったリクエストがエラーになった回数が5回((--renew-threashold引数で指定))以上失敗すると、Managerから最新のハッシュ空間を取得する。
+
+
+**リトライ
+Gatewayはsetは最大20回((--set-retry引数で指定))まで、deleteは最大20回((--delete-retry引数で指定))まで、getは最大5×(レプリケーション数==3 + 1)回((係数は--get-retry引数で指定))までリトライする。限界までリトライしても失敗したらアプリケーションにエラーが返される。
+
+@footnote
+
+
+*クロック
+データベースに保存されているすべてのvalueや、ハッシュ空間には、クロック（=タイムスタンプ）が付与されている。value同士やハッシュ空間同士でどちらが新しいかを比べるために利用している。
+ref:[[Lamport Clockの解説>http://funini.com/kei/logos/clock.shtml]]
+
+**クロックのフォーマット
+クロックは64ビットの整数で、上位32ビットにはUNIXタイム（精度は秒）、下位32ビットにはLamport Clockが入っている。
+UNIXタイムが上位に入っているので、Server/Manager同士の時刻が1秒以上ずれていると、Lamport Clockに関係なく間違った比較が行われてしまう。
+
+**データベースのフォーマット
+データベースにvalueを保存するとき、先頭の64ビットにクロックを付加して保存する。またその次の64ビットも予約してあるが、使っていない。
+>||
+Database entry format
+Big endian
++--------+--------+-----------------+
+|   64   |   64   |       ...       |
++--------+--------+-----------------+
+clocktime
+         reserved
+                  data
+||<
+
+**レプリケーションでの利用
+Serverから別のServerにデータをコピーするとき、後から来たsetリクエストのレプリケーションが、先に来たsetリクエストのレプリケーションを追い抜いて先行してしまうことが発生し得る。Serverはレプリケーションを受け取ったとき、既に保存されているvalueのクロックと新たに届いたvalueのクロックを比べ、新たに届いた方が新しかった場合のみデータベースを更新する。
+レプリケーションの再配置を行うとき、ほとんどの場合はレプリケーションされたどのServerも同じデータを持っているが、setが失敗していた場合は異なるデータを持っている可能性がある。このときどのServerが持っているデータが最新なのか比べる必要があり、クロックを利用して比較する。
+
+**Manager間の協調動作での利用
+Managerが2台動作しているとき、どちらが持っているハッシュ空間が最新なのかを比べる必要がある。ハッシュ空間を更新するときに更新した時のクロックを付与しておき、比較するときにこのクロックを利用する。
+
+@footnote
+
