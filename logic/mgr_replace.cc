@@ -296,6 +296,8 @@ void Manager::finish_replace_copy()
 	EACH_ACTIVE_SERVERS_END
 
 	m_deleting.reset(clocktime, num_active);
+
+	m_rhs = m_whs;
 }
 
 RPC_REPLY(ResReplaceDeleteStart, from, res, err, life)
@@ -309,7 +311,6 @@ inline void Manager::finish_replace()
 	// FIXME
 	LOG_INFO("replace finished time(",m_deleting.clocktime().get(),")");
 	m_deleting.reset(0, 0);
-	m_rhs = m_whs;
 }
 
 
