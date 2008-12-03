@@ -142,6 +142,11 @@ private:
 
 	std::string m_cfg_db_backup_basename;
 
+	unsigned short m_cfg_replicate_set_retry_num;
+	unsigned short m_cfg_replicate_delete_retry_num;
+	unsigned short m_cfg_replace_propose_retry_num;
+	unsigned short m_cfg_replace_push_retry_num;
+
 private:
 	Server();
 	Server(const Server&);
@@ -160,7 +165,11 @@ Server::Server(Config& cfg) :
 	m_db(*cfg.db),
 	m_manager1(cfg.manager1),
 	m_manager2(cfg.manager2),
-	m_cfg_db_backup_basename(cfg.db_backup_basename)
+	m_cfg_db_backup_basename(cfg.db_backup_basename),
+	m_cfg_replicate_set_retry_num(cfg.replicate_set_retry_num),
+	m_cfg_replicate_delete_retry_num(cfg.replicate_delete_retry_num),
+	m_cfg_replace_propose_retry_num(cfg.replace_propose_retry_num),
+	m_cfg_replace_push_retry_num(cfg.replace_push_retry_num)
 {
 	LOG_INFO("start server ",addr());
 	listen_cluster(cfg.cluster_lsock);

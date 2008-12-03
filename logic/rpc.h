@@ -86,7 +86,7 @@ public:
 	}
 
 	template <typename Sessin>
-	void call(Sessin s, rpc::shared_zone& life, unsigned short timeout_steps = 5)
+	void call(Sessin s, rpc::shared_zone& life, unsigned short timeout_steps = 10)
 	{
 		s->call(Method, m_arg, life, m_callbck, timeout_steps);
 	}

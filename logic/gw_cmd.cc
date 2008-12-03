@@ -48,9 +48,9 @@ struct arg_t : rpc_server_args {
 				type::listenable(&memproto_text_addr_in, MEMPROTO_TEXT_DEFAULT_PORT));
 		on("-G", "--get-retry",
 				type::numeric(&get_retry_num, get_retry_num));
-		on("-S", "--get-retry",
+		on("-S", "--set-retry",
 				type::numeric(&set_retry_num, set_retry_num));
-		on("-D", "--get-retry",
+		on("-D", "--delete-retry",
 				type::numeric(&delete_retry_num, delete_retry_num));
 		on("-rn", "--renew-threshold",
 				type::numeric(&renew_threshold, renew_threshold));
@@ -65,10 +65,10 @@ std::cout <<
 "  -m  <addr[:port="<<MANAGER_DEFAULT_PORT<<"]>   "       "--manager1       address of manager 1\n"
 "  -p  <addr[:port="<<MANAGER_DEFAULT_PORT<<"]>   "       "--manager2       address of manager 2\n"
 "  -t  <[addr:]port="<<MEMPROTO_TEXT_DEFAULT_PORT<<">   " "--memproto-text  memcached text protocol listen port\n"
-"  -G  <number="<<get_retry_num<<"> "                     "--get-retry      get retry\n"
-"  -S  <number="<<set_retry_num<<"> "                     "--set-retry      set retry\n"
-"  -D  <number="<<delete_retry_num<<"> "                  "--delete-retry   delete retry\n"
-"  -rn <number="<<renew_threshold<<"> "                   "--renew-threshold renew threshold\n"
+"  -G  <number="<<get_retry_num<<">    "                  "--get-retry              get retry limit\n"
+"  -S  <number="<<set_retry_num<<">   "                   "--set-retry              set retry limit\n"
+"  -D  <number="<<delete_retry_num<<">   "                "--delete-retry           delete retry limit\n"
+"  -rn <number="<<renew_threshold<<">    "                "--renew-threshold        hash space renew threshold\n"
 ;
 rpc_server_args::show_usage();
 	}

@@ -49,7 +49,7 @@ std::cout <<
 "usage: "<<prog<<" -l <addr[:port="<<MANAGER_DEFAULT_PORT<<"]> -p <addr[:port="<<MANAGER_DEFAULT_PORT<<"]> [-c port="<<CONTROL_DEFAULT_PORT<<"]\n"
 "\n"
 "  -p  <addr[:port="<<MANAGER_DEFAULT_PORT  <<"]>   "      "--partner        master-slave replication partner\n"
-"  -c  <[addr:]port="<<CONTROL_DEFAULT_PORT <<">   "       "--control          dynamic control socket\n"
+"  -c  <[addr:]port="<<CONTROL_DEFAULT_PORT <<">   "       "--control        dynamic control socket\n"
 "  -a                        "                             "--auto-replace   enable auto replacing\n"
 "  -Rs <number="<<replace_delay_clocks  <<">            "  "--replace-delay  delay steps of auto replacing\n"
 ;

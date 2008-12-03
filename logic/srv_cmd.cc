@@ -17,6 +17,11 @@ struct arg_t : rpc_cluster_args {
 	Storage* db;
 	std::string db_backup_basename;  // convert?
 
+	unsigned short replicate_set_retry_num;
+	unsigned short replicate_delete_retry_num;
+	unsigned short replace_propose_retry_num;
+	unsigned short replace_push_retry_num;
+
 	virtual void convert()
 	{
 		cluster_addr = rpc::address(cluster_addr_in);
@@ -27,7 +32,11 @@ struct arg_t : rpc_cluster_args {
 		rpc_cluster_args::convert();
 	}
 
-	arg_t(int argc, char** argv)
+	arg_t(int argc, char** argv) :
+		replicate_set_retry_num(20),
+		replicate_delete_retry_num(20),
+		replace_propose_retry_num(20),
+		replace_push_retry_num(20)
 	{
 		using namespace kazuhiki;
 		set_basic_args();
@@ -39,6 +48,10 @@ struct arg_t : rpc_cluster_args {
 				type::connectable(&manager1_in, MANAGER_DEFAULT_PORT));
 		on("-p", "--manager2", &manager2_set,
 				type::connectable(&manager2_in, MANAGER_DEFAULT_PORT));
+		on("-S", "--replicate-set-retry",
+				type::numeric(&replicate_set_retry_num, replicate_set_retry_num));
+		on("-G", "--replicate-delete-retry",
+				type::numeric(&replicate_delete_retry_num, replicate_delete_retry_num));
 		parse(argc, argv);
 	}
 
@@ -51,6 +64,8 @@ std::cout <<
 "  -s  <path.tch>            "                            "--store          path to database\n"
 "  -m  <addr[:port="<<MANAGER_DEFAULT_PORT<<"]>   "       "--manager1       address of manager 1\n"
 "  -p  <addr[:port="<<MANAGER_DEFAULT_PORT<<"]>   "       "--manager2       address of manager 2\n"
+"  -S  <number="<<replicate_set_retry_num<<">   "         "--replicate-set-retry    replicate set retry limit\n"
+"  -D  <number="<<replicate_delete_retry_num<<">   "      "--replicate-delete-retry replicate delete retry limit\n"
 ;
 rpc_cluster_args::show_usage();
 	}

@@ -329,7 +329,7 @@ RPC_REPLY(ResReplacePropose, from, res, err, life,
 	if(!err.is_nil()) {
 		if(SESSION_IS_ACTIVE(from)) {
 			// FIXME delayed retry
-			if(retry->retry_incr(20)) {  // FIXME 20
+			if(retry->retry_incr(m_cfg_replace_propose_retry_num)) {
 				retry->call(from, life);
 				LOG_DEBUG("ReplacePropose failed: ",err,", retry ",retry->num_retried());
 				return;
@@ -363,7 +363,7 @@ RPC_REPLY(ResReplacePush, from, res, err, life,
 	if(!err.is_nil()) {
 		if(SESSION_IS_ACTIVE(from)) {
 			// FIXME delayed retry
-			if(retry->retry_incr(20)) {  // FIXME 20
+			if(retry->retry_incr(m_cfg_replace_push_retry_num)) {
 				retry->call(from, life);
 				LOG_DEBUG("ReplacePush failed: ",err,", retry ",retry->num_retried());
 				return;
