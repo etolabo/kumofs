@@ -75,6 +75,12 @@ int main(int argc, char* argv[])
 		mlogger::reset(new mlogger_tty(loglevel, std::cout));
 	}
 
+	// daemonize
+	if(!arg.pidfile.empty()) {
+		do_daemonize(!arg.logfile.empty(), arg.pidfile.c_str());
+	}
+
+	// run server
 	Manager::initialize(arg);
 	Manager::instance().run();
 	Manager::instance().join();

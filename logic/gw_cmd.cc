@@ -93,8 +93,15 @@ int main(int argc, char* argv[])
 		mlogger::reset(new mlogger_tty(loglevel, std::cout));
 	}
 
+	// initialize memcache text protocol gateway
 	std::auto_ptr<MemprotoText> mpt(new MemprotoText(arg.memproto_text_lsock));
 
+	// daemonize
+	if(!arg.pidfile.empty()) {
+		do_daemonize(!arg.logfile.empty(), arg.pidfile.c_str());
+	}
+
+	// run server
 	Gateway::initialize(arg);
 	Gateway::instance().add_gateway(mpt.get());
 	Gateway::instance().run();
