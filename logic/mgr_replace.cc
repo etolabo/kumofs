@@ -48,6 +48,8 @@ void Manager::remove_server(const address& addr)
 	if(m_cfg_auto_replace) {
 		// delayed replace
 		delayed_replace_election();
+	} else {
+		m_copying.invalidate();  // prevent replace delete
 	}
 }
 
@@ -150,11 +152,6 @@ inline void Manager::ReplaceContext::reset(ClockTime ct, unsigned int num)
 	m_clocktime = ct;
 }
 
-inline bool Manager::ReplaceContext::empty() const
-{
-	return m_num == 0;
-}
-
 bool Manager::ReplaceContext::pop(ClockTime ct)
 {
 	if(m_clocktime != ct) { return false; }
@@ -164,6 +161,12 @@ bool Manager::ReplaceContext::pop(ClockTime ct)
 	}
 	--m_num;
 	return false;
+}
+
+void Manager::ReplaceContext::invalidate()
+{
+	m_clocktime = ClockTime(0);
+	m_num = 0;
 }
 
 

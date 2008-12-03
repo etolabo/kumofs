@@ -114,8 +114,8 @@ private:
 	public:
 		ClockTime clocktime() const;
 		void reset(ClockTime ct, unsigned int num);
-		bool empty() const;
 		bool pop(ClockTime ct);
+		void invalidate();
 	private:
 		unsigned int m_num;
 		ClockTime m_clocktime;
