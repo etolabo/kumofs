@@ -1,11 +1,13 @@
 #include "logic/base.h"
 #include "logic/gw.h"
 #include "gateway/memproto_text.h"
+#include "gateway/cloudy.h"
 #include <fstream>
 
 using namespace kumo;
 
 #define MEMPROTO_TEXT_DEFAULT_PORT 19799
+#define CLOUDY_DEFAULT_PORT 19798
 
 struct arg_t : rpc_server_args {
 
@@ -21,14 +23,27 @@ struct arg_t : rpc_server_args {
 
 	unsigned short renew_threshold;
 
+	bool memproto_text_set;
 	sockaddr_in memproto_text_addr_in;
 	int memproto_text_lsock;  // convert
+
+	bool cloudy_set;
+	sockaddr_in cloudy_addr_in;
+	int cloudy_lsock;  // convert
 
 	virtual void convert()
 	{
 		manager1 = rpc::address(manager1_in);
 		manager2 = rpc::address(manager2_in);
-		memproto_text_lsock = scoped_listen_tcp::listen(memproto_text_addr_in);
+		if(!memproto_text_set && !cloudy_set) {
+			throw std::runtime_error("memproto text or cloudy must be set");
+		}
+		if(memproto_text_set) {
+			memproto_text_lsock = scoped_listen_tcp::listen(memproto_text_addr_in);
+		}
+		if(cloudy_set) {
+			cloudy_lsock = scoped_listen_tcp::listen(cloudy_addr_in);
+		}
 		rpc_server_args::convert();
 	}
 
@@ -44,8 +59,10 @@ struct arg_t : rpc_server_args {
 				type::connectable(&manager1_in, MANAGER_DEFAULT_PORT));
 		on("-p", "--manager2", &manager2_set,
 				type::connectable(&manager2_in, MANAGER_DEFAULT_PORT));
-		on("-t", "--memproto-text",
+		on("-t", "--memproto-text", &memproto_text_set,
 				type::listenable(&memproto_text_addr_in, MEMPROTO_TEXT_DEFAULT_PORT));
+		on("-c", "--cloudy", &cloudy_set,
+				type::listenable(&cloudy_addr_in, CLOUDY_DEFAULT_PORT));
 		on("-G", "--get-retry",
 				type::numeric(&get_retry_num, get_retry_num));
 		on("-S", "--set-retry",
@@ -94,7 +111,16 @@ int main(int argc, char* argv[])
 	}
 
 	// initialize memcache text protocol gateway
-	std::auto_ptr<MemprotoText> mpt(new MemprotoText(arg.memproto_text_lsock));
+	std::auto_ptr<MemprotoText> mpt;
+	if(arg.memproto_text_set) {
+		mpt.reset(new MemprotoText(arg.memproto_text_lsock));
+	}
+
+	// initialize cloudy gateway
+	std::auto_ptr<Cloudy> cl;
+	if(arg.cloudy_set) {
+		cl.reset(new Cloudy(arg.cloudy_lsock));
+	}
 
 	// daemonize
 	if(!arg.pidfile.empty()) {
@@ -103,7 +129,12 @@ int main(int argc, char* argv[])
 
 	// run server
 	Gateway::initialize(arg);
-	Gateway::instance().add_gateway(mpt.get());
+	if(arg.memproto_text_set) {
+		Gateway::instance().add_gateway(mpt.get());
+	}
+	if(arg.cloudy_set) {
+		Gateway::instance().add_gateway(cl.get());
+	}
 	Gateway::instance().run();
 	Gateway::instance().join();
 }
