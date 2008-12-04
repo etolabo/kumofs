@@ -104,6 +104,7 @@ private:
 
 		int fd() const { return m_fd; }
 
+	protected:
 		void send_data(const char* buf, size_t buflen);
 		void send_datav(struct iovec* vb, size_t count, shared_zone& life);
 

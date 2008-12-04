@@ -209,25 +209,44 @@ private:
 
 
 	struct Responder {
-		Responder(int fd, SharedQueue& queue) :
-			m_fd(fd), m_queue(queue) { }
+		Responder(memproto_header* h, int fd, SharedQueue& queue) :
+			m_fd(fd), m_h(h), m_queue(queue) { }
 		~Responder() { }
 
 		bool is_valid() const { return m_queue->is_valid(); }
 
 		int fd() const { return m_fd; }
 
+	protected:
+		void send_response_nodata(
+				shared_zone& life,
+				uint8_t status, uint64_t cas);
+
+		void send_response(
+				shared_zone& life,
+				uint8_t status,
+				const char* key, uint16_t keylen,
+				const void* val, uint16_t vallen,
+				const char* extra, uint16_t extralen,
+				uint64_t cas);
+
+	private:
 		void send_data(const char* buf, size_t buflen);
 		void send_datav(struct iovec* vb, size_t count, shared_zone& life);
 
+		static void pack_header(char* hbuf, uint16_t status, uint8_t op,
+				uint16_t keylen, uint32_t vallen, uint8_t extralen,
+				uint32_t opaque, uint64_t cas);
+
 	private:
 		int m_fd;
+		memproto_header* m_h;
 		SharedQueue m_queue;
 	};
 
 	struct ResGet : Responder {
-		ResGet(int fd, SharedQueue& queue) :
-			Responder(fd, queue) { }
+		ResGet(memproto_header* h, int fd, SharedQueue& queue) :
+			Responder(h, fd, queue) { }
 		~ResGet() { }
 		void response(get_response& res);
 	public:
@@ -239,16 +258,16 @@ private:
 	};
 
 	struct ResSet : Responder {
-		ResSet(int fd, SharedQueue& queue) :
-			Responder(fd, queue) { }
+		ResSet(memproto_header* h, int fd, SharedQueue& queue) :
+			Responder(h, fd, queue) { }
 		~ResSet() { }
 		void response(set_response& res);
 		void no_response(set_response& res);
 	};
 
 	struct ResDelete : Responder {
-		ResDelete(int fd, SharedQueue& queue) :
-			Responder(fd, queue) { }
+		ResDelete(memproto_header* h, int fd, SharedQueue& queue) :
+			Responder(h, fd, queue) { }
 		~ResDelete() { }
 		void response(delete_response& res);
 		void no_response(delete_response& res);
@@ -361,7 +380,7 @@ void Cloudy::Connection::memproto_getx(memproto_header* h, const char* key, uint
 	bool cmd_k = (h->opcode == MEMPROTO_CMD_GETK || h->opcode == MEMPROTO_CMD_GETKQ);
 	bool cmd_q = (h->opcode == MEMPROTO_CMD_GETQ || h->opcode == MEMPROTO_CMD_GETKQ);
 
-	ResGet* ctx = m_zone->allocate<ResGet>(fd(), m_queue);
+	ResGet* ctx = m_zone->allocate<ResGet>(h, fd(), m_queue);
 	if(cmd_k) { ctx->set_req_key(); }
 	if(cmd_q) { ctx->set_req_quiet(); }
 
@@ -387,7 +406,7 @@ void Cloudy::Connection::memproto_set(memproto_header* h, const char* key, uint1
 		throw std::runtime_error("memcached binary protocol: invalid argument");
 	}
 
-	ResSet* ctx = m_zone->allocate<ResSet>(fd(), m_queue);
+	ResSet* ctx = m_zone->allocate<ResSet>(h, fd(), m_queue);
 	set_request req;
 	req.keylen = keylen;
 	req.key = key;
@@ -411,7 +430,7 @@ void Cloudy::Connection::memproto_delete(memproto_header* h, const char* key, ui
 		throw std::runtime_error("memcached binary protocol: invalid argument");
 	}
 
-	ResDelete* ctx = m_zone->allocate<ResDelete>(fd(), m_queue);
+	ResDelete* ctx = m_zone->allocate<ResDelete>(h, fd(), m_queue);
 	delete_request req;
 	req.key = key;
 	req.keylen = keylen;
@@ -424,23 +443,38 @@ void Cloudy::Connection::memproto_delete(memproto_header* h, const char* key, ui
 }
 
 
+namespace {
+	static const uint32_t ZERO_FLAG = 0;
+}  // noname namespace
+
 void Cloudy::Connection::ResGet::response(get_response& res)
 {
 	if(!is_valid()) { return; }
 	LOG_TRACE("get response");
 
 	if(res.error) {
-		// error response
+		// error
+		if(m_req_quiet) { return; }
+		LOG_TRACE("getx res err");
+		send_response_nodata(res.life,
+				MEMPROTO_RES_INVALID_ARGUMENTS, 0);
 		return;
 	}
 
 	if(!res.val) {
 		// not found
 		if(m_req_quiet) { return; }
+		send_response_nodata(res.life,
+				MEMPROTO_RES_KEY_NOT_FOUND, 0);
 		return;
 	}
 
 	// found
+	send_response(res.life, MEMPROTO_RES_NO_ERROR,
+			res.key, (m_req_key ? res.keylen : 0),
+			res.val, res.vallen,
+			(char*)&ZERO_FLAG, 4,
+			0);
 }
 
 void Cloudy::Connection::ResSet::response(set_response& res)
@@ -449,11 +483,13 @@ void Cloudy::Connection::ResSet::response(set_response& res)
 	LOG_TRACE("set response");
 
 	if(res.error) {
-		// error response
+		// error
+		send_response_nodata(res.life, MEMPROTO_RES_OUT_OF_MEMORY, 0);
 		return;
 	}
 
-	// success response
+	// stored
+	send_response_nodata(res.life, MEMPROTO_RES_NO_ERROR, 0);
 }
 
 void Cloudy::Connection::ResDelete::response(delete_response& res)
@@ -462,15 +498,103 @@ void Cloudy::Connection::ResDelete::response(delete_response& res)
 	LOG_TRACE("delete response");
 
 	if(res.error) {
-		// error response
+		// error
+		send_response_nodata(res.life, MEMPROTO_RES_INVALID_ARGUMENTS, 0);
 		return;
 	}
 
 	if(res.deleted) {
-		//send_data("DELETED\r\n", 9);
+		send_response_nodata(res.life, MEMPROTO_RES_NO_ERROR, 0);
 	} else {
-		//send_data("NOT FOUND\r\n", 11);
+		send_response_nodata(res.life, MEMPROTO_RES_OUT_OF_MEMORY, 0);
 	}
+}
+
+
+void Cloudy::Connection::Responder::pack_header(char* hbuf, uint16_t status, uint8_t op,
+		uint16_t keylen, uint32_t vallen, uint8_t extralen,
+		uint32_t opaque, uint64_t cas)
+{
+	hbuf[0] = 0x81;
+	hbuf[1] = op;
+	*(uint16_t*)&hbuf[2] = htons(keylen);
+	hbuf[4] = extralen;
+	hbuf[5] = 0x00;
+	*(uint16_t*)&hbuf[6] = htons(status);
+	*(uint32_t*)&hbuf[8] = htonl(vallen + keylen + extralen);
+	*(uint32_t*)&hbuf[12] = htonl(opaque);
+	*(uint32_t*)&hbuf[16] = htonl((uint32_t)(cas>>32));
+	*(uint32_t*)&hbuf[20] = htonl((uint32_t)(cas&0xffffffff));
+}
+
+void Cloudy::Connection::Responder::send_response_nodata(
+		shared_zone& life,
+		uint8_t status, uint64_t cas)
+{
+	char header[24];
+	pack_header(header, status, m_h->opcode,
+			0, 0, 0,
+			m_h->opaque, cas);
+	send_data(header, 24);
+}
+
+inline void Cloudy::Connection::Responder::send_response(
+		shared_zone& life,
+		uint8_t status,
+		const char* key, uint16_t keylen,
+		const void* val, uint16_t vallen,
+		const char* extra, uint16_t extralen,
+		uint64_t cas)
+{
+	char* header = (char*)life->malloc(24);
+	pack_header(header, status, m_h->opcode,
+			keylen, vallen, extralen,
+			m_h->opaque, cas);
+
+	struct iovec vb[4];
+
+	vb[0].iov_base = header;
+	vb[0].iov_len  = 24;
+	size_t cnt = 1;
+
+	if(extralen > 0) {
+		vb[cnt].iov_base = const_cast<char*>(extra);
+		vb[cnt].iov_len  = extralen;
+		++cnt;
+	}
+
+	if(keylen > 0) {
+		vb[cnt].iov_base = const_cast<char*>(key);
+		vb[cnt].iov_len  = keylen;
+		++cnt;
+	}
+
+	if(vallen > 0) {
+		vb[cnt].iov_base = const_cast<void*>(val);
+		vb[cnt].iov_len  = vallen;
+		++cnt;
+	}
+
+	send_datav(vb, cnt, life);
+}
+
+void Cloudy::Connection::Responder::send_data(
+		const char* buf, size_t buflen)
+{
+	mp::iothreads::send_data(m_fd, buf, buflen);
+}
+
+void Cloudy::Connection::Responder::send_datav(
+		struct iovec* vb, size_t count, shared_zone& life)
+{
+	mp::iothreads::writer::reqvec vr[count];
+	for(size_t i=0; i < count-1; ++i) {
+		vr[i] = mp::iothreads::writer::reqvec();
+	}
+	vr[count-1] = mp::iothreads::writer::reqvec(
+			&mp::iothreads::writer::finalize_delete<LifeKeeper>,
+			new LifeKeeper(life), true);
+	mp::iothreads::send_datav(m_fd, vb, vr, count);
 }
 
 

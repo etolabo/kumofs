@@ -29,6 +29,7 @@ kumo_server_SOURCES = \
 
 kumo_gateway_SOURCES = \
 		gateway/memproto_text.cc \
+		gateway/cloudy.cc \
 		logic/gw_store.cc \
 		logic/gw.cc \
 		logic/gw_rpc.cc \
@@ -89,6 +90,7 @@ noinst_HEADERS = \
 		logic/gw.h \
 		logic/gw_impl.h \
 		protocol.h \
+		gateway/cloudy.h \
 		gateway/memproto.h \
 		gateway/memproto_text.h \
 		gateway/gateway.h \
