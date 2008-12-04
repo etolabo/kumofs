@@ -9,7 +9,7 @@ kumofsはkey-value型のデータを保存する分散ストレージ。key=>val
 データの取得は複数のServerに分散して行われ、Serverを追加するほど性能が向上する。
 システムを止めずにServerを追加したり、切り離したりすることができる。Serverの追加と切り離しは自動的には行われず、''kumoctlコマンド''を使ってマニュアルで行う。
 Serverを追加したときと切り離したときに、レプリケーションされたデータの再配置が行われる。
-Server群はManagerによって死活監視されている。1台か2台のManagerが起動していないとServerがダウンしたときにシステムが停止してしまう。またServerの追加と切り離しはManagerが起動していないと行えない。
+Server群はManagerによって死活監視されている。Serverがダウンしたら、そのServerは直ちにシステムから切り離されるが、1台か2台のManagerが起動していないとServerがダウンしたときにシステムが停止してしまう。またServerの追加と切り離しはManagerが起動していないと行えない。
 
 
 **Consistent Hashing
@@ -24,8 +24,8 @@ Serverが追加されてもすぐにはハッシュ空間には追加されず�
 ***set(key, value)
 key=>valueを保存する。保存できれば成功を返す。保存できなければエラーを返す。
 既にkeyが保存されていたとき、setが成功した場合はkeyの値は確実に上書きされている。
-setが失敗した場合はkeyの値は不定になっている。これは失敗したときにロールバックを行わないため。ロールバックを一貫性を損なうことなく行うための高級なアルゴリズムは実装されていない/使うと性能が低下してしまう。
-Serverはレプリケーション先の2台〜0台のすべてのServerにデータが受信されたことを確認してからGatewayにレスポンスを返す。どれか1台でもコピー処理が失敗したらエラーを返す。つまりアプリケーションに成功が返されたときはfault状態でないすべてのServerにレプリケーションがコピーされており、それ以降に古いデータが読み出されることはない。しかしディスクに書き込まれているとは限らない。
+setが失敗したとき、keyの値は不定になっている。これは失敗したときにロールバックを行わないため。ロールバックを一貫性を損なうことなく行うための高級なアルゴリズムは実装されていない/使うと性能が低下してしまう。
+Serverはレプリケーション先の2台〜0台のすべてのServerにデータが受信されたことを確認してからGatewayにレスポンスを返す。どれか1台でもコピー処理が失敗したらエラーを返す。つまり、アプリケーションに成功が返されたときはfault状態でないすべてのServerにレプリケーションがコピーされており、それ以降に古いデータが読み出されることはない。ただしディスクに書き込まれているとは限らない。
 
 ***get(key)
 keyをsetするリクエストが成功していた場合は、そのkeyに対応するvalueを返す。setが失敗していた場合は、nullか、setに失敗したvalueが返る。それ以外であればnullを返す。
@@ -94,8 +94,8 @@ s1〜s4でServerを動かし、''s1''と''s2''では同時にManagerも動かす
 [s2]$ kumo-server -v -m s1 -p s2 -l s2 -s database.tch    # -lは常に自ホストのアドレス
 [s3]$ kumo-server -v -m s1 -p s2 -l s3 -s database.tch    # -sはデータベース名
 [s4]$ kumo-server -v -m s1 -p s2 -l s4 -s database.tch    # -vは冗長なメッセージを出力
-[c1]$ kumo-gateway -v -m s1 -p s2 -c 11211    # 11211/tcpでmemcache
-[c2]$ kumo-gateway -v -m s1 -p s2 -c 11211    # text protocolをlistenする
+[c1]$ kumo-gateway -v -m s1 -p s2 -t 11211    # 11211/tcpでmemcache
+[c2]$ kumo-gateway -v -m s1 -p s2 -t 11211    # text protocolをlistenする
 ||<
 
 **主な引数
@@ -114,7 +114,7 @@ s1〜s4でServerを動かし、''s1''と''s2''では同時にManagerも動かす
 ***kumo-gateway
 :-m <address>:kumo-managerのホスト名とポート番号を指定する
 :-p <address>:もし存在するなら、もう一台のManagerのアドレスを指定する
-:-c <port>:memcache text protocolを待ち受けるポート番号を指定する
+:-t <port>:memcache text protocolを待ち受けるポート番号を指定する
 
 **その他の引数
 :-o <path.log>:ログを標準出力ではなく指定されたファイルに出力する
@@ -165,7 +165,8 @@ not attached node:
 statで''not attached node''に表示されているServerをハッシュ空間に組み入れ、レプリケーションの再配置を開始する。
 
 **attach-noreplace
-attachと同じだがレプリケーションの再配置を開始しない。再配置をしないまま長い間放置してはいけない。再配置を行わないと、エラーが積もってGatewayから最新のハッシュ空間を要求されたとき（後述）、Gatewayが持っているハッシュ空間とServerが持っているハッシュ空間が食い違ってしまう。食い違うとsetやdeleteがいつまで経っても成功しない。
+attachと同じだがレプリケーションの再配置を開始しない。再配置をしないまま長い間放置してはいけない。
+再配置を行わないと、エラーが積もってGatewayから最新のハッシュ空間を要求されたとき（後述）、Gatewayが持っているハッシュ空間とServerが持っているハッシュ空間が食い違ってしまう。食い違うとsetやdeleteがいつまで経っても成功しなくなってしまう。
 
 **detach
 statで''attached node''に表示されていて(fault)状態のServerをハッシュ空間から取り除き、レプリケーションの再配置を開始する。
@@ -190,7 +191,7 @@ connect(2)は次の条件で失敗する：
 -接続相手からの応答がない時間が3ステップ((--connect-timeout-steps引数で指定))続いた。1ステップは0.5秒((--clock-interval引数で指定))
 
 
-GatewayとManager、GatewayとServerの接続は、TCPコネクションが切断されたらそのGatewayはダウンしたと見なす。Gatewayはデータの一貫性に何も影響しないのでこの実装になっている。
+GatewayとManager、GatewayとServerの接続では、TCPコネクションが切断されたらそのGatewayはダウンしたと見なす。Gatewayはデータの一貫性に何も影響しないのでこの実装になっている。
 
 
 **接続の検出
@@ -198,7 +199,7 @@ Manager/Server同士の接続では、あるノードから接続を受け付け
 こちらから接続するときは、最初に必ず初期ネゴシエーションメッセージを送信する。
 
 
-GatewayとManager、GatewayとServerの接続は、TCPコネクションが確立されたらそのGatewayは新たに起動したと見なす。Gatewayはデータの一貫性に何も影響しないのでこの実装になっている。
+GatewayとManager、GatewayとServerの接続では、TCPコネクションが確立されたらそのGatewayは新たに起動したと見なす。Gatewayはデータの一貫性に何も影響しないのでこの実装になっている。
 
 
 **ハッシュ空間の更新

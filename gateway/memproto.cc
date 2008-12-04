@@ -68,7 +68,7 @@ private:
 	inline void memproto_noop(memproto_header* h);
 
 private:
-	memproto_text m_memproto;
+	memproto_parser m_memproto;
 	char* m_buffer;
 	size_t m_free;
 	size_t m_used;
@@ -88,7 +88,7 @@ private:
 		bool m_valid;
 	};
 	typedef mp::shared_ptr<Queue> SharedQueue;
-	SharedQueue m_valid;
+	SharedQueue m_queue;
 
 	typedef Gateway::get_request get_request;
 	typedef Gateway::set_request set_request;
@@ -148,6 +148,182 @@ private:
 	Connection();
 	Connection(const Connection&);
 };
+
+
+Memproto::Connection::Connection(int fd, Gateway* gw) :
+	mp::iothreads::handler(fd),
+	m_buffer(NULL),
+	m_free(0),
+	m_used(0),
+	m_off(0),
+	m_gw(gw),
+	m_queue(new Queue())
+{
+	void (*cmd_getx)(void*, memproto_header*,
+			const char*, uint16_t) = &mp::object_callback<void (memproto_header*,
+				const char*, uint16_t)>
+				::mem_fun<Connection, &Connection::memproto_getx>;
+
+	void (*cmd_set)(void*, memproto_header*,
+			const char*, uint16_t,
+			const char*, uint16_t,
+			uint32_t, uint32_t) = &mp::object_callback<void (memproto_header*,
+				const char*, uint16_t,
+				const char*, uint16_t,
+				uint32_t, uint32_t)>
+				::mem_fun<Connection, &Connection::memproto_set>;
+
+	void (*cmd_delete)(void*, memproto_header*,
+			const char*, uint16_t,
+			uint32_t) = &mp::object_callback<void (memproto_header*,
+				const char*, uint16_t,
+				uint32_t)>
+				::mem_fun<Connection, &Connection::memproto_delete>;
+
+	void (*cmd_noop)(void*, memproto_header*) =
+			&mp::object_callback<void (memproto_header*)>
+				::mem_fun<Connection, &Connection::memproto_noop>;
+
+	memproto_callback cb = {
+		cmd_getx,    // get
+		cmd_set,     // set
+		NULL,        // add
+		NULL,        // replace
+		cmd_delete,  // delete
+		NULL,        // increment
+		NULL,        // decrement
+		NULL,        // quit
+		NULL,        // flush
+		cmd_getx,    // getq
+		cmd_noop,    // noop
+		NULL,        // version
+		cmd_getx,    // getk
+		cmd_getx,    // getkq
+		NULL,        // append
+		NULL,        // prepend
+	};
+
+	memproto_parser_init(&m_memproto, &cb, this);
+}
+
+Memproto::Connection::~Connection()
+{
+	m_queue->invalidate();
+	::free(m_buffer);
+}
+
+namespace {
+static void finalize_free(void* buf) { ::free(buf); }
+}  // noname namespace
+
+void Memproto::Connection::read_event()
+try {
+	if(m_free < MEMPROTO_RESERVE_SIZE) {
+		size_t nsize;
+		if(m_buffer == NULL) { nsize = MEMPROTO_INITIAL_ALLOCATION_SIZE; }
+		else { nsize = (m_free + m_used) * 2; }
+		char* tmp = (char*)::realloc(m_buffer, nsize);
+		if(!tmp) { throw std::bad_alloc(); }
+		m_buffer = tmp;
+		m_free = nsize - m_used;
+	}
+
+	ssize_t rl = ::read(fd(), m_buffer+m_used, m_free);
+	if(rl < 0) {
+		if(errno == EAGAIN || errno == EINTR) {
+			return;
+		} else {
+			throw std::runtime_error("read error");
+		}
+	} else if(rl == 0) {
+		throw std::runtime_error("connection closed");
+	}
+
+	m_used += rl;
+	m_free -= rl;
+
+	int ret;
+	while( (ret = memproto_parser_execute(&m_memproto, m_buffer, m_used, &m_off)) > 0) {
+		m_zone->push_finalizer(finalize_free, m_buffer);
+		size_t trail = m_used - m_off;
+		if(trail > 0) {
+			char* curbuf = m_buffer;
+			m_buffer = NULL;  // prevent double-free at destructor
+			size_t nsize = MEMPROTO_INITIAL_ALLOCATION_SIZE;
+			while(nsize < trail) { nsize *= 2; }
+			char* nbuffer = (char*)::malloc(nsize);
+			if(!nbuffer) { throw std::bad_alloc(); }
+			memcpy(nbuffer, curbuf+m_off, trail);
+			m_buffer = nbuffer;
+			m_free = nsize - trail;
+			m_used = trail;
+		} else {
+			m_buffer = NULL;
+			m_free = 0;
+			m_used = 0;
+		}
+		m_off = 0;
+		if( (ret = memproto_dispatch(&m_memproto)) <= 0) {
+			LOG_WARN("unknown command ",(-ret));
+			throw std::runtime_error("unknown command");
+		}
+		m_zone.reset(new mp::zone());
+	}
+
+	if(ret < 0) { throw std::runtime_error("parse error"); }
+
+} catch (std::runtime_error& e) {
+	LOG_DEBUG("memcached binary protocol error: ",e.what());
+	throw;
+} catch (...) {
+	LOG_DEBUG("memcached binary protocol error: unknown error");
+	throw;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
