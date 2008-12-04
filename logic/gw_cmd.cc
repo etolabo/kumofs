@@ -23,7 +23,7 @@ struct arg_t : rpc_server_args {
 
 	unsigned short renew_threshold;
 
-	bool memproto_text_set;
+	//bool memproto_text_set;
 	sockaddr_in memproto_text_addr_in;
 	int memproto_text_lsock;  // convert
 
@@ -35,12 +35,12 @@ struct arg_t : rpc_server_args {
 	{
 		manager1 = rpc::address(manager1_in);
 		manager2 = rpc::address(manager2_in);
-		if(!memproto_text_set && !cloudy_set) {
-			throw std::runtime_error("memproto text or cloudy must be set");
-		}
-		if(memproto_text_set) {
+		//if(!memproto_text_set && !cloudy_set) {
+			//throw std::runtime_error("memproto text or cloudy must be set");
+		//}
+		//if(memproto_text_set) {
 			memproto_text_lsock = scoped_listen_tcp::listen(memproto_text_addr_in);
-		}
+		//}
 		if(cloudy_set) {
 			cloudy_lsock = scoped_listen_tcp::listen(cloudy_addr_in);
 		}
@@ -59,7 +59,7 @@ struct arg_t : rpc_server_args {
 				type::connectable(&manager1_in, MANAGER_DEFAULT_PORT));
 		on("-p", "--manager2", &manager2_set,
 				type::connectable(&manager2_in, MANAGER_DEFAULT_PORT));
-		on("-t", "--memproto-text", &memproto_text_set,
+		on("-t", "--memproto-text",// &memproto_text_set,
 				type::listenable(&memproto_text_addr_in, MEMPROTO_TEXT_DEFAULT_PORT));
 		on("-c", "--cloudy", &cloudy_set,
 				type::listenable(&cloudy_addr_in, CLOUDY_DEFAULT_PORT));
@@ -82,6 +82,7 @@ std::cout <<
 "  -m  <addr[:port="<<MANAGER_DEFAULT_PORT<<"]>   "       "--manager1       address of manager 1\n"
 "  -p  <addr[:port="<<MANAGER_DEFAULT_PORT<<"]>   "       "--manager2       address of manager 2\n"
 "  -t  <[addr:]port="<<MEMPROTO_TEXT_DEFAULT_PORT<<">   " "--memproto-text  memcached text protocol listen port\n"
+"  -c  <[addr:]port="<<CLOUDY_DEFAULT_PORT<<">   "        "--cloudy         memcached binary protocol listen port\n"
 "  -G  <number="<<get_retry_num<<">    "                  "--get-retry              get retry limit\n"
 "  -S  <number="<<set_retry_num<<">   "                   "--set-retry              set retry limit\n"
 "  -D  <number="<<delete_retry_num<<">   "                "--delete-retry           delete retry limit\n"
@@ -112,9 +113,9 @@ int main(int argc, char* argv[])
 
 	// initialize memcache text protocol gateway
 	std::auto_ptr<MemprotoText> mpt;
-	if(arg.memproto_text_set) {
+	//if(arg.memproto_text_set) {
 		mpt.reset(new MemprotoText(arg.memproto_text_lsock));
-	}
+	//}
 
 	// initialize cloudy gateway
 	std::auto_ptr<Cloudy> cl;
@@ -129,9 +130,9 @@ int main(int argc, char* argv[])
 
 	// run server
 	Gateway::initialize(arg);
-	if(arg.memproto_text_set) {
+	//if(arg.memproto_text_set) {
 		Gateway::instance().add_gateway(mpt.get());
-	}
+	//}
 	if(arg.cloudy_set) {
 		Gateway::instance().add_gateway(cl.get());
 	}
