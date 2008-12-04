@@ -513,6 +513,9 @@ void MemprotoText::Connection::ResSet::no_response(set_response& res)
 
 void MemprotoText::Connection::ResDelete::response(delete_response& res)
 {
+	if(!is_valid()) { return; }
+	LOG_TRACE("delete response");
+
 	if(res.error) {
 		send_data(DELETE_FAILED_REPLY, strlen(DELETE_FAILED_REPLY));
 		return;
