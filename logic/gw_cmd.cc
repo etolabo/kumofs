@@ -60,7 +60,7 @@ struct arg_t : rpc_server_args {
 	void show_usage()
 	{
 std::cout <<
-"usage: "<<prog<<" -m <addr[:port]> -p <addr[:port]> [-c port="<<MEMPROTO_TEXT_DEFAULT_PORT<<"]\n"
+"usage: "<<prog<<" -m <addr[:port]> -p <addr[:port]> [-t port="<<MEMPROTO_TEXT_DEFAULT_PORT<<"]\n"
 "\n"
 "  -m  <addr[:port="<<MANAGER_DEFAULT_PORT<<"]>   "       "--manager1       address of manager 1\n"
 "  -p  <addr[:port="<<MANAGER_DEFAULT_PORT<<"]>   "       "--manager2       address of manager 2\n"
