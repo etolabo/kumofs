@@ -1,5 +1,5 @@
 /*
- * memache_parser
+ * memtext
  *
  * Copyright (C) 2008 FURUHASHI Sadayuki
  *
@@ -16,7 +16,7 @@
  *    limitations under the License.
  */
 
-#include "memproto_text.h"
+#include "memtext.h"
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -72,12 +72,12 @@ enum {
 
 
 %%{
-	machine memproto_text;
+	machine memtext;
 
 	action reset {
 		ctx->keys = 0;
 		ctx->noreply = false;
-		ctx->time = 0;
+		ctx->exptime = 0;
 	}
 
 	action mark_key {
@@ -88,7 +88,7 @@ enum {
 	}
 	action incr_key {
 		++ctx->keys;
-		if(ctx->keys > MEMPROTO_TEXT_MAX_MULTI_GET) {
+		if(ctx->keys > MEMTEXT_MAX_MULTI_GET) {
 			goto convert_error;
 		}
 	}
@@ -104,7 +104,7 @@ enum {
 		MARK(exptime, fpc);
 	}
 	action exptime {
-		SET_ULL(exptime, exptime, fpc);
+		SET_UINT(exptime, exptime, fpc);
 	}
 
 	action mark_bytes {
@@ -116,13 +116,6 @@ enum {
 
 	action noreply {
 		ctx->noreply = true;
-	}
-
-	action mark_time {
-		MARK(time, fpc);
-	}
-	action time {
-		SET_ULL(time, time, fpc);
 	}
 
 	action mark_cas_unique {
@@ -166,14 +159,14 @@ enum {
 		for(i=0; i < ctx->keys; ++i) {
 			ctx->key_pos[i] = (size_t)MARK_PTR(key_pos[i]);
 		}
-		if( CALLBACK(command, memproto_text_callback_retrieval)(
+		if( CALLBACK(command, memtext_callback_retrieval)(
 				ctx->user,
 				(const char**)ctx->key_pos, ctx->key_len, ctx->keys
 				) < -1 ) { goto convert_error; }
 	}
 
 	action do_storage {
-		if( CALLBACK(command, memproto_text_callback_storage)(
+		if( CALLBACK(command, memtext_callback_storage)(
 				ctx->user,
 				MARK_PTR(key_pos[0]), ctx->key_len[0],
 				ctx->flags,
@@ -184,7 +177,7 @@ enum {
 	}
 
 	action do_cas {
-		if( CALLBACK(command, memproto_text_callback_cas)(
+		if( CALLBACK(command, memtext_callback_cas)(
 				ctx->user,
 				MARK_PTR(key_pos[0]), ctx->key_len[0],
 				ctx->flags,
@@ -196,10 +189,10 @@ enum {
 	}
 
 	action do_delete {
-		if( CALLBACK(command, memproto_text_callback_delete)(
+		if( CALLBACK(command, memtext_callback_delete)(
 				ctx->user,
 				MARK_PTR(key_pos[0]), ctx->key_len[0],
-				ctx->time, ctx->noreply
+				ctx->exptime, ctx->noreply
 				) < -1 ) { goto convert_error; }
 	}
 
@@ -208,7 +201,6 @@ enum {
 	exptime    = ('0' | [1-9][0-9]*) >mark_exptime    %exptime;
 	bytes      = ([1-9][0-9]*)       >mark_bytes      %bytes;
 	noreply    = ('noreply')         %noreply;
-	time       = ('0' | [1-9][0-9]*) >mark_time       %time;
 	cas_unique = ('0' | [1-9][0-9]*) >mark_cas_unique %cas_unique;
 
 
@@ -226,13 +218,13 @@ enum {
 
 
 	retrieval = retrieval_command ' ' key (' ' key >incr_key)*
-				' '*   # XXX workaraound for libmemcached
+				' '?   # XXX workaraound for libmemcached
 				'\r\n';
 
 	storage = storage_command ' ' key
 				' ' flags ' ' exptime ' ' bytes
 				(' ' noreply)?
-				' '*  # XXX workaraound for apr_memcache
+				' '?   # XXX workaraound for apr_memcache
 				'\r\n'
 				@data_start
 				'\r\n'
@@ -248,7 +240,7 @@ enum {
 				;
 
 	delete = delete_command ' ' key
-				(' ' time)? (' ' noreply)?
+				(' ' exptime)? (' ' noreply)?
 				'\r\n'
 				;
 
@@ -266,18 +258,18 @@ data := (any @data)*;
 
 %% write data;
 
-void memproto_text_init(memproto_text* ctx, memproto_text_callback* callback, void* user)
+void memtext_init(memtext_parser* ctx, memtext_callback* callback, void* user)
 {
 	int cs = 0;
 	int top = 0;
 	%% write init;
-	memset(ctx, 0, sizeof(memproto_text));
+	memset(ctx, 0, sizeof(memtext_parser));
 	ctx->cs = cs;
 	ctx->callback = *callback;
 	ctx->user = user;
 }
 
-int memproto_text_execute(memproto_text* ctx, const char* data, size_t len, size_t* off)
+int memtext_execute(memtext_parser* ctx, const char* data, size_t len, size_t* off)
 {
 	if(len <= *off) { return 0; }
 
@@ -307,16 +299,17 @@ ret:
 	ctx->top = top;
 	*off = p - data;
 
-	if(cs == memproto_text_error) {
+	if(cs == memtext_error) {
 		return -1;
-	} else if(cs == memproto_text_first_final) {
+	} else if(cs == memtext_first_final) {
 		return 1;
 	} else {
 		return 0;
 	}
 
 convert_error:
-	cs = memproto_text_error;
+	cs = memtext_error;
 	goto ret;
 }
+
 

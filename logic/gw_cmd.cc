@@ -1,12 +1,12 @@
 #include "logic/base.h"
 #include "logic/gw.h"
-#include "gateway/memproto_text.h"
+#include "gateway/memtext.h"
 #include "gateway/cloudy.h"
 #include <fstream>
 
 using namespace kumo;
 
-#define MEMPROTO_TEXT_DEFAULT_PORT 19799
+#define MEMTEXT_DEFAULT_PORT 19799
 #define CLOUDY_DEFAULT_PORT 19798
 
 struct arg_t : rpc_server_args {
@@ -23,9 +23,9 @@ struct arg_t : rpc_server_args {
 
 	unsigned short renew_threshold;
 
-	//bool memproto_text_set;
-	sockaddr_in memproto_text_addr_in;
-	int memproto_text_lsock;  // convert
+	//bool memtext_set;
+	sockaddr_in memtext_addr_in;
+	int memtext_lsock;  // convert
 
 	bool cloudy_set;
 	sockaddr_in cloudy_addr_in;
@@ -35,14 +35,14 @@ struct arg_t : rpc_server_args {
 	{
 		manager1 = rpc::address(manager1_in);
 		manager2 = rpc::address(manager2_in);
-		//if(!memproto_text_set && !cloudy_set) {
+		//if(!memtext_set && !cloudy_set) {
 		//	throw std::runtime_error("memproto text or cloudy must be set");
 		//}
-		//if(memproto_text_set) {
-		//	memproto_text_lsock = scoped_listen_tcp::listen(memproto_text_addr_in);
+		//if(memtext_set) {
+		//	memtext_lsock = scoped_listen_tcp::listen(memtext_addr_in);
 		//}
 		if(!cloudy_set) {
-			memproto_text_lsock = scoped_listen_tcp::listen(memproto_text_addr_in);
+			memtext_lsock = scoped_listen_tcp::listen(memtext_addr_in);
 		}
 		if(cloudy_set) {
 			cloudy_lsock = scoped_listen_tcp::listen(cloudy_addr_in);
@@ -62,8 +62,8 @@ struct arg_t : rpc_server_args {
 				type::connectable(&manager1_in, MANAGER_DEFAULT_PORT));
 		on("-p", "--manager2", &manager2_set,
 				type::connectable(&manager2_in, MANAGER_DEFAULT_PORT));
-		on("-t", "--memproto-text",// &memproto_text_set,
-				type::listenable(&memproto_text_addr_in, MEMPROTO_TEXT_DEFAULT_PORT));
+		on("-t", "--memproto-text",// &memtext_set,
+				type::listenable(&memtext_addr_in, MEMTEXT_DEFAULT_PORT));
 		on("-c", "--cloudy", &cloudy_set,
 				type::listenable(&cloudy_addr_in, CLOUDY_DEFAULT_PORT));
 		on("-G", "--get-retry",
@@ -80,11 +80,11 @@ struct arg_t : rpc_server_args {
 	void show_usage()
 	{
 std::cout <<
-"usage: "<<prog<<" -m <addr[:port]> -p <addr[:port]> [-t port="<<MEMPROTO_TEXT_DEFAULT_PORT<<"]\n"
+"usage: "<<prog<<" -m <addr[:port]> -p <addr[:port]> [-t port="<<MEMTEXT_DEFAULT_PORT<<"]\n"
 "\n"
 "  -m  <addr[:port="<<MANAGER_DEFAULT_PORT<<"]>   "       "--manager1       address of manager 1\n"
 "  -p  <addr[:port="<<MANAGER_DEFAULT_PORT<<"]>   "       "--manager2       address of manager 2\n"
-"  -t  <[addr:]port="<<MEMPROTO_TEXT_DEFAULT_PORT<<">   " "--memproto-text  memcached text protocol listen port\n"
+"  -t  <[addr:]port="<<MEMTEXT_DEFAULT_PORT<<">   " "--memproto-text  memcached text protocol listen port\n"
 "  -c  <[addr:]port="<<CLOUDY_DEFAULT_PORT<<">   "        "--cloudy         memcached binary protocol listen port\n"
 "  -G  <number="<<get_retry_num<<">    "                  "--get-retry              get retry limit\n"
 "  -S  <number="<<set_retry_num<<">   "                   "--set-retry              set retry limit\n"
@@ -117,13 +117,13 @@ int main(int argc, char* argv[])
 	// initialize memcache gateway
 	std::auto_ptr<MemprotoText> mpt;
 	std::auto_ptr<Cloudy> cl;
-	//if(arg.memproto_text_set) {
-	//	mpt.reset(new MemprotoText(arg.memproto_text_lsock));
+	//if(arg.memtext_set) {
+	//	mpt.reset(new MemprotoText(arg.memtext_lsock));
 	//}
 	if(arg.cloudy_set) {
 		cl.reset(new Cloudy(arg.cloudy_lsock));
 	} else {
-		mpt.reset(new MemprotoText(arg.memproto_text_lsock));
+		mpt.reset(new MemprotoText(arg.memtext_lsock));
 	}
 
 	// daemonize
@@ -133,7 +133,7 @@ int main(int argc, char* argv[])
 
 	// run server
 	Gateway::initialize(arg);
-	//if(arg.memproto_text_set) {
+	//if(arg.memtext_set) {
 	//	Gateway::instance().add_gateway(mpt.get());
 	//}
 	if(arg.cloudy_set) {

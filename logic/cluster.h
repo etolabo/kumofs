@@ -39,6 +39,7 @@ private:
 			RPCBase<Logic>::signal_end(SIGTERM);
 			return;
 		}
+		LOG_DEBUG("accept cluster fd=",fd);
 		static_cast<ServerClass*>(this)->rpc::cluster::accepted(fd);
 	}
 };

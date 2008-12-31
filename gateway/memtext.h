@@ -1,5 +1,5 @@
-#ifndef GATEWAH_MEMPROTO_TEXT_H__
-#define GATEWAH_MEMPROTO_TEXT_H__
+#ifndef GATEWAH_MEMTEXT_H__
+#define GATEWAH_MEMTEXT_H__
 
 #include "gateway/gateway.h"
 

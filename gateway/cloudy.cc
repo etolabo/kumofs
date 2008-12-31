@@ -1,7 +1,7 @@
 #include "gateway/cloudy.h"
 #include "memproto/memproto.h"
 #include <mp/object_callback.h>
-#include <mp/message_buffer.h>
+#include <mp/stream_buffer.h>
 #include <stdexcept>
 #include <string.h>
 #include <errno.h>
@@ -30,6 +30,7 @@ void Cloudy::accepted(Gateway* gw, int fd, int err)
 		gw->signal_end(SIGTERM);
 		return;
 	}
+	LOG_DEBUG("accept memproto text user fd=",fd);
 	wavy::add<Connection>(fd, gw);
 }
 
@@ -64,7 +65,7 @@ private:
 
 private:
 	memproto_parser m_memproto;
-	mp::message_buffer m_buffer;
+	mp::stream_buffer m_buffer;
 
 	Gateway* m_gw;
 
@@ -245,7 +246,7 @@ try {
 		}
 		m_buffer.data_used(off);
 
-		m_zone->push_finalizer(&mp::object_delete<mp::message_buffer::reference>,
+		m_zone->push_finalizer(&mp::object_delete<mp::stream_buffer::reference>,
 				m_buffer.release());
 		ret = memproto_dispatch(&m_memproto);
 		if(ret <= 0) {

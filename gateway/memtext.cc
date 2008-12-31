@@ -1,7 +1,7 @@
-#include "gateway/memproto_text.h"
-#include "memproto/memproto_text.h"
+#include "gateway/memtext.h"
+#include "memproto/memtext.h"
 #include <mp/pthread.h>
-#include <mp/message_buffer.h>
+#include <mp/stream_buffer.h>
 #include <mp/object_callback.h>
 #include <stdexcept>
 #include <string.h>
@@ -15,8 +15,8 @@
 namespace kumo {
 
 
-static const size_t MEMPROTO_TEXT_INITIAL_ALLOCATION_SIZE = 16*1024;
-static const size_t MEMPROTO_TEXT_RESERVE_SIZE = 1024;
+static const size_t MEMTEXT_INITIAL_ALLOCATION_SIZE = 16*1024;
+static const size_t MEMTEXT_RESERVE_SIZE = 1024;
 
 
 MemprotoText::MemprotoText(int lsock) :
@@ -32,6 +32,7 @@ void MemprotoText::accepted(Gateway* gw, int fd, int err)
 		gw->signal_end(SIGTERM);
 		return;
 	}
+	LOG_DEBUG("accept memproto text user fd=",fd);
 	wavy::add<Connection>(fd, gw);
 }
 
@@ -57,17 +58,18 @@ private:
 
 	inline int memproto_set(
 			const char* key, unsigned key_len,
-			unsigned short flags, uint64_t exptime,
+			unsigned short flags, uint32_t exptime,
 			const char* data, unsigned data_len,
 			bool noreply);
 
 	inline int memproto_delete(
 			const char* key, unsigned key_len,
-			uint64_t time, bool noreply);
+			uint32_t exptime, bool noreply);
 
 private:
-	memproto_text m_memproto;
-	mp::message_buffer m_buffer;
+	memtext_parser m_memproto;
+	mp::stream_buffer m_buffer;
+	size_t m_off;
 	Gateway* m_gw;
 
 	typedef mp::shared_ptr<bool> SharedValid;
@@ -135,13 +137,6 @@ private:
 		void no_response(delete_response& res);
 	};
 
-
-	template <typename T>
-	char* alloc_responder_buf(shared_zone& z, size_t size, T** rp);
-
-	template <typename T>
-	static void object_destruct_free(void* data);
-
 private:
 	Connection();
 	Connection(const Connection&);
@@ -150,7 +145,8 @@ private:
 
 MemprotoText::Connection::Connection(int fd, Gateway* gw) :
 	mp::wavy::handler(fd),
-	m_buffer(MEMPROTO_TEXT_INITIAL_ALLOCATION_SIZE),
+	m_buffer(MEMTEXT_INITIAL_ALLOCATION_SIZE),
+	m_off(0),
 	m_gw(gw),
 	m_valid(new bool(true))
 {
@@ -159,21 +155,21 @@ MemprotoText::Connection::Connection(int fd, Gateway* gw) :
 				mem_fun<Connection, &Connection::memproto_get>;
 
 	int (*cmd_set)(void*, const char*, unsigned,
-			unsigned short, uint64_t,
+			unsigned short, uint32_t,
 			const char*, unsigned, bool) =
 		&mp::object_callback<int (const char*, unsigned,
-				unsigned short, uint64_t,
+				unsigned short, uint32_t,
 				const char*, unsigned,
 				bool)>::
 				mem_fun<Connection, &Connection::memproto_set>;
 
 	int (*cmd_delete)(void*, const char*, unsigned,
-			uint64_t, bool) =
+			uint32_t, bool) =
 		&mp::object_callback<int (const char*, unsigned,
-				uint64_t, bool)>::
+				uint32_t, bool)>::
 				mem_fun<Connection, &Connection::memproto_delete>;
 
-	memproto_text_callback cb = {
+	memtext_callback cb = {
 		cmd_get,     // get
 		cmd_set,     // set
 		NULL,        // replace
@@ -183,7 +179,7 @@ MemprotoText::Connection::Connection(int fd, Gateway* gw) :
 		cmd_delete,  // delete
 	};
 
-	memproto_text_init(&m_memproto, &cb, this);
+	memtext_init(&m_memproto, &cb, this);
 }
 
 MemprotoText::Connection::~Connection()
@@ -194,7 +190,7 @@ MemprotoText::Connection::~Connection()
 
 void MemprotoText::Connection::read_event()
 try {
-	m_buffer.reserve_buffer(MEMPROTO_TEXT_RESERVE_SIZE);
+	m_buffer.reserve_buffer(MEMTEXT_RESERVE_SIZE);
 
 	ssize_t rl = ::read(fd(), m_buffer.buffer(), m_buffer.buffer_capacity());
 	if(rl < 0) {
@@ -210,16 +206,14 @@ try {
 	m_buffer.buffer_consumed(rl);
 
 	do {
-		size_t off = 0;
-		int ret = memproto_text_execute(&m_memproto,
-				(char*)m_buffer.data(), m_buffer.data_size(), &off);
+		int ret = memtext_execute(&m_memproto,
+				(char*)m_buffer.data(), m_buffer.data_size(), &m_off);
 		if(ret < 0) {
 			throw std::runtime_error("parse error");
 		}
-
-		m_buffer.data_used(off);
-
 		if(ret == 0) { return; }
+		m_buffer.data_used(m_off);
+		m_off = 0;
 	} while(m_buffer.data_size() > 0);
 
 } catch (std::exception& e) {
@@ -228,28 +222,6 @@ try {
 } catch (...) {
 	LOG_DEBUG("memcached text protocol error: unknown error");
 	throw;
-}
-
-
-template <typename T>
-void MemprotoText::Connection::object_destruct_free(void* data)
-{
-	reinterpret_cast<T*>(data)->~T();
-	free(data);
-}
-
-template <typename T>
-char* MemprotoText::Connection::alloc_responder_buf(shared_zone& z, size_t size, T** rp)
-{
-	void* b = malloc(sizeof(T) + size);
-	if(!b) { throw std::bad_alloc(); }
-	try {
-		*rp = new (b) T(fd(), m_valid);
-	} catch (...) { free(b); throw; }
-	try {
-		z->push_finalizer(&object_destruct_free<T>, b);
-	} catch (...) { (*rp)->~T(); free(b); throw; }
-	return ((char*)b) + sizeof(T);
 }
 
 
@@ -276,7 +248,7 @@ static const char* const DELETE_FAILED_REPLY = "SERVER_ERROR delete failed\r\n";
 
 #define RELEASE_REFERENCE(life) \
 	shared_zone life(new msgpack::zone()); \
-	life->push_finalizer(&mp::object_delete<mp::message_buffer::reference>, \
+	life->push_finalizer(&mp::object_delete<mp::stream_buffer::reference>, \
 				m_buffer.release());
 
 int MemprotoText::Connection::memproto_get(
@@ -329,7 +301,7 @@ int MemprotoText::Connection::memproto_get(
 
 int MemprotoText::Connection::memproto_set(
 		const char* key, unsigned key_len,
-		unsigned short flags, uint64_t exptime,
+		unsigned short flags, uint32_t exptime,
 		const char* data, unsigned data_len,
 		bool noreply)
 {
@@ -367,12 +339,12 @@ int MemprotoText::Connection::memproto_set(
 
 int MemprotoText::Connection::memproto_delete(
 		const char* key, unsigned key_len,
-		uint64_t time, bool noreply)
+		uint32_t exptime, bool noreply)
 {
 	LOG_TRACE("delete");
 	RELEASE_REFERENCE(life);
 
-	if(time) {
+	if(exptime) {
 		wavy::write(fd(), NOT_SUPPORTED_REPLY, strlen(NOT_SUPPORTED_REPLY));
 		return 0;
 	}

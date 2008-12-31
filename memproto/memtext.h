@@ -1,5 +1,5 @@
 /*
- * memproto  memcached text protocol parser
+ * memtext  memcached text protocol parser
  *
  * Copyright (C) 2008 FURUHASHI Sadayuki
  *
@@ -16,52 +16,52 @@
  *    limitations under the License.
  */
 
-#ifndef MEMPROTO_TEXT_H__
-#define MEMPROTO_TEXT_H__
+#ifndef MEMTEXT_H__
+#define MEMTEXT_H__
 
 #include <stddef.h>
 #include <stdbool.h>
 #include <stdint.h>
 
-#define MEMPROTO_TEXT_MAX_MULTI_GET 256
+#define MEMTEXT_MAX_MULTI_GET 256
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-typedef int (*memproto_text_callback_retrieval)(
+typedef int (*memtext_callback_retrieval)(
 		void* user,
 		const char** key, unsigned* key_len, unsigned keys);
 
-typedef int (*memproto_text_callback_storage)(
+typedef int (*memtext_callback_storage)(
 		void* user,
 		const char* key, unsigned key_len,
-		unsigned short flags, uint64_t exptime,
+		unsigned short flags, uint32_t exptime,
 		const char* data, unsigned data_len,
 		bool noreply);
 
-typedef int (*memproto_text_callback_cas)(
+typedef int (*memtext_callback_cas)(
 		void* user,
 		const char* key, unsigned key_len,
-		unsigned short flags, uint64_t exptime,
+		unsigned short flags, uint32_t exptime,
 		const char* data, unsigned data_len,
 		uint64_t cas_unique,
 		bool noreply);
 
-typedef int (*memproto_text_callback_delete)(
+typedef int (*memtext_callback_delete)(
 		void* user,
 		const char* key, unsigned key_len,
-		uint64_t time, bool noreply);
+		uint32_t exptime, bool noreply);
 
 typedef struct {
-	memproto_text_callback_retrieval cmd_get;
-	memproto_text_callback_storage   cmd_set;
-	memproto_text_callback_storage   cmd_replace;
-	memproto_text_callback_storage   cmd_append;
-	memproto_text_callback_storage   cmd_prepend;
-	memproto_text_callback_cas       cmd_cas;
-	memproto_text_callback_delete    cmd_delete;
-} memproto_text_callback;
+	memtext_callback_retrieval cmd_get;
+	memtext_callback_storage   cmd_set;
+	memtext_callback_storage   cmd_replace;
+	memtext_callback_storage   cmd_append;
+	memtext_callback_storage   cmd_prepend;
+	memtext_callback_cas       cmd_cas;
+	memtext_callback_delete    cmd_delete;
+} memtext_callback;
 
 typedef struct {
 	size_t data_count;
@@ -72,31 +72,30 @@ typedef struct {
 
 	int command;
 
-	size_t key_pos[MEMPROTO_TEXT_MAX_MULTI_GET];
-	unsigned int key_len[MEMPROTO_TEXT_MAX_MULTI_GET];
+	size_t key_pos[MEMTEXT_MAX_MULTI_GET];
+	unsigned int key_len[MEMTEXT_MAX_MULTI_GET];
 	unsigned int keys;
 
 	size_t flags;
-	uint64_t exptime;
+	uint32_t exptime;
 	size_t bytes;
 	bool noreply;
-	uint64_t time;
 	uint64_t cas_unique;
 
 	size_t data_pos;
 	unsigned int data_len;
 
-	memproto_text_callback callback;
+	memtext_callback callback;
 
 	void* user;
-} memproto_text;
+} memtext_parser;
 
-void memproto_text_init(memproto_text* ctx, memproto_text_callback* callback, void* user);
-int memproto_text_execute(memproto_text* ctx, const char* data, size_t len, size_t* off);
+void memtext_init(memtext_parser* ctx, memtext_callback* callback, void* user);
+int memtext_execute(memtext_parser* ctx, const char* data, size_t len, size_t* off);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* memproto_text.h */
+#endif /* memtext.h */
 

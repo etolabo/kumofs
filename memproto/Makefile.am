@@ -1,21 +1,21 @@
 
-nodist_noinst_DATA = memproto_text.c
-dist_noinst_DATA = memproto_text.rl
+nodist_noinst_DATA = memtext.c
+dist_noinst_DATA = memtext.rl
 
 noinst_LIBRARIES = libkumo_memproto.a
 
 libkumo_memproto_a_SOURCES = \
 		memproto.c \
-		memproto_text.c
+		memtext.c
 
 # FIXME GNU make extension
 %.c: %.rl
 	$(RAGEL) -C $< -o $@.tmp
 	mv $@.tmp $@
 
-MOSTLYCLEANFILES = memproto_text.c
+MOSTLYCLEANFILES = memtext.c
 
 noinst_HEADERS = \
 		memproto.h \
-		memproto_text.h
+		memtext.h
 
