@@ -87,44 +87,21 @@ try {
 RPC_CATCH(ReplaceDeleteStart, response)
 
 
+namespace {
+	struct ReplaceProposePool {
+		typedef protocol::type::ReplacePropose type;
+		ReplaceProposePool(address a) : addr(a) { }
+		address addr;
+		type request;
+	};
 
-template <typename Iterator, typename pool_t, typename ReplaceElement>
-void Server::replace_pool_impl(pool_t& pool,
-		Iterator begin, Iterator end,
-		ReplaceElement e)
-{
-	for(; begin != end; ++begin) {
-		for(typename pool_t::iterator p(pool.begin()); p != pool.end(); ++p) {
-			if(p->addr == *begin) {
-				p->pool.push_back(e);
-				goto pool_next;
-			}
-		}
-		pool.push_back( typename pool_t::value_type(*begin) );
-		pool.back().pool.push_back(e);
-		pool_next: { }
-	}
-}
-
-void Server::replace_flush_pool_impl(
-		propose_pool_t& propose_pool, shared_zone& propose_life,
-		push_pool_t& push_pool, shared_zone& push_life,
-		ClockTime replace_time)
-{
-	for(propose_pool_t::iterator it(propose_pool.begin());
-			it != propose_pool.end(); ++it) {
-		propose_replace_push(it->addr, it->pool, propose_life, replace_time);
-	}
-	propose_pool.clear();
-	propose_life.reset(new msgpack::zone());
-
-	for(push_pool_t::iterator it(push_pool.begin());
-			it != push_pool.end(); ++it) {
-		push_replace_push(it->addr, it->pool, push_life, replace_time);
-	}
-	push_pool.clear();
-	push_life.reset(new msgpack::zone());
-}
+	struct ReplacePushPool {
+		typedef protocol::type::ReplacePush type;
+		ReplacePushPool(address a) : addr(a) { }
+		address addr;
+		type request;
+	};
+}  // noname namespace
 
 void Server::replace_copy(const address& manager_addr, HashSpace& hs)
 {
@@ -197,6 +174,11 @@ void Server::replace_copy(const address& manager_addr, HashSpace& hs)
 	current_owners.reserve(NUM_REPLICATION+1);
 	newbies.reserve(NUM_REPLICATION+1);
 
+	typedef std::vector<ReplaceProposePool> propose_pool_t;
+	typedef std::vector<ReplacePushPool> push_pool_t;
+	propose_pool_t propose_pool;
+	push_pool_t push_pool;
+
 	shared_zone propose_life(new msgpack::zone());
 	shared_zone push_life(new msgpack::zone());
 	size_t pool_size = 0;
@@ -246,37 +228,62 @@ void Server::replace_copy(const address& manager_addr, HashSpace& hs)
 			}
 		}
 
+		if(newbies.empty()) { continue; }
+
+		#define POOL_REQUEST(TYPE, POOL, ELEMENT) \
+			for(addrs_t::iterator it(newbies.begin());  it != newbies.end(); ++it) { \
+				for(TYPE::iterator p(POOL.begin()); p != POOL.end(); ++p) { \
+					if(p->addr == *it) { \
+						p->request.push_back(ELEMENT); \
+						goto pool_next_ ## TYPE; \
+					} \
+				} \
+				POOL.push_back( TYPE::value_type(*it) ); \
+				POOL.back().request.push_back(ELEMENT); \
+				pool_next_ ## TYPE: { } \
+			}
+
 		if(raw_vallen > 512) {   // FIXME
 			// propose -> push
 			uint64_t clocktime = DBFormat::clocktime(raw_val);
 			kv.release_key(*propose_life);
-			replace_pool_impl(propose_pool,
-					newbies.begin(), newbies.end(),
-					protocol::type::ReplaceProposeElement(
-						raw_key, raw_keylen, clocktime));
+
+			protocol::type::ReplaceProposeElement e(
+					raw_key, raw_keylen, clocktime);
+			POOL_REQUEST(propose_pool_t, propose_pool, e);
 			pool_size += (raw_keylen + 64) * newbies.size();  // FIXME 64
 
 		} else {
 			// push directly
 			kv.release_key(*push_life);
 			kv.release_val(*push_life);
-			replace_pool_impl(push_pool,
-					newbies.begin(), newbies.end(),
-					protocol::type::ReplacePushElement(
-						raw_key, raw_keylen, raw_val, raw_vallen));
+
+			protocol::type::ReplacePushElement e(
+					raw_key, raw_keylen,
+					raw_val, raw_vallen);
+			POOL_REQUEST(push_pool_t, push_pool, e);
 			pool_size += (raw_keylen + raw_vallen + 64) * newbies.size();  // FIXME 64
 		}
 
+		#define FLUSH_POOL(FUNC, TYPE, POOL, LIFE) \
+			for(TYPE::iterator it(POOL.begin()); \
+					it != POOL.end(); ++it) { \
+				FUNC(it->addr, it->request, LIFE, replace_time); \
+			} \
+			propose_pool.clear();
+
 		if(pool_size/1024/1024 > m_cfg_replace_pool_size) {
-			replace_flush_pool_impl(propose_pool, propose_life,
-					push_pool, push_life, replace_time);
+			FLUSH_POOL(send_replace_propose, propose_pool_t, propose_pool, propose_life);
+			FLUSH_POOL(send_replace_push, push_pool_t, push_pool, push_life);
+			propose_life.reset(new msgpack::zone());
+			push_life.reset(new msgpack::zone());
 			pool_size = 0;
 		}
 
 	}
 
-	replace_flush_pool_impl(propose_pool, propose_life,
-			push_pool, push_life, replace_time);
+	FLUSH_POOL(send_replace_propose, propose_pool_t, propose_pool, propose_life);
+	FLUSH_POOL(send_replace_push, push_pool_t, push_pool, push_life);
 }
 
 skip_replace:
@@ -286,7 +293,7 @@ skip_replace:
 	}
 }
 
-void Server::propose_replace_push(const address& node,
+void Server::send_replace_propose(const address& node,
 		const protocol::type::ReplacePropose& req,
 		shared_zone& life, ClockTime replace_time)
 try {
@@ -303,7 +310,7 @@ try {
 	LOG_WARN("replace propose failed: ",e.what());
 }
 
-void Server::push_replace_push(const address& node,
+void Server::send_replace_push(const address& node,
 		const protocol::type::ReplacePush& req,
 		shared_zone& life, ClockTime replace_time)
 try {
@@ -438,7 +445,7 @@ RPC_REPLY(ResReplacePropose, from, res, err, life,
 		LOG_ERROR("ReplacePropose failed: ",err);
 	}
 
-	if(!res.is_nil() && SESSION_IS_ACTIVE(from)) { goto skip_push; }
+	if(!res.is_nil() && !SESSION_IS_ACTIVE(from)) { goto skip_push; }
 
 	try {
 		typedef protocol::type::ReplacePropose::request request_t;
@@ -454,12 +461,13 @@ RPC_REPLY(ResReplacePropose, from, res, err, life,
 		protocol::type::ReplacePush pool;
 		size_t pool_size = 0;
 
+		protocol::type::ReplacePropose& pr(retry->param());
 		pthread_scoped_rdlock dblk(m_db.mutex());
 
 		for(request_t::iterator it(st.begin()); it != st.end(); ++it) {
 
-			if(retry->param().size() < *it) { continue; }
-			protocol::type::DBKey key(retry->param()[*it].dbkey());
+			if(pr.size() < *it) { continue; }
+			protocol::type::DBKey key(pr[*it].dbkey());
 
 			uint32_t raw_vallen;
 			const char* raw_val = m_db.get(key.raw_data(), key.raw_size(),
@@ -477,17 +485,19 @@ RPC_REPLY(ResReplacePropose, from, res, err, life,
 						raw_val, raw_vallen) );
 
 			if(pool_size/1024/1024 > m_cfg_replace_pool_size) {
-				push_replace_push(addr, pool, nlife, replace_time);
+				send_replace_push(addr, pool, nlife, replace_time);
 				nlife.reset(new msgpack::zone());
 				pool_size = 0;
 			}
 		}
-		push_replace_push(addr, pool, nlife, replace_time);
-		nlife.reset(new msgpack::zone());
+		send_replace_push(addr, pool, nlife, replace_time);
 		pool_size = 0;
 
-	} catch (...) {
+	} catch (std::exception& e) {
 		// FIXME
+		LOG_ERROR("res replace propose process failed: ",e.what());
+	} catch (...) {
+		LOG_ERROR("res replace propose process failed: unknown error");
 	}
 
 skip_push:

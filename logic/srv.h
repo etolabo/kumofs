@@ -79,44 +79,6 @@ private:
 	void replace_delete(shared_node& manager, HashSpace& hs);
 	RPC_REPLY_DECL(ResReplaceDeleteEnd, from, res, err, life);
 
-
-	struct ProposePool {
-		typedef protocol::type::ReplacePropose type;
-		ProposePool(address a) : addr(a) { }
-		address addr;
-		type pool;
-	};
-
-	struct PushPool {
-		typedef protocol::type::ReplacePush type;
-		PushPool(address a) : addr(a) { }
-		address addr;
-		type pool;
-	};
-
-	typedef std::vector<ProposePool> propose_pool_t;
-	typedef std::vector<PushPool> push_pool_t;
-	propose_pool_t propose_pool;
-	push_pool_t push_pool;
-
-	void propose_replace_push(const address& node,
-			const protocol::type::ReplacePropose& req,
-			shared_zone& life, ClockTime replace_time);
-
-	void push_replace_push(const address& node,
-			const protocol::type::ReplacePush& req,
-			shared_zone& life, ClockTime replace_time);
-
-	template <typename Iterator, typename pool_t, typename ReplaceElement>
-	static void replace_pool_impl(pool_t& pool,
-			Iterator begin, Iterator end,
-			ReplaceElement e);
-
-	void replace_flush_pool_impl(
-			propose_pool_t& propose_pool, shared_zone& propose_life,
-			push_pool_t& push_pool, shared_zone& push_life,
-			ClockTime replace_time);
-
 #define REQUIRE_RELK const pthread_scoped_lock& relk
 	void replace_copy(const address& manager_addr, HashSpace& hs);
 	void finish_replace_copy(ClockTime clocktime, REQUIRE_RELK);
@@ -129,6 +91,14 @@ private:
 			RetryReplacePropose* retry, ClockTime replace_time);
 	RPC_REPLY_DECL(ResReplacePush, from, res, err, life,
 			RetryReplacePush* retry, ClockTime replace_time);
+
+	void send_replace_propose(const address& node,
+			const protocol::type::ReplacePropose& req,
+			shared_zone& life, ClockTime replace_time);
+
+	void send_replace_push(const address& node,
+			const protocol::type::ReplacePush& req,
+			shared_zone& life, ClockTime replace_time);
 
 private:
 	Clock m_clock;
