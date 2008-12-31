@@ -21,7 +21,7 @@ public:
 	void set(const char* key, uint32_t keylen,
 			const char* val, uint32_t vallen);
 
-	bool erase(const char* key, uint32_t keylen);
+	bool del(const char* key, uint32_t keylen);
 
 	class iterator {
 	public:

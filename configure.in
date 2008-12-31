@@ -68,7 +68,7 @@ fi
 
 AC_ARG_WITH([luxio],
 	AS_HELP_STRING([--with-luxio@<:@=DIR@:>@],
-				   [use LuxIO for the backend storage]),
+				   [use LuxIO for the backend storage (NOT IMPLEMENTED)]),
 	[luxio_path="$withval"], [])
 if test "$luxio_path" != ""; then
 	storage_type="luxio"

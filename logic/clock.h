@@ -25,6 +25,11 @@ public:
 		return __sync_fetch_and_add(&m, 1);
 	}
 
+	uint32_t get() const
+	{
+		return m;
+	}
+
 	void update(uint32_t o)
 	{
 		while(true) {

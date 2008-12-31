@@ -3,12 +3,12 @@
 
 namespace kumo {
 
-inline Gateway::shared_session Gateway::server_for(const char* key, uint32_t keylen)
+inline Gateway::shared_session Gateway::server_for(uint64_t h)
 {
-	return server_for(key, keylen, 0);
+	return server_for(h, 0);
 }
 
-Gateway::shared_session Gateway::server_for(const char* key, uint32_t keylen, unsigned int offset)
+Gateway::shared_session Gateway::server_for(uint64_t h, unsigned int offset)
 {
 #if NUM_REPLICATION != 2
 #error fix following code
@@ -21,8 +21,7 @@ Gateway::shared_session Gateway::server_for(const char* key, uint32_t keylen, un
 		renew_hash_space();  // FIXME may burst
 		throw std::runtime_error("No server");
 	}
-	uint64_t x = HashSpace::hash(key, keylen);
-	HashSpace::iterator it( m_hs.find(x) );
+	HashSpace::iterator it( m_hs.find(h) );
 
 	{
 		if(offset == 0) {
@@ -90,11 +89,14 @@ void Gateway::Get(void (*callback)(void*, get_response&), void* user,
 		shared_zone life,
 		const char* key, uint32_t keylen)
 try {
+	uint64_t hash = HashSpace::hash(key, keylen);
 	RetryGet* retry = life->allocate<RetryGet>(
-			protocol::type::Get(key, keylen) );
+			protocol::type::Get(
+				protocol::type::DBKey(key, keylen, hash)
+				));
 
 	retry->set_callback( BIND_RESPONSE(ResGet, retry, callback, user) );
-	retry->call(server_for(key, keylen), life, 10);
+	retry->call(server_for(hash), life, 10);
 }
 GATEWAY_CATCH(Get, get_response)
 
@@ -104,11 +106,16 @@ void Gateway::Set(void (*callback)(void*, set_response&), void* user,
 		const char* key, uint32_t keylen,
 		const char* val, uint32_t vallen)
 try {
+	uint64_t hash = HashSpace::hash(key, keylen);
+	uint64_t meta = 0;
 	RetrySet* retry = life->allocate<RetrySet>(
-			protocol::type::Set(key, keylen, val, vallen) );
+			protocol::type::Set(
+				protocol::type::DBKey(key, keylen, hash),
+				protocol::type::DBValue(val, vallen, meta)
+				));
 
 	retry->set_callback( BIND_RESPONSE(ResSet, retry, callback, user) );
-	retry->call(server_for(key, keylen), life, 10);
+	retry->call(server_for(hash), life, 10);
 }
 GATEWAY_CATCH(Set, set_response)
 
@@ -117,11 +124,14 @@ void Gateway::Delete(void (*callback)(void*, delete_response&), void* user,
 		shared_zone life,
 		const char* key, uint32_t keylen)
 try {
+	uint64_t hash = HashSpace::hash(key, keylen);
 	RetryDelete* retry = life->allocate<RetryDelete>(
-			protocol::type::Delete(key, keylen) );
+			protocol::type::Delete(
+				protocol::type::DBKey(key, keylen, hash)
+				));
 
 	retry->set_callback( BIND_RESPONSE(ResDelete, retry, callback, user) );
-	retry->call(server_for(key, keylen), life, 10);
+	retry->call(server_for(hash), life, 10);
 }
 GATEWAY_CATCH(Delete, delete_response)
 
@@ -130,22 +140,24 @@ RPC_REPLY(ResGet, from, res, err, life,
 		RetryGet* retry,
 		void (*callback)(void*, get_response&), void* user)
 {
+	protocol::type::DBKey key(retry->param().dbkey());
 	LOG_TRACE("ResGet ",err);
+
 	if(err.is_nil()) {
 		get_response ret;
 		ret.error     = 0;
 		ret.life      = life;
-		ret.key       = retry->param().key();
-		ret.keylen    = retry->param().keylen();
+		ret.key       = key.data();
+		ret.keylen    = key.size();
 		if(res.is_nil()) {
 			ret.val       = NULL;
 			ret.vallen    = 0;
 			ret.clocktime = 0;
 		} else {
-			msgpack::type::tuple<msgpack::type::raw_ref, uint64_t> st(res);
-			ret.val       = (char*)st.get<0>().ptr;
-			ret.vallen    = st.get<0>().size;
-			ret.clocktime = st.get<1>();
+			protocol::type::DBValue st(res.convert());
+			ret.val       = (char*)st.data();
+			ret.vallen    = st.size();
+			ret.clocktime = st.clocktime();
 		}
 		(*callback)(user, ret);
 
@@ -153,7 +165,7 @@ RPC_REPLY(ResGet, from, res, err, life,
 		incr_error_count();
 		unsigned short offset = retry->num_retried() % (NUM_REPLICATION+1);
 		retry->call(
-				server_for(retry->param().key(), retry->param().keylen(), offset),
+				server_for(key.hash(), offset),
 				life, 10);
 		LOG_INFO("Get error: ",err,", fallback to offset +",offset," node");
 
@@ -165,8 +177,8 @@ RPC_REPLY(ResGet, from, res, err, life,
 		get_response ret;
 		ret.error     = 1;  // ERROR
 		ret.life      = life;
-		ret.key       = retry->param().key();
-		ret.keylen    = retry->param().keylen();
+		ret.key       = key.data();
+		ret.keylen    = key.size();
 		ret.val       = NULL;
 		ret.vallen    = 0;
 		ret.clocktime = 0;
@@ -180,16 +192,19 @@ RPC_REPLY(ResSet, from, res, err, life,
 		RetrySet* retry,
 		void (*callback)(void*, set_response&), void* user)
 {
+	protocol::type::DBKey key(retry->param().dbkey());
+	protocol::type::DBValue val(retry->param().dbval());
 	LOG_TRACE("ResSet ",err);
+
 	if(!res.is_nil()) {
 		msgpack::type::tuple<uint64_t> st(res);
 		set_response ret;
 		ret.error     = 0;
 		ret.life      = life;
-		ret.key       = retry->param().key();
-		ret.keylen    = retry->param().keylen();
-		ret.val       = retry->param().meta_val();
-		ret.vallen    = retry->param().meta_vallen();
+		ret.key       = key.data();
+		ret.keylen    = key.size();
+		ret.val       = val.data();
+		ret.vallen    = val.size();
 		ret.clocktime = st.get<0>();
 		(*callback)(user, ret);
 
@@ -198,7 +213,7 @@ RPC_REPLY(ResSet, from, res, err, life,
 		if(!SESSION_IS_ACTIVE(from)) {
 			// FIXME renew hash space?
 			// FIXME delayed retry
-			from = server_for(retry->param().key(), retry->param().keylen());
+			from = server_for(key.hash());
 		}
 		retry->call(from, life, 10);
 		LOG_WARN("Set error: ",err,", retry ",retry->num_retried());
@@ -211,10 +226,10 @@ RPC_REPLY(ResSet, from, res, err, life,
 		set_response ret;
 		ret.error     = 1;  // ERROR
 		ret.life      = life;
-		ret.key       = retry->param().key();
-		ret.keylen    = retry->param().keylen();
-		ret.val       = retry->param().meta_val();
-		ret.vallen    = retry->param().meta_vallen();
+		ret.key       = key.data();
+		ret.keylen    = key.size();
+		ret.val       = val.data();
+		ret.vallen    = val.size();
 		ret.clocktime = 0;
 		(*callback)(user, ret);
 		LOG_ERROR("Set error: ",err);
@@ -226,14 +241,16 @@ RPC_REPLY(ResDelete, from, res, err, life,
 		RetryDelete* retry,
 		void (*callback)(void*, delete_response&), void* user)
 {
+	protocol::type::DBKey key(retry->param().dbkey());
 	LOG_TRACE("ResDelete ",err);
+
 	if(!res.is_nil()) {
 		bool st(res.convert());
 		delete_response ret;
 		ret.error     = 0;
 		ret.life      = life;
-		ret.key       = retry->param().key();
-		ret.keylen    = retry->param().keylen();
+		ret.key       = key.data();
+		ret.keylen    = key.size();
 		ret.deleted   = st;
 		(*callback)(user, ret);
 
@@ -242,7 +259,7 @@ RPC_REPLY(ResDelete, from, res, err, life,
 		if(!SESSION_IS_ACTIVE(from)) {
 			// FIXME renew hash space?
 			// FIXME delayed retry
-			from = server_for(retry->param().key(), retry->param().keylen());
+			from = server_for(key.hash());
 		}
 		retry->call(from, life, 10);
 		LOG_WARN("Delete error: ",err,", retry ",retry->num_retried());
@@ -255,8 +272,8 @@ RPC_REPLY(ResDelete, from, res, err, life,
 		delete_response ret;
 		ret.error     = 1;  // ERROR
 		ret.life      = life;
-		ret.key       = retry->param().key();
-		ret.keylen    = retry->param().keylen();
+		ret.key       = key.data();
+		ret.keylen    = key.size();
 		ret.deleted   = false;
 		(*callback)(user, ret);
 		LOG_ERROR("Delete error: ",err);

@@ -102,7 +102,7 @@ void Storage::set(const char* key, uint32_t keylen,
 	}
 }
 
-bool Storage::erase(const char* key, uint32_t keylen)
+bool Storage::del(const char* key, uint32_t keylen)
 {
 	return s_luxbt->del(key, keylen);
 }

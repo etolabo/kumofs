@@ -13,8 +13,12 @@
 #include <sys/uio.h>
 #include <unistd.h>
 
+#ifndef RPC_INITIAL_BUFFER_SIZE
+#define RPC_INITIAL_BUFFER_SIZE (64*1024)
+#endif
+
 #ifndef RPC_BUFFER_RESERVATION_SIZE
-#define RPC_BUFFER_RESERVATION_SIZE (32*1024)
+#define RPC_BUFFER_RESERVATION_SIZE (8*1024)
 #endif
 
 namespace rpc {
@@ -57,7 +61,8 @@ private:
 
 template <typename IMPL>
 connection<IMPL>::connection(int fd) :
-	mp::wavy::handler(fd) { }
+	mp::wavy::handler(fd),
+	m_pac(RPC_INITIAL_BUFFER_SIZE) { }
 
 template <typename IMPL>
 connection<IMPL>::~connection() { }
@@ -100,7 +105,7 @@ try {
 }
 
 template <typename IMPL>
-void connection<IMPL>::submit_message(msgobj msg, auto_zone& z)
+inline void connection<IMPL>::submit_message(msgobj msg, auto_zone& z)
 {
 	wavy::submit(&IMPL::process_message,
 			shared_self<IMPL>(), msg, z.get());

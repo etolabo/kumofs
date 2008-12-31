@@ -8,34 +8,7 @@
 
 namespace kumo {
 
-
-struct meta_leading_raw_ref : public msgpack::type::raw_ref {
-	meta_leading_raw_ref() {}
-	meta_leading_raw_ref(const char* val, size_t vallen) :
-		msgpack::type::raw_ref(val, vallen) {}
-};
-
-inline meta_leading_raw_ref& operator>> (msgpack::object o, meta_leading_raw_ref& v)
-{
-	if(o.type != msgpack::type::RAW) { throw msgpack::type_error(); }
-	v.ptr  = o.via.ref.ptr;
-	v.size = o.via.ref.size;
-	return v;
-}
-
-template <typename Stream>
-inline msgpack::packer<Stream>& operator<< (msgpack::packer<Stream>& o, const meta_leading_raw_ref& v)
-{
-	static char MARGIN[DBFormat::LEADING_METADATA_SIZE] = {0};  // FIXME
-	o.pack_raw(DBFormat::LEADING_METADATA_SIZE + v.size);
-	o.pack_raw_body(MARGIN, DBFormat::LEADING_METADATA_SIZE);
-	o.pack_raw_body(v.ptr, v.size);
-	return o;
-}
-
-
 namespace protocol {
-
 
 using namespace rpc::protocol;
 
@@ -90,7 +63,100 @@ namespace type {
 	using msgpack::define;
 	using msgpack::type::tuple;
 	using msgpack::type::raw_ref;
+	using msgpack::type_error;
 	typedef HashSpace::Seed HSSeed;
+
+
+	struct DBKey {
+		DBKey() {}
+
+		DBKey(const char* key, size_t keylen, uint64_t hash) :
+			m_keylen(keylen), m_key(key), m_hash(hash) {}
+
+		DBKey(const char* raw_key, size_t raw_keylen)
+			{ msgpack_unpack(raw_ref(raw_key, raw_keylen)); }
+
+		const char* data() const		{ return m_key; }
+		size_t size() const				{ return m_keylen; }
+		uint64_t hash() const			{ return m_hash; }
+
+		// these functions are available only when deserialized
+		const char* raw_data() const	{ return m_key - 8; }
+		size_t raw_size() const			{ return m_keylen + 8; }
+
+		template <typename Packer>
+		void msgpack_pack(Packer& pk) const
+		{
+			uint64_t hash_be = kumo_be64(m_hash);
+			pk.pack_raw(m_keylen+8);
+			pk.pack_raw_body((const char*)&hash_be, 8);
+			pk.pack_raw_body(m_key, m_keylen);
+		}
+
+		void msgpack_unpack(raw_ref o)
+		{
+			if(o.size < 8) { throw type_error(); }
+			m_keylen = o.size - 8;
+			m_hash = kumo_be64(*(uint64_t*)o.ptr);
+			m_key = o.ptr + 8;
+		}
+
+	private:
+		size_t m_keylen;
+		const char* m_key;
+		uint64_t m_hash;
+	};
+
+	struct DBValue {
+		DBValue() {}
+
+		DBValue(const char* val, size_t vallen, uint64_t meta) :
+			m_vallen(vallen), m_val(val), m_clocktime(0), m_meta(meta) {}
+
+		DBValue(const char* raw_val, size_t raw_vallen)
+			{ msgpack_unpack(raw_ref(raw_val, raw_vallen)); }
+
+		const char* data() const		{ return m_val; }
+		size_t size() const				{ return m_vallen; }
+		uint64_t clocktime() const		{ return m_clocktime; }
+		uint64_t meta() const			{ return m_meta; }
+
+		// these functions are available only when deserialized
+		const char* raw_data() const	{ return m_val - 16; }
+		size_t raw_size() const			{ return m_vallen + 16; }
+		void raw_set_clocktime(uint64_t clocktime)
+		{
+			m_clocktime = clocktime;
+			*((uint64_t*)raw_data()) = kumo_be64(clocktime);
+		}
+
+		template <typename Packer>
+		void msgpack_pack(Packer& pk) const
+		{
+			uint64_t meta_be = kumo_be64(m_meta);
+			uint64_t clocktime = kumo_be64(m_clocktime);
+			pk.pack_raw(m_vallen + 16);
+			pk.pack_raw_body((const char*)&clocktime, 8);
+			pk.pack_raw_body((const char*)&meta_be, 8);
+			pk.pack_raw_body(m_val, m_vallen);
+		}
+
+		void msgpack_unpack(raw_ref o)
+		{
+			if(o.size < 16) { throw type_error(); }
+			m_vallen = o.size - 16;
+			m_clocktime = kumo_be64(*(uint64_t*)o.ptr);
+			m_meta = kumo_be64(*(uint64_t*)(o.ptr+8));
+			m_val = o.ptr + 16;
+		}
+
+	private:
+		size_t m_vallen;
+		const char* m_val;
+		uint64_t m_clocktime;
+		uint64_t m_meta;
+	};
+
 
 	struct KeepAlive : define< tuple<uint32_t> > {
 		KeepAlive() {}
@@ -170,18 +236,18 @@ namespace type {
 	struct ReplicateSet : define< tuple<raw_ref, raw_ref, uint32_t> > {
 		ReplicateSet() {}
 		ReplicateSet(
-				const char* key, size_t keylen,
-				const char* meta_val, size_t meta_vallen,
+				const char* raw_key, size_t raw_keylen,
+				const char* raw_val, size_t raw_vallen,
 				uint32_t clock) :
 			define_type(msgpack_type(
-						raw_ref(key, keylen),
-						raw_ref(meta_val, meta_vallen),
+						raw_ref(raw_key, raw_keylen),
+						raw_ref(raw_val, raw_vallen),
 						clock
 						)) {}
-		const char* key() const			{ return get<0>().ptr; }
-		size_t keylen() const			{ return get<0>().size; }
-		const char* meta_val() const	{ return get<1>().ptr; }
-		size_t meta_vallen() const		{ return get<1>().size; }
+		DBKey dbkey() const
+			{ return DBKey(get<0>().ptr, get<0>().size); }
+		DBValue dbval() const
+			{ return DBValue(get<1>().ptr, get<1>().size); }
 		uint32_t clock() const			{ return get<2>(); }
 		// success: true
 		// ignored: false
@@ -190,16 +256,16 @@ namespace type {
 	struct ReplicateDelete : define< tuple<raw_ref, uint64_t, uint32_t> > {
 		ReplicateDelete() {}
 		ReplicateDelete(
-				const char* key, size_t keylen,
+				const char* raw_key, size_t raw_keylen,
 				uint64_t clocktime,
 				uint32_t clock) :
 			define_type(msgpack_type(
-						raw_ref(key, keylen),
+						raw_ref(raw_key, raw_keylen),
 						clocktime,
 						clock
 						)) {}
-		const char* key() const			{ return get<0>().ptr; }
-		size_t keylen() const			{ return get<0>().size; }
+		DBKey dbkey() const
+			{ return DBKey(get<0>().ptr, get<0>().size); }
 		uint64_t clocktime() const		{ return get<1>(); }
 		uint32_t clock() const			{ return get<2>(); }
 		// success: true
@@ -255,42 +321,32 @@ namespace type {
 		// obsolete: nil
 	};
 
-	struct Get : define< tuple<raw_ref> > {
+	struct Get : define< tuple<DBKey> > {
 		Get() {}
-		Get(const char* key, size_t keylen) :
-			define_type(msgpack_type( raw_ref(key, keylen) )) {}
-		const char* key() const			{ return get<0>().ptr; }
-		size_t keylen() const			{ return get<0>().size; }
-		// success: tuple< data:raw, clocktime:uint64 >
+		Get(DBKey k) : define_type(msgpack_type( k )) {}
+		const DBKey& dbkey() const		{ return get<0>(); }
+		// success: value:DBValue
 		// not found: nil
 	};
 
-	struct Set : define< tuple<raw_ref, meta_leading_raw_ref> > {
+	struct Set : define< tuple<DBKey, DBValue> > {
 		Set() {}
-		Set(	const char* key, size_t keylen,
-				const char* val, size_t vallen) :
-			define_type(msgpack_type(
-						raw_ref(key, keylen),
-						meta_leading_raw_ref(val, vallen)
-						)) {}
-		const char* key() const			{ return get<0>().ptr; }
-		size_t keylen() const			{ return get<0>().size; }
-		const char* meta_val() const	{ return get<1>().ptr; }
-		size_t meta_vallen() const		{ return get<1>().size; }
+		Set(DBKey k, DBValue v) : define_type(msgpack_type( k, v )) {}
+		const DBKey& dbkey() const		{ return get<0>(); }
+		const DBValue& dbval() const	{ return get<1>(); }
 		// success: tuple< clocktime:uint64 >
 		// failed:  nil
 	};
 
-	struct Delete : define< tuple<raw_ref> > {
+	struct Delete : define< tuple<DBKey> > {
 		Delete() {}
-		Delete(const char* key, size_t keylen) :
-			define_type(msgpack_type( raw_ref(key, keylen) )) {}
-		const char* key() const			{ return get<0>().ptr; }
-		size_t keylen() const			{ return get<0>().size; }
+		Delete(DBKey k) : define_type(msgpack_type( k )) {}
+		const DBKey& dbkey() const		{ return get<0>(); }
 		// success: true
 		// not foud: false
 		// failed: nil
 	};
+
 
 }  // namespace type
 

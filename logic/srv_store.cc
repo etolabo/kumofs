@@ -11,12 +11,11 @@
 namespace kumo {
 
 
-void Server::check_replicator_assign(HashSpace& hs, const char* key, uint32_t keylen)
+void Server::check_replicator_assign(HashSpace& hs, uint64_t h)
 {
 	if(hs.empty()) {
 		throw std::runtime_error("server not ready");
 	}
-	uint64_t h = HashSpace::hash(key, keylen);
 	EACH_ASSIGN(hs, h, r,
 			if(r.is_active()) {  // don't write to fault node
 				if(r.addr() == addr()) return;
@@ -24,12 +23,11 @@ void Server::check_replicator_assign(HashSpace& hs, const char* key, uint32_t ke
 	throw std::runtime_error("obsolete hash space");
 }
 
-void Server::check_coordinator_assign(HashSpace& hs, const char* key, uint32_t keylen)
+void Server::check_coordinator_assign(HashSpace& hs, uint64_t h)
 {
 	if(hs.empty()) {
 		throw std::runtime_error("server not ready");
 	}
-	uint64_t h = HashSpace::hash(key, keylen);
 	EACH_ASSIGN(hs, h, r,
 			if(r.is_active()) {  // don't write to fault node
 				if(r.addr() != addr())
@@ -42,24 +40,25 @@ void Server::check_coordinator_assign(HashSpace& hs, const char* key, uint32_t k
 
 RPC_FUNC(Get, from, response, z, param)
 try {
-	LOG_DEBUG("Get '",std::string(param.key(),param.keylen()),"'");
+	protocol::type::DBKey key(param.dbkey());
+	LOG_DEBUG("Get '",std::string(key.data(),key.size()),"'");
 
 	{
 		pthread_scoped_rdlock rhlk(m_rhs_mutex);
-		check_replicator_assign(m_rhs, param.key(), param.keylen());
+		check_replicator_assign(m_rhs, key.hash());
 	}
 
-	uint32_t meta_vallen;
-	const char* meta_val = m_db.get(param.key(), param.keylen(),
-			&meta_vallen, *z);
+	uint32_t raw_vallen;
+	const char* raw_val;
+	{
+		pthread_scoped_rdlock dblk(m_db.mutex());
+		raw_val = m_db.get(key.raw_data(), key.raw_size(),
+				&raw_vallen, *z);
+	}
 
-	if(meta_val && meta_vallen >= DBFormat::LEADING_METADATA_SIZE) {
+	if(raw_val && raw_vallen >= DBFormat::LEADING_METADATA_SIZE) {
 		LOG_DEBUG("key found");
-
-		DBFormat form(meta_val, meta_vallen);
-		msgpack::type::tuple<msgpack::type::raw_ref, uint64_t> res(
-				form.raw_ref(), form.clocktime()
-				);
+		msgpack::type::raw_ref res(raw_val, raw_vallen);
 		response.result(res, z);
 
 	} else {
@@ -72,41 +71,41 @@ RPC_CATCH(Get, response)
 
 RPC_FUNC(Set, from, response, z, param)
 try {
-	LOG_DEBUG("Set '",std::string(param.key(),param.keylen()),"' => '",
-			std::string(param.meta_val()+DBFormat::LEADING_METADATA_SIZE,
-				param.meta_vallen()-DBFormat::LEADING_METADATA_SIZE),"'");
+	protocol::type::DBKey key(param.dbkey());
+	protocol::type::DBValue val(param.dbval());
+	LOG_DEBUG("Set '",
+			std::string(key.data(),key.size()),"' => '",
+			std::string(val.data(),val.size()),"' with hash ",
+			key().hash(),", with meta ",val.meta());
 
 	pthread_scoped_rdlock whlk(m_whs_mutex);
-	check_coordinator_assign(m_whs, param.key(), param.keylen());
+	check_coordinator_assign(m_whs, key.hash());
 
 	unsigned short* copy_required = z->allocate<unsigned short>(0);
 	shared_node repto[NUM_REPLICATION];
 
-	uint64_t x = HashSpace::hash(param.key(), param.keylen());
 	EACH_ASSIGNED_ACTIVE_NODE_EXCLUDE(addr(),
-			m_whs, x, n, {
+			m_whs, key.hash(), n, {
 				repto[*copy_required] = n;
 				++*copy_required;
 			})
 	whlk.unlock();
 
-
 	ClockTime ct(m_clock.now_incr());
 
-	if(param.meta_vallen() < DBFormat::LEADING_METADATA_SIZE) {
-		throw msgpack::type_error();
+	val.raw_set_clocktime(ct.get());
+	{
+		pthread_scoped_wrlock dblk(m_db.mutex());
+		m_db.set(key.raw_data(), key.raw_size(),
+				 val.raw_data(), val.raw_size());
 	}
-	DBFormat::set_meta(const_cast<char*>(param.meta_val()), ct.get(), 0);
-
-	m_db.set(param.key(), param.keylen(),
-			param.meta_val(), param.meta_vallen());
 
 	// Replication
 	RetryReplicateSet* retry = z->allocate<RetryReplicateSet>(
 			protocol::type::ReplicateSet(
-				param.key(), param.keylen(),
-				param.meta_val(), param.meta_vallen(),
-				m_clock.get_incr())
+				key.raw_data(), key.raw_size(),
+				val.raw_data(), val.raw_size(),
+				ct.clock().get())
 			);
 
 	using namespace mp::placeholders;
@@ -133,36 +132,41 @@ RPC_CATCH(Set, response)
 
 RPC_FUNC(Delete, from, response, z, param)
 try {
-	LOG_DEBUG("Delete '",std::string(param.key(),param.keylen()),"'");
+	protocol::type::DBKey key(param.dbkey());
+	LOG_DEBUG("Delete '",
+			std::string(key.data(),key.size()),"' with hash",
+			key().hash());
 
 	pthread_scoped_rdlock whlk(m_whs_mutex);
-	check_coordinator_assign(m_whs, param.key(), param.keylen());
+	check_coordinator_assign(m_whs, key.hash());
 
 	unsigned short* copy_required = z->allocate<unsigned short>(0);
 	shared_node repto[NUM_REPLICATION];
 
-	uint64_t x = HashSpace::hash(param.key(), param.keylen());
 	EACH_ASSIGNED_ACTIVE_NODE_EXCLUDE(addr(),
-			m_whs, x, n, {
+			m_whs, key.hash(), n, {
 				repto[*copy_required] = n;
 				++*copy_required;
 			})
 	whlk.unlock();
 
+	ClockTime ct(m_clock.now_incr());
 
-	if(!m_db.erase(param.key(), param.keylen())) {
-		// the key is not stored
+	bool deleted;
+	{
+		pthread_scoped_wrlock dblk(m_db.mutex());
+		deleted = m_db.del(key.raw_data(), key.raw_size());
+	}
+	if(!deleted) {
 		response.result(false);
+		// the key is not stored
 		return;
 	}
-	// erase succeeded
-
-	ClockTime ct(m_clock.now_incr());
 
 	// Replication
 	RetryReplicateDelete* retry = z->allocate<RetryReplicateDelete>(
 			protocol::type::ReplicateDelete(
-				param.key(), param.keylen(),
+				key.raw_data(), key.raw_size(),
 				ct.get(), m_clock.get_incr())
 			);
 
@@ -246,28 +250,33 @@ RPC_REPLY(ResReplicateDelete, from, res, err, life,
 
 CLUSTER_FUNC(ReplicateSet, from, response, z, param)
 try {
+	protocol::type::DBKey key = param.dbkey();
+	protocol::type::DBValue val = param.dbval();
 	LOG_TRACE("ReplicateSet");
-	m_clock.update(param.clock());
 
 	{
 		pthread_scoped_rdlock whlk(m_whs_mutex);
-		check_replicator_assign(m_whs, param.key(), param.keylen());
+		check_replicator_assign(m_whs, key.hash());
 	}
 
-	DBFormat form(param.meta_val(), param.meta_vallen());
+	m_clock.update(param.clock());
 
-	char meta[DBFormat::LEADING_METADATA_SIZE];
-	int32_t ret = m_db.get_header(param.key(), param.keylen(), meta, sizeof(meta));
+	pthread_scoped_wrlock dblk(m_db.mutex());
+	uint64_t clocktime;
+	bool stored = DBFormat::get_clocktime(m_db,
+			key.raw_data(), key.raw_size(), &clocktime);
 
-	if(ret < (int32_t)sizeof(meta) || clocktime_same_or_new(meta, form.clocktime())) {
+	if(!stored || ClockTime(clocktime) <= ClockTime(val.clocktime())) {
 		// key is not stored OR stored key is old
-		m_db.set(param.key(), param.keylen(),
-				param.meta_val(), param.meta_vallen());
+		m_db.set(key.raw_data(), key.raw_size(),
+				 val.raw_data(), val.raw_size());
+		dblk.unlock();
 		response.result(true);
 
 	} else {
 		// key is overwritten while replicating
 		// do nothing
+		dblk.unlock();
 		response.result(false);
 	}
 }
@@ -275,31 +284,38 @@ RPC_CATCH(ReplicateSet, response)
 
 CLUSTER_FUNC(ReplicateDelete, from, response, z, param)
 try {
+	protocol::type::DBKey key = param.dbkey();
 	LOG_TRACE("ReplicateDelete");
-	m_clock.update(param.clock());
 
 	// FIXME check write-hash-space assignment?
 	//{
 	//	pthread_scoped_rdlock whlk(m_whs_mutex);
-	//	check_replicator_assign(m_whs, paramn.key(), param.keylen());
+	//	check_replicator_assign(m_whs, key.hash());
 	//}
 
-	char meta[DBFormat::LEADING_METADATA_SIZE];
-	int32_t ret = m_db.get_header(param.key(), param.keylen(), meta, sizeof(meta));
+	m_clock.update(param.clock());
 
-	if(ret < (int32_t)sizeof(meta)) {
+	pthread_scoped_wrlock dblk(m_db.mutex());
+	uint64_t clocktime;
+	bool stored = DBFormat::get_clocktime(m_db,
+			key.raw_data(), key.raw_size(), &clocktime);
+
+	if(!stored) {
 		// key is not stored
 		// do nothing
+		dblk.unlock();
 		response.result(true);
 
-	} else if(clocktime_same_or_new(meta, param.clocktime())) {
+	} else if(ClockTime(clocktime) <= ClockTime(param.clocktime())) {
 		// stored key is old
-		m_db.erase(param.key(), param.keylen());
+		m_db.del(key.raw_data(), key.raw_size());
+		dblk.unlock();
 		response.result(true);
 
 	} else {
 		// key is already deleted while replicating
 		// do nothing
+		dblk.unlock();
 		LOG_TRACE("obsolete replicate push");
 		response.result(false);
 	}

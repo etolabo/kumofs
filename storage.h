@@ -14,26 +14,13 @@
 //          partial write clocktime
 //                   data
 
-namespace kumo {
-
-#if !defined(__LITTLE_ENDIAN__) && !defined(__BIG_ENDIAN__)
-#if __BYTE_ORDER == __LITTLE_ENDIAN
-#define __LITTLE_ENDIAN__
-#elif __BYTE_ORDER == __BIG_ENDIAN
-#define __BIG_ENDIAN__
-#endif
-#endif
-
-#define msgpack_betoh16(x) ntohs(x)
-#define msgpack_betoh32(x) ntohl(x)
-
 #ifdef __LITTLE_ENDIAN__
 #if defined(__bswap_64)
-#  define Storage_beswap64(x) __bswap_64(x)
+#  define kumo_be64(x) __bswap_64(x)
 #elif defined(__DARWIN_OSSwapInt64)
-#  define Storage_beswap64(x) __DARWIN_OSSwapInt64(x)
+#  define kumo_be64(x) __DARWIN_OSSwapInt64(x)
 #else
-static inline uint64_t Storage_beswap64(uint64_t x) {
+static inline uint64_t kumo_be64(uint64_t x) {
 	return	((x << 56) & 0xff00000000000000ULL ) |
 			((x << 40) & 0x00ff000000000000ULL ) |
 			((x << 24) & 0x0000ff0000000000ULL ) |
@@ -45,8 +32,13 @@ static inline uint64_t Storage_beswap64(uint64_t x) {
 }
 #endif
 #else
-#define Storage_beswap64(x) (x)
+#define kumo_be64(x) (x)
 #endif
+
+namespace kumo {
+
+
+class Storage;
 
 class DBFormat {
 public:
@@ -62,38 +54,8 @@ public:
 
 	static const size_t LEADING_METADATA_SIZE = 16;
 
-public:
-	uint64_t clocktime() const
-	{
-		return Storage_beswap64( ((const uint64_t*)m_val)[0] );
-	}
-
-	uint64_t partialtime() const
-	{
-		return Storage_beswap64( ((const uint64_t*)m_val)[1] );
-	}
-
-	const char* data() const
-	{
-		return ((const char*)m_val) + 16;
-	}
-
-	uint32_t datalen() const
-	{
-		return m_vallen - 16;
-	}
-
-	msgpack::type::raw_ref raw_ref() const
-	{
-		return msgpack::type::raw_ref(data(), datalen());
-	}
-
-public:
-	static void set_meta(char* meta_val, uint64_t clocktime, uint64_t partialtime)
-	{
-		((uint64_t*)meta_val)[0] = Storage_beswap64(clocktime);
-		((uint64_t*)meta_val)[1] = Storage_beswap64(partialtime);
-	}
+	static bool get_clocktime(Storage& db,
+			const char* key, size_t keylen, uint64_t* result);
 
 private:
 	const char* m_val;
@@ -108,6 +70,17 @@ private:
 #else
 #include "storage/luxio.h"
 #endif
+
+namespace kumo {
+	inline bool DBFormat::get_clocktime(Storage& db,
+			const char* key, size_t keylen, uint64_t* result)
+	{
+		int32_t len = db.get_header(key, keylen, (char*)result, 8);
+		if(len < 8) { return false; }
+		*result = kumo_be64(*result);
+		return true;
+	}
+}  // namespace kumo
 
 #endif /* storage.h */
 

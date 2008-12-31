@@ -129,8 +129,8 @@ private:
 	void renew_hash_space_for(const address& addr);
 	RPC_REPLY_DECL(ResHashSpaceRequest, from, res, err, life);
 
-	shared_session server_for(const char* key, uint32_t keylen);
-	shared_session server_for(const char* key, uint32_t keylen, unsigned int offset);
+	shared_session server_for(uint64_t h);
+	shared_session server_for(uint64_t h, unsigned int offset);
 
 private:
 	Clock m_clock;

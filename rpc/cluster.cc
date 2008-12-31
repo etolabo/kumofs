@@ -157,6 +157,7 @@ void cluster_transport::cluster_state(msgobj msg, msgpack::zone* newz)
 }
 
 
+
 cluster::cluster(role_type self_id,
 		const address& self_addr,
 		unsigned int connect_timeout_msec,
@@ -195,6 +196,11 @@ void cluster::transport_lost(shared_node& n)
 	} else if(n->addr().connectable()) {
 		LOG_DEBUG("reconnect to ",n->addr());
 		async_connect(n->addr(), n);
+
+	} else {
+		// FIXME non-connectable node?
+		LOG_DEBUG("lost node is not connectable ",n->addr());
+		client_t::transport_lost(n);
 	}
 }
 
@@ -217,7 +223,7 @@ basic_shared_session cluster::subsys::add_session()
 
 
 
-// connection<IMPL>::process_message is hooked.
+// connection<IMPL>::submit_message is hooked.
 // transport<IMPL>::process_request won't be called.
 
 void cluster::dispatch(

@@ -58,8 +58,8 @@ private:
 	RPC_REPLY_DECL(ResRHashSpaceRequest, from, res, err, life);
 
 	// srv_store.cc
-	void check_replicator_assign(HashSpace& hs, const char* key, uint32_t keylen);
-	void check_coordinator_assign(HashSpace& hs, const char* key, uint32_t keylen);
+	void check_replicator_assign(HashSpace& hs, uint64_t h);
+	void check_coordinator_assign(HashSpace& hs, uint64_t h);
 
 	typedef RPC_RETRY(ReplicateSet) RetryReplicateSet;
 	RPC_REPLY_DECL(ResReplicateSet, from, res, err, life,

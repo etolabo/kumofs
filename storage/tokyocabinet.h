@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <mp/zone.h>
+#include <mp/pthread.h>
 #include <algorithm>
 
 namespace kumo {
@@ -18,9 +19,9 @@ public:
 			throw std::runtime_error("can't create tchdb");
 		}
 
-		if(!tchdbsetmutex(m_db)) {
-			throw std::runtime_error("can't initialize tchdb mutex");
-		}
+		//if(!tchdbsetmutex(m_db)) {
+		//	throw std::runtime_error("can't initialize tchdb mutex");
+		//}
 
 		if(!tchdbopen(m_db, path, HDBOWRITER|HDBOCREAT)) {
 			tchdbdel(m_db);
@@ -35,6 +36,8 @@ public:
 	}
 
 public:
+	mp::pthread_rwlock& mutex() { return m_mutex; }
+
 	const char* get(const char* key, uint32_t keylen,
 			uint32_t* result_vallen,
 			msgpack::zone& z)
@@ -44,7 +47,7 @@ public:
 		*result_vallen = vallen;
 		if(val) {
 			try {
-				z.push_finalizer(&Storage::finalize_free, val);
+				z.push_finalizer(&::free, val);
 			} catch (...) {
 				::free(val);
 				throw;
@@ -72,7 +75,7 @@ public:
 	}
 
 	// return true if deleted
-	bool erase(const char* key, uint32_t keylen)
+	bool del(const char* key, uint32_t keylen)
 	{
 		return tchdbout(m_db, key, keylen);
 	}
@@ -152,18 +155,14 @@ public:
 	}
 
 private:
-	static void finalize_free(void* buf)
-	{
-		::free(buf);
-	}
-
 	static void finalize_xstr_del(void* xstr)
 	{
 		tcxstrdel(reinterpret_cast<TCXSTR*>(xstr));
 	}
 
-public:
+private:
 	TCHDB* m_db;
+	mp::pthread_rwlock m_mutex;
 };
 
 
