@@ -7,6 +7,7 @@
 
 namespace rpc {
 
+
 struct rpc_wavy { };
 
 typedef mp::wavy::singleton<rpc_wavy> wavy;

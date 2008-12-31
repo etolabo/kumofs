@@ -30,7 +30,7 @@ public:
 		while(true) {
 			uint32_t x = m;
 			if(!clock_less(x, o)) { return; }
-			if(__sync_bool_compare_and_swap(&m, &x, &o)) {
+			if(__sync_bool_compare_and_swap(&m, x, o)) {
 					return;
 			}
 		}

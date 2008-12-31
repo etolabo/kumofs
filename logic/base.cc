@@ -88,8 +88,7 @@ rpc_server_args::rpc_server_args() :
 	connect_timeout_sec(1.0),
 	connect_retry_limit(4),
 	wthreads(2),
-	rthreads(4),
-	cthreads(2)
+	rthreads(4)
 {
 	kazuhiki::init();
 }
@@ -124,8 +123,6 @@ void rpc_server_args::set_basic_args()
 			type::numeric(&wthreads, wthreads));
 	on("-TR", "--read-threads",
 			type::numeric(&rthreads, rthreads));
-	on("-TC", "--connect-threads",
-			type::numeric(&cthreads, cthreads));
 }
 
 void rpc_server_args::show_usage()
@@ -136,7 +133,6 @@ std::cout <<
 "  -Ci <number="<<clock_interval<<">  "         "--clock-interval         clock interval in seconds\n"
 "  -TW <number="<<wthreads<<">    "             "--write-threads          number of threads for asynchronous writing\n"
 "  -TR <number="<<rthreads<<">    "             "--read-threads           number of threads for asynchronous reading\n"
-"  -TC <number="<<cthreads<<">    "             "--connect-threads        number of threads for asynchronous connecting\n"
 "  -o  <path.log>    "                          "--log\n"
 "  -v                "                          "--verbose\n"
 "  -d  <path.pid>    "                          "--daemon\n"

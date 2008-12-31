@@ -21,7 +21,6 @@ template <bool CONNECT>
 typename client<Transport, Session>::shared_session
 client<Transport, Session>::get_session_impl(const address& addr)
 {
-	LOG_TRACE("get session ",addr);
 	shared_session s;
 
 	pthread_scoped_lock lk(m_sessions_mutex);
@@ -119,6 +118,7 @@ void client<Transport, Session>::connect_callback(
 			::close(fd);
 			throw;
 		}
+		return;
 	}
 
 	LOG_INFO("connect failed ",addr,": ",strerror(err));

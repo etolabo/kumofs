@@ -60,9 +60,16 @@ cluster* cluster_transport::get_server(transport_manager* srv)
 
 
 node::node(session_manager* mgr) :
-	session(mgr) { }
+	session(mgr), m_role(-1) { }
 
 node::~node() { }
+
+bool node::set_role(role_type role_id)
+{
+	//if(m_role == -1) { m_role = role_id; return true; }
+	//else { return false; }
+	return __sync_bool_compare_and_swap(&m_role, -1, role_id);
+}
 
 
 void cluster_transport::init_state(msgobj msg, auto_zone z)
@@ -97,8 +104,8 @@ void cluster_transport::init_state(msgobj msg, auto_zone z)
 	}
 
 	node* n = static_cast<node*>(m_session.get());
-	if(!n->is_role_set()) {
-		n->set_role(init.role_id());
+	if(n->set_role(init.role_id())) {
+		n->m_addr = init.addr();
 		get_server()->new_node(init.addr(), init.role_id(),
 				mp::static_pointer_cast<node>(m_session));
 	}
@@ -165,7 +172,7 @@ void cluster::accepted(int fd)
 shared_node cluster::get_node(const address& addr)
 {
 	shared_node n( get_session(addr) );
-	if(!n->is_role_set()) { n->m_addr = addr; }
+	if(!n->addr().connectable()) { n->m_addr = addr; }
 	return n;
 }
 
@@ -180,7 +187,7 @@ void cluster::transport_lost(shared_node& n)
 			lost_node(n->addr(), n->role());
 		}
 
-	} else {
+	} else if(n->addr().connectable()) {
 		LOG_DEBUG("reconnect to ",n->addr());
 		async_connect(n->addr(), n);
 	}
@@ -222,6 +229,9 @@ void cluster::subsys::dispatch(
 	throw std::logic_error("cluster::subsys::dispatch called");
 }
 
+
+// FIXME step_timeout:
+//       remove that is_role_set() == false?
 
 }  // namespace rpc
 

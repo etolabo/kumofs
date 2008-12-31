@@ -40,13 +40,12 @@ RPC_REPLY(ResHashSpaceRequest, from, res, err, life)
 					BIND_RESPONSE(ResHashSpaceRequest), 10);
 		}  // retry on Gateway::session_lost() if the node is lost
 	} else {
+		HashSpace::Seed hsseed(res.convert());
 		pthread_scoped_wrlock lk(m_hs_rwlock);
 		if(m_hs.empty()) {
 			LOG_DEBUG("renew hash space");
-			HashSpace::Seed hsseed(res.convert());
 			m_hs = HashSpace(hsseed);
 		} else {
-			HashSpace::Seed hsseed(res.convert());
 			if(m_hs.clocktime() <= hsseed.clocktime()) {
 				LOG_DEBUG("renew hash space");
 				m_hs = HashSpace(hsseed);

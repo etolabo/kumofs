@@ -79,7 +79,7 @@ RPC_REPLY(ResHashSpacePush, from, res, err, life)
 }
 
 
-void Manager::sync_hash_space_servers(REQUIRE_HSLK)
+void Manager::sync_hash_space_servers(REQUIRE_HSLK, REQUIRE_SSLK)
 {
 	shared_zone life(new msgpack::zone());
 	HashSpace::Seed* wseed = life->allocate<HashSpace::Seed>(m_whs);
@@ -89,7 +89,6 @@ void Manager::sync_hash_space_servers(REQUIRE_HSLK)
 
 	rpc::callback_t callback( BIND_RESPONSE(ResHashSpaceSync) );
 
-	pthread_scoped_lock slk(m_servers_mutex);
 	EACH_ACTIVE_SERVERS_BEGIN(node)
 		node->call(protocol::HashSpaceSync, arg, life, callback, 10);
 	EACH_ACTIVE_SERVERS_END
@@ -157,12 +156,12 @@ void Manager::keep_alive()
 	using namespace mp::placeholders;
 	rpc::callback_t callback( BIND_RESPONSE(ResKeepAlive) );
 
-	pthread_scoped_lock slk(m_servers_mutex);
+	pthread_scoped_lock sslk(m_servers_mutex);
 	EACH_ACTIVE_SERVERS_BEGIN(node)
 		// FIXME exception
 		node->call(protocol::KeepAlive, arg, nullz, callback, 10);
 	EACH_ACTIVE_SERVERS_END
-	slk.unlock();
+	sslk.unlock();
 
 	pthread_scoped_lock nslk(m_new_servers_mutex);
 	EACH_ACTIVE_NEW_COMERS_BEGIN(node)

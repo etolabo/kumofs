@@ -89,8 +89,9 @@ private:
 			const char* meta_val, size_t meta_vallen,
 			shared_zone& life, ClockTime replace_time);
 
+#define REQUIRE_RELK const pthread_scoped_lock& relk
 	void replace_copy(const address& manager_addr, HashSpace& hs);
-	void finish_replace_copy(ClockTime clocktime);
+	void finish_replace_copy(ClockTime clocktime, REQUIRE_RELK);
 	RPC_REPLY_DECL(ResReplaceCopyEnd, from, res, err, life);
 
 	typedef RPC_RETRY(ReplacePropose) RetryReplacePropose;

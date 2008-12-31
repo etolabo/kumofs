@@ -102,7 +102,7 @@ try {
 template <typename IMPL>
 void connection<IMPL>::process_message(msgobj msg, msgpack::zone* newz)
 try {
-	auto_zone z(z);
+	auto_zone z(newz);
 	rpc_message rpc(msg.convert());
 	if(rpc.is_request()) {
 		rpc_request<msgobj> msgreq(rpc);

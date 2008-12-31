@@ -29,7 +29,7 @@ private:
 	friend class cluster;
 
 private:
-	void set_role(role_type role_id) { m_role = role_id; }
+	inline bool set_role(role_type role_id);
 	friend class cluster_transport;
 	short m_role;
 };
@@ -65,8 +65,6 @@ private:
 	void init_state(msgobj msg, auto_zone z);
 	void subsys_state(msgobj msg, auto_zone z);
 	void cluster_state(msgobj msg, auto_zone z);
-
-	short m_role;
 
 private:
 	cluster_transport();

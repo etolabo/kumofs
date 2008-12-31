@@ -55,11 +55,11 @@ try {
 	rpc::callback_t callback( BIND_RESPONSE(ResCreateBackup) );
 	shared_zone nullz;
 
-	pthread_scoped_lock slk(m_servers_mutex);
+	pthread_scoped_lock sslk(m_servers_mutex);
 	EACH_ACTIVE_SERVERS_BEGIN(node)
 		node->call(protocol::CreateBackup, arg, nullz, callback, 10);
 	EACH_ACTIVE_SERVERS_END
-	slk.unlock();
+	sslk.unlock();
 
 	response.null();
 }

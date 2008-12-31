@@ -181,7 +181,8 @@ void basic_session::step_timeout(basic_shared_session self)
 			it != it_end; ) {
 		if(!it->second.step_timeout()) {
 			LOG_DEBUG("callback timeout this=",(void*)this," id=",it->first);
-			it->second.callback(self, res, err);  // client::step_timeout;
+			it->second.callback_submit(self, res, err);  // client::step_timeout;
+			//it->second.callback(self, res, err);  // client::step_timeout;  // FIXME XXX
 			m_callbacks.erase(it++);
 		} else {
 			++it;

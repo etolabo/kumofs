@@ -26,7 +26,7 @@ void Manager::remove_server(const address& addr)
 	ClockTime ct = m_clock.now_incr();
 
 	pthread_scoped_lock hslk(m_hs_mutex);
-	pthread_scoped_lock slk(m_servers_mutex);
+	pthread_scoped_lock sslk(m_servers_mutex);
 	pthread_scoped_lock nslk(m_new_servers_mutex);
 
 	bool wfault = m_whs.fault_server(ct, addr);
@@ -34,13 +34,13 @@ void Manager::remove_server(const address& addr)
 
 	if((wfault || rfault) && !m_cfg_auto_replace) {
 		sync_hash_space_partner(hslk);
-		sync_hash_space_servers(hslk);
+		sync_hash_space_servers(hslk, sslk);
 		push_hash_space_clients(hslk);
 	}
 	hslk.unlock();
 
 	m_servers.erase(addr);
-	slk.unlock();
+	sslk.unlock();
 
 	for(new_servers_t::iterator it(m_new_servers.begin());
 			it != m_new_servers.end(); ) {
@@ -120,7 +120,7 @@ void Manager::attach_new_servers(REQUIRE_HSLK)
 	LOG_INFO("update hash space at time(",ct.get(),")");
 
 	pthread_scoped_lock nslk(m_new_servers_mutex);
-	pthread_scoped_lock slk(m_servers_mutex);
+	pthread_scoped_lock sslk(m_servers_mutex);
 
 	for(new_servers_t::iterator it(m_new_servers.begin()), it_end(m_new_servers.end());
 			it != it_end; ++it) {
@@ -138,7 +138,7 @@ void Manager::attach_new_servers(REQUIRE_HSLK)
 	}
 	m_new_servers.clear();
 
-	slk.unlock();
+	sslk.unlock();
 	nslk.unlock();
 
 	sync_hash_space_partner(hslk);
@@ -206,12 +206,12 @@ void Manager::start_replace(REQUIRE_HSLK)
 
 	unsigned int num_active = 0;
 
-	pthread_scoped_lock slk(m_servers_mutex);
+	pthread_scoped_lock sslk(m_servers_mutex);
 	EACH_ACTIVE_SERVERS_BEGIN(n)
 		n->call(protocol::ReplaceCopyStart, arg, life, callback, 10);
 		++num_active;
 	EACH_ACTIVE_SERVERS_END
-	slk.unlock();
+	sslk.unlock();
 
 	m_copying.reset(ct, num_active);
 	m_deleting.reset(0, 0);
@@ -327,12 +327,12 @@ void Manager::finish_replace_copy(REQUIRE_RELK)
 
 	unsigned int num_active = 0;
 
-	pthread_scoped_lock slk(m_servers_mutex);
+	pthread_scoped_lock sslk(m_servers_mutex);
 	EACH_ACTIVE_SERVERS_BEGIN(node)
 		node->call(protocol::ReplaceDeleteStart, arg, life, callback, 10);
 		++num_active;
 	EACH_ACTIVE_SERVERS_END
-	slk.unlock();
+	sslk.unlock();
 
 	m_deleting.reset(clocktime, num_active);
 

@@ -91,6 +91,7 @@ void basic_session::call(
 		shared_zone life, callback_t callback,
 		unsigned short timeout_steps)
 {
+	LOG_DEBUG("send request method=",(uint16_t)method);
 	if(is_lost()) { throw std::runtime_error("lost session"); }
 	if(!life) { life.reset(new msgpack::zone()); }
 
@@ -107,6 +108,7 @@ void basic_session::call(
 		throw std::runtime_error("session not bound");
 
 	} else {
+		lk.unlock();
 		// ad-hoc load balancing
 		m_binds[m_msgid_rr % m_binds.size()]->send_datav(
 				buf, NULL, NULL);
@@ -120,6 +122,7 @@ void session::call(
 		shared_zone life, callback_t callback,
 		unsigned short timeout_steps)
 {
+	LOG_DEBUG("send request method=",(uint16_t)method);
 	if(is_lost()) { throw std::runtime_error("lost session"); }
 	if(!life) { life.reset(new msgpack::zone()); }
 
@@ -138,6 +141,7 @@ void session::call(
 		// FIXME or throw exception
 
 	} else {
+		lk.unlock();
 		// ad-hoc load balancing
 		m_binds[m_msgid_rr % m_binds.size()]->send_datav(
 				buf, NULL, NULL);

@@ -216,7 +216,7 @@ void Server::replace_copy(const address& manager_addr, HashSpace& hs)
 skip_replace:
 	pthread_scoped_lock relk(m_replacing_mutex);
 	if(m_replacing.is_finished(replace_time)) {
-		finish_replace_copy(replace_time);
+		finish_replace_copy(replace_time, relk);
 	}
 }
 
@@ -371,7 +371,7 @@ RPC_REPLY(ResReplacePropose, from, res, err, life,
 	m_replacing.propose_returned(replace_time);
 
 	if(m_replacing.is_finished(replace_time)) {
-		finish_replace_copy(replace_time);
+		finish_replace_copy(replace_time, relk);
 	}
 }
 
@@ -396,24 +396,24 @@ RPC_REPLY(ResReplacePush, from, res, err, life,
 	m_replacing.push_returned(replace_time);
 
 	if(m_replacing.is_finished(replace_time)) {
-		finish_replace_copy(replace_time);
+		finish_replace_copy(replace_time, relk);
 	}
 }
 
 
 
 
-void Server::finish_replace_copy(ClockTime replace_time)
+void Server::finish_replace_copy(ClockTime replace_time, REQUIRE_RELK)
 {
 	shared_zone nullz;
 	protocol::type::ReplaceCopyEnd arg(replace_time.get(), m_clock.get_incr());
 
 	address addr;
-	{
-		pthread_scoped_lock relk(m_replacing_mutex);
+	//{
+	//	pthread_scoped_lock relk(m_replacing_mutex);
 		addr = m_replacing.mgr_addr();
-		m_replacing.invalidate();
-	}
+	//	m_replacing.invalidate();
+	//}
 
 	using namespace mp::placeholders;
 	get_node(addr)->call(

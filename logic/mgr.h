@@ -49,8 +49,9 @@ private:
 	// mgr_rpc.cc
 	RPC_REPLY_DECL(ResKeepAlive, from, res, err, life);
 
+#define REQUIRE_SSLK const pthread_scoped_lock& sslk
 #define REQUIRE_HSLK const pthread_scoped_lock& hslk
-	void sync_hash_space_servers(REQUIRE_HSLK);
+	void sync_hash_space_servers(REQUIRE_HSLK, REQUIRE_SSLK);
 	void sync_hash_space_partner(REQUIRE_HSLK);
 	void push_hash_space_clients(REQUIRE_HSLK);
 

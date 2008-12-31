@@ -124,7 +124,6 @@ protected:
 		m_core_threads = cfg.rthreads;
 		m_output_threads = cfg.wthreads;
 		wavy::initialize(0,0,2,2);  // FIXME
-	
 	}
 
 	virtual void end_preprocess() { }
