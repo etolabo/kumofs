@@ -1,7 +1,7 @@
 #ifndef RPC_SERVER_H__
 #define RPC_SERVER_H__
 
-#include "rpc/session.h"
+#include "rpc/rpc.h"
 #include "log/mlogger.h"  // FIXME
 #include <mp/pthread.h>
 #include <algorithm>
@@ -11,22 +11,6 @@ namespace rpc {
 
 
 class server;
-
-class server_transport : public basic_transport, public connection<server_transport> {
-public:
-	server_transport(int fd, basic_shared_session& s, transport_manager* mgr);
-
-	virtual ~server_transport();
-
-	typedef std::auto_ptr<msgpack::zone> auto_zone;
-
-	void process_request(method_id method, msgobj param,
-			msgid_t msgid, auto_zone& z);
-
-	void process_response(msgobj res, msgobj err,
-			msgid_t msgid, auto_zone& z);
-};
-
 
 class peer : public basic_session {
 public:
@@ -52,22 +36,19 @@ public:
 	typedef weak_peer weak_session;
 
 	server();
+
 	virtual ~server();
 
 	virtual void dispatch(
 			shared_peer& from, weak_responder response,
-			method_id method, msgobj param, shared_zone& life) = 0;
-
-	virtual void dispatch_request(
-			basic_shared_session& s, weak_responder response,
-			method_id method, msgobj param, shared_zone& life);
+			method_id method, msgobj param, auto_zone z) = 0;
 
 public:
 	// step timeout count.
 	void step_timeout();
 
 	// add accepted connection
-	void accepted(int fd);
+	shared_peer accepted(int fd);
 
 	// apply function to all connected sessions.
 	// F is required to implement
@@ -76,10 +57,15 @@ public:
 	void for_each_peer(F f);
 
 protected:
+	mp::pthread_mutex m_peers_mutex;
 	typedef std::map<void*, basic_weak_session> peers_t;
 	peers_t m_peers;
 
 public:
+	virtual void dispatch_request(
+			basic_shared_session& s, weak_responder response,
+			method_id method, msgobj param, auto_zone z);
+
 	virtual void transport_lost_notify(basic_shared_session& s);
 
 private:
@@ -111,21 +97,9 @@ namespace detail {
 template <typename F>
 void server::for_each_peer(F f)
 {
+	pthread_scoped_lock lk(m_peers_mutex);
 	detail::server_each_peer<F> e(f);
 	std::for_each(m_peers.begin(), m_peers.end(), e);
-}
-
-
-inline void server_transport::process_request(method_id method, msgobj param,
-		msgid_t msgid, auto_zone& z)
-{
-	basic_transport::process_request(method, param, msgid, z);
-}
-
-inline void server_transport::process_response(msgobj res, msgobj err,
-		msgid_t msgid, auto_zone& z)
-{
-	basic_transport::process_response(res, err, msgid, z);
 }
 
 

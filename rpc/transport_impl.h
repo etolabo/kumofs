@@ -4,8 +4,9 @@
 namespace rpc {
 
 
-inline basic_transport::basic_transport(
+inline basic_transport::basic_transport(int fd,
 		basic_shared_session s, transport_manager* mgr) :
+	m_fd(fd),
 	m_session(s),
 	m_manager(mgr) { }
 
@@ -20,7 +21,7 @@ inline transport_manager* basic_transport::get_manager()
 
 inline transport::transport(int fd, basic_shared_session& s,
 		transport_manager* mgr) :
-	basic_transport(s, mgr),
+	basic_transport(fd, s, mgr),
 	connection<transport>(fd)
 {
 	m_session->bind_transport(this);
@@ -40,7 +41,7 @@ inline void basic_transport::process_request(method_id method, msgobj param,
 	if(!m_session) {
 		throw std::runtime_error("session unbound");
 	}
-	m_session()->process_request(m_session, method, param, msgid, z);
+	m_session->process_request(m_session, method, param, msgid, z);
 }
 
 inline void transport::process_request(method_id method, msgobj param,
@@ -63,14 +64,16 @@ inline void transport::process_response(msgobj res, msgobj err,
 }
 
 
-inline void basic_transport::send_data(const char* buf, size_t buflen,
+inline void basic_transport::send_data(
+		const char* buf, size_t buflen,
 		void (*finalize)(void*), void* data)
 {
 	wavy::request req = {finalize, data};
 	wavy::write(m_fd, buf, buflen, req);
 }
 
-inline void basic_transport::send_datav(int fd, vrefbuffer* buf,
+inline void basic_transport::send_datav(
+		vrefbuffer* buf,
 		void (*finalize)(void*), void* data)
 {
 	size_t sz = buf->vector_size();
@@ -79,7 +82,7 @@ inline void basic_transport::send_datav(int fd, vrefbuffer* buf,
 	buf->get_vector(vec);
 
 	wavy::request req = {finalize, data};
-	mavy::writev(m_fd, vec, sz, req);
+	wavy::writev(m_fd, vec, sz, req);
 }
 
 

@@ -2,7 +2,6 @@
 #define RPC_CLUSTER_H__
 
 #include "rpc/client.h"
-#include "rpc/protocol.h"
 #include "rpc/server.h"
 #include <mp/pthread.h>
 #include <algorithm>
@@ -39,24 +38,20 @@ typedef mp::shared_ptr<node> shared_node;
 typedef mp::weak_ptr<node>   weak_node;
 
 
-struct cluster_init_sender {
-	cluster_init_sender();
-	cluster_init_sender(int fd, const address& addr, role_type id);
-	void send_init(int fd, const address& addr, role_type id);
-};
-
-class cluster_transport : private cluster_init_sender,
-		public basic_transport, public connection<cluster_transport> {
+class cluster_transport : public basic_transport, public connection<cluster_transport> {
 public:
+	// cluster::get_node
 	cluster_transport(int fd, basic_shared_session s, transport_manager* srv);
+
+	// cluster::accepted
 	cluster_transport(int fd, transport_manager* srv);
+
 	~cluster_transport();
 
-	typedef std::auto_ptr<msgpack::zone> auto_zone;
-
-	void process_message(msgobj msg, auto_zone& z);
+	void process_message(msgobj msg, msgpack::zone* rawz);
 
 private:
+	void send_init();
 	void rebind(basic_shared_session s);
 	cluster* get_server();
 	cluster* get_server(transport_manager* srv);
@@ -64,30 +59,25 @@ private:
 private:
 	static const short PEER_NOT_SET = -1;
 	static const short PEER_SERVER  = -2;
+
+	void (cluster_transport::*m_process_state)(msgobj msg, auto_zone z);
+
+	void init_state(msgobj msg, auto_zone z);
+	void subsys_state(msgobj msg, auto_zone z);
+	void cluster_state(msgobj msg, auto_zone z);
+
 	short m_role;
-
-	struct wait_t {
-		wait_t() { }
-		wait_t(rpc_message& m, msgpack::zone* z) :
-			msg(m), zone(z) { }
-		rpc_message msg;
-		msgpack::zone* zone;
-	};
-	typedef std::vector<wait_t> bind_wait_t;
-	bind_wait_t* m_bind_wait;
-
-	void bind_wait_push(rpc_message& m, auto_zone& z);
-	void bind_wait_clear();
-	void bind_wait_proceed();
-
-private:
-	static void session_bound(mp::iothreads::handler& h, shared_node n);
-	friend class cluster;
 
 private:
 	cluster_transport();
 	cluster_transport(const cluster_transport&);
 };
+
+inline void cluster_transport::process_message(msgobj msg, msgpack::zone* rawz)
+{
+	auto_zone z(rawz);
+	(this->*m_process_state)(msg, z);
+}
 
 
 
@@ -95,7 +85,6 @@ class cluster : protected client<cluster_transport, node> {
 public:
 	typedef client<cluster_transport, node> client_t;
 
-	typedef std::auto_ptr<msgpack::zone> auto_zone;
 	typedef rpc::msgobj      msgobj;
 	typedef rpc::method_id   method_id;
 	typedef rpc::msgid_t     msgid_t;
@@ -112,9 +101,8 @@ public:
 
 	cluster(role_type self_id,
 			const address& self_addr,
-			unsigned short connect_retry_limit,
-			unsigned short connect_timeout_steps,
-			unsigned int reconnect_timeout_msec = 5*1000);
+			unsigned int connect_timeout_msec,
+			unsigned short connect_retry_limit);
 
 	virtual ~cluster();
 
@@ -129,23 +117,12 @@ public:
 			shared_node& from, role_type role, weak_responder response,
 			method_id method, msgobj param, shared_zone& life) = 0;
 
-	virtual void cluster_dispatch_request(
-			basic_shared_session& s, role_type role,
-			method_id method, msgobj param,
-			msgid_t msgid, auto_zone& z);
-
-
 	virtual void subsystem_dispatch(
 			shared_peer& from, weak_responder response,
 			method_id method, msgobj param, shared_zone& life)
 	{
 		throw msgpack::type_error();
 	}
-
-	virtual void subsystem_dispatch_request(
-			basic_shared_session& s,
-			method_id method, msgobj param,
-			msgid_t msgid, auto_zone& z);
 
 public:
 	// step timeout count.
@@ -175,27 +152,27 @@ public:
 	server& subsystem();
 
 private:
-	void bind_session(int fd, address addr, role_type role);
-
-	friend class cluster_transport;
-
-private:
 	void transport_lost(shared_node& s);
 
 private:
 	role_type m_self_id;
 	address m_self_addr;
-
-	unsigned short m_connect_retry_limit;
+	friend class cluster_transport;
 
 private:
 	virtual void dispatch(
 			shared_node& from, weak_responder response,
-			method_id method, msgobj param, shared_zone& life);
+			method_id method, msgobj param, auto_zone z);
 
-	virtual void dispatch_request(
-			basic_shared_session& s, weak_responder response,
-			method_id method, msgobj param, shared_zone& life);
+	void cluster_dispatch_request(
+			basic_shared_session& s, role_type role,
+			method_id method, msgobj param,
+			msgid_t msgid, auto_zone& z);
+
+	void subsystem_dispatch_request(
+			basic_shared_session& s,
+			method_id method, msgobj param,
+			msgid_t msgid, auto_zone& z);
 
 private:
 	class subsys : public server {
@@ -206,9 +183,9 @@ private:
 	public:
 		void dispatch(
 				shared_peer& from, weak_responder response,
-				method_id method, msgobj param, shared_zone& life);
+				method_id method, msgobj param, auto_zone z);
 
-		void add_session(basic_shared_session s);
+		basic_shared_session add_session();
 
 	private:
 		cluster* m_srv;

@@ -4,102 +4,59 @@
 namespace rpc {
 
 
-cluster_init_sender::cluster_init_sender() { }
-
-inline cluster_init_sender::cluster_init_sender(int fd, const address& addr, role_type id)
-{
-	send_init(fd, addr, id);
-}
-
-inline void cluster_init_sender::send_init(int fd, const address& addr, role_type id)
-{
-	sbuffer buf;
-	rpc_initmsg param(addr, id);
-	msgpack::pack(buf, param);
-	mp::iothreads::send_data(fd, (char*)buf.data(), buf.size(),
-			&mp::iothreads::writer::finalize_free,
-			buf.data());
-	buf.release();
-	LOG_TRACE("sent init message: ",addr);
-}
-
-
-cluster_transport::cluster_transport(int fd, basic_shared_session s, transport_manager* srv) :
-	cluster_init_sender(fd, get_server(srv)->m_self_addr, get_server(srv)->m_self_id),
-	basic_transport(s, srv),
+cluster_transport::cluster_transport(int fd,
+		basic_shared_session s, transport_manager* srv) :
+	basic_transport(fd, s, srv),
 	connection<cluster_transport>(fd),
-	m_role(PEER_NOT_SET),
-	m_bind_wait(NULL)
+	m_process_state(&cluster_transport::init_state)
 {
-	s->bind_transport(connection<cluster_transport>::fd());
+	send_init();
+	s->bind_transport(this);
 }
 
-cluster_transport::cluster_transport(int fd, transport_manager* srv) :
-	//cluster_init_sender(fd, get_server(srv)->m_self_addr, get_server(srv)->m_self_id),
-	basic_transport(basic_shared_session(), srv),
+cluster_transport::cluster_transport(int fd,
+		transport_manager* srv) :
+	basic_transport(fd, basic_shared_session(), srv),  // null session
 	connection<cluster_transport>(fd),
-	m_role(PEER_NOT_SET),
-	m_bind_wait(NULL)
+	m_process_state(&cluster_transport::init_state)
 { }
 
 cluster_transport::~cluster_transport()
 {
-	if(m_bind_wait) {
-		bind_wait_clear();
-	}
-
 	if(m_session) {
-		m_session->unbind_transport(connection<cluster_transport>::fd(), m_session);
-	}
-}
-
-void cluster_transport::bind_wait_clear()
-{
-	bind_wait_t* tmp = m_bind_wait;
-	m_bind_wait = NULL;
-
-	for(bind_wait_t::iterator it(tmp->begin()),
-			it_end(tmp->end()); it != it_end; ++it) {
-		delete it->zone;
-	}
-
-	delete tmp;
-}
-
-void cluster_transport::bind_wait_push(rpc_message& msg, auto_zone& z)
-{
-	if(!m_bind_wait) {
-		m_bind_wait = new bind_wait_t();
-	}
-	wait_t w; w.msg = msg; w.zone = z.get();
-	m_bind_wait->push_back(w);
-	z.release();
-}
-
-void cluster_transport::session_bound(mp::iothreads::handler& h, shared_node n)
-{
-	cluster_transport& self( reinterpret_cast<cluster_transport&>(h) );
-	self.m_session = mp::static_pointer_cast<basic_session>(n);
-	if(self.m_bind_wait) {
-		self.bind_wait_proceed();
+		m_session->unbind_transport(this, m_session);
 	}
 }
 
 void cluster_transport::rebind(basic_shared_session s)
 {
 	if(m_session) {
-		m_session->unbind_transport(connection<cluster_transport>::fd(), m_session);
+		m_session->unbind_transport(this, m_session);
 	}
 	m_session = s;
-	s->bind_transport(connection<cluster_transport>::fd());
+	s->bind_transport(this);
 }
 
+void cluster_transport::send_init()
+{
+	sbuffer buf;
+	rpc_initmsg param(
+			get_server()->m_self_addr,
+			get_server()->m_self_id);
+	msgpack::pack(buf, param);
+
+	wavy::request req = {&::free, buf.data()};
+	wavy::write(fd(), (char*)buf.data(), buf.size(), req);
+	buf.release();
+	LOG_TRACE("sent init message");
+}
 
 cluster* cluster_transport::get_server()
 	{ return get_server(get_manager()); }
 
 cluster* cluster_transport::get_server(transport_manager* srv)
 	{ return static_cast<cluster*>(srv); }
+
 
 
 node::node(session_manager* mgr) :
@@ -109,76 +66,74 @@ node::node(session_manager* mgr) :
 node::~node() { }
 
 
-void cluster_transport::process_message(msgobj msg, auto_zone& z)
+void cluster_transport::init_state(msgobj msg, auto_zone z)
 {
-	// TODO self-modifying code
-	if(m_role == PEER_NOT_SET) {
-		rpc_initmsg init;
-		try {
-			init = msg.convert();
-		} catch (msgpack::type_error&) {
-			m_role = PEER_SERVER;
-		}
+	rpc_initmsg init;
+	try {
+		init = msg.convert();
+	} catch (msgpack::type_error&) {
+		// server node
+		if(m_session) { throw msgpack::type_error(); }
 
-		if(m_role == PEER_NOT_SET) {
-			// cluster node
-			LOG_TRACE("receive init message: ",(uint16_t)init.role_id()," ",init.addr());
+		cluster::subsys* sub =
+				static_cast<cluster::subsys*>(&get_server()->subsystem());
+		m_process_state = &cluster_transport::subsys_state;
 
-			m_role = init.role_id();
-			if(!m_session) {
-				if(!init.addr().connectable()) {
-					throw std::runtime_error("invalid address");
-				}
-				send_init(fd(), get_server()->m_self_addr, get_server()->m_self_id);
-				mp::iothreads::submit(
-						&cluster::bind_session, get_server(),
-						fd(), init.addr(), init.role_id());
+		rebind( sub->add_session() );
 
-			} else {
-				node* n = static_cast<node*>(m_session.get());
-				if(!n->is_role_set()) {
-					n->set_role(m_role);
-					mp::iothreads::submit(
-							&cluster::new_node, get_server(),
-							init.addr(), m_role,
-							mp::static_pointer_cast<node>(m_session));
-				}
-			}
-			return;
-
-		} else {
-			if(m_session) { throw msgpack::type_error(); }
-			// servcer node
-			cluster::subsys* sub =
-					static_cast<cluster::subsys*>(&get_server()->subsystem());
-			basic_shared_session s(new peer(sub));
-			rebind(s);
-			mp::iothreads::submit(
-					&cluster::subsys::add_session, sub, s);
-		}
-	}
-
-	// cluster node
-	LOG_TRACE("receive rpc message: ",msg);
-	rpc_message rpc(msg.convert());
-
-	if(!m_session) {
-		LOG_TRACE("transport not bound, pending message");
-		bind_wait_push(rpc, z);
+		(this->*m_process_state)(msg, z);
 		return;
 	}
 
+	// cluster node
+	LOG_TRACE("receive init message: ",(uint16_t)init.role_id()," ",init.addr());
+
+	m_role = init.role_id();
+	if(!m_session) {
+		if(!init.addr().connectable()) {
+			throw std::runtime_error("invalid address");
+		}
+
+		send_init();
+		rebind( get_server()->create_session(init.addr()) );
+	}
+
+	node* n = static_cast<node*>(m_session.get());
+	if(!n->is_role_set()) {
+		n->set_role(m_role);
+		get_server()->new_node(init.addr(), m_role,
+				mp::static_pointer_cast<node>(m_session));
+	}
+
+	m_process_state = &cluster_transport::cluster_state;
+}
+
+void cluster_transport::subsys_state(msgobj msg, auto_zone z)
+{
+	LOG_TRACE("receive rpc message: ",msg);
+	rpc_message rpc(msg.convert());
+
 	if(rpc.is_request()) {
 		rpc_request<msgobj> msgreq(rpc);
-		if(m_role == PEER_SERVER) {
-			get_server()->subsystem_dispatch_request(
-					m_session,
-					msgreq.method(), msgreq.param(), msgreq.msgid(), z);
-		} else {
-			get_server()->cluster_dispatch_request(
-					m_session, m_role,
-					msgreq.method(), msgreq.param(), msgreq.msgid(), z);
-		}
+		get_server()->subsystem_dispatch_request(m_session,
+				msgreq.method(), msgreq.param(), msgreq.msgid(), z);
+	} else {
+		rpc_response<msgobj, msgobj> msgres(rpc);
+		basic_transport::process_response(
+				msgres.result(), msgres.error(), msgres.msgid(), z);
+	}
+}
+
+void cluster_transport::cluster_state(msgobj msg, auto_zone z)
+{
+	LOG_TRACE("receive rpc message: ",msg);
+	rpc_message rpc(msg.convert());
+
+	if(rpc.is_request()) {
+		rpc_request<msgobj> msgreq(rpc);
+		get_server()->cluster_dispatch_request(
+				m_session, m_role,
+				msgreq.method(), msgreq.param(), msgreq.msgid(), z);
 
 	} else {
 		rpc_response<msgobj, msgobj> msgres(rpc);
@@ -187,55 +142,21 @@ void cluster_transport::process_message(msgobj msg, auto_zone& z)
 	}
 }
 
-void cluster_transport::bind_wait_proceed()
-{
-	for(bind_wait_t::iterator it(m_bind_wait->begin());
-			it != m_bind_wait->end(); ) {
-		if(it->msg.is_request()) {
-			rpc_request<msgobj> msgreq(it->msg);
-			auto_zone z(it->zone);
-			it = m_bind_wait->erase(it);
-
-			if(m_role == PEER_SERVER) {
-				get_server()->subsystem_dispatch_request(
-						m_session,
-						msgreq.method(), msgreq.param(), msgreq.msgid(), z);
-			} else {
-				get_server()->cluster_dispatch_request(
-						m_session, m_role,
-						msgreq.method(), msgreq.param(), msgreq.msgid(), z);
-			}
-
-		} else {
-			rpc_response<msgobj, msgobj> msgres(it->msg);
-			auto_zone z(it->zone);
-			it = m_bind_wait->erase(it);
-
-			basic_transport::process_response(
-					msgres.result(), msgres.error(), msgres.msgid(), z);
-		}
-	}
-	delete m_bind_wait;
-	m_bind_wait = NULL;
-}
-
 
 cluster::cluster(role_type self_id,
 		const address& self_addr,
-		unsigned short connect_retry_limit,
-		unsigned short connect_timeout_steps,
-		unsigned int reconnect_timeout_msec) :
-	client_t(connect_timeout_steps, reconnect_timeout_msec),
+		unsigned int connect_timeout_msec,
+		unsigned short connect_retry_limit) :
+	client_t(connect_timeout_msec, connect_retry_limit),
 	m_self_id(self_id),
 	m_self_addr(self_addr),
-	m_connect_retry_limit(connect_retry_limit),
 	m_subsystem(this) { }
 
 cluster::~cluster() { }
 
 void cluster::accepted(int fd)
 {
-	mp::iothreads::add<cluster_transport>(fd, (client_t*)this);
+	wavy::add<cluster_transport>(fd, (client_t*)this);
 }
 
 
@@ -246,105 +167,45 @@ shared_node cluster::get_node(const address& addr)
 	return n;
 }
 
-void cluster::bind_session(int fd, address addr, role_type role)
+void cluster::transport_lost(shared_node& n)
 {
-	shared_node n( create_session(addr) );
-	n->m_addr = addr;
-	n->bind_transport(fd);
-	using namespace mp::placeholders;
-	mp::iothreads::send_message(fd,
-			&cluster_transport::session_bound, _1, n);
-	if(!n->is_role_set()) {
-		n->set_role(role);
-		new_node(addr, role, n);
+	if(n->connect_retried_count() > m_connect_retry_limit) {
+		LOG_DEBUG("give up to reconnect ",n->addr());
+		client_t::transport_lost(n);
+
+		if(n->is_role_set()) {
+			// node is lost
+			lost_node(n->addr(), n->role());
+		}
+
+	} else {
+		LOG_DEBUG("reconnect to ",n->addr());
+		async_connect(n->addr(), n);
 	}
 }
 
-void cluster::transport_lost(shared_node& n)
-{
-	//if(n->empty()) {
-	//	LOG_DEBUG("empty session ",addr);
-
-	//	client_t::transport_lost(addr, n);
-
-	//	node* n = static_cast<node*>(n.get());
-	//	if(n->is_role_set()) {
-	//		// node is lost
-	//		lost_node(n->addr(), n->role());
-	//	}
-
-	//} else {
-		if(n->connect_retried_count() > m_connect_retry_limit) {
-			LOG_DEBUG("give up to reconnect ",n->addr());
-
-			msgpack::object res;
-			res.type = msgpack::type::NIL;
-			msgpack::object err;
-			err.type = msgpack::type::POSITIVE_INTEGER;
-			err.via.u64 = protocol::NODE_LOST_ERROR;
-
-			n->force_lost(res, err);
-
-			if(n->is_role_set()) {
-				// node is lost
-				lost_node(n->addr(), n->role());
-			}
-
-		} else {
-			LOG_DEBUG("reconnect to ",n->addr());
-			connect_session(n->addr(), n);
-		}
-	//}
-}
 
 
-
-void cluster::cluster_dispatch_request(
+inline void cluster::cluster_dispatch_request(
 		basic_shared_session& s, role_type role,
 		method_id method, msgobj param,
 		msgid_t msgid, auto_zone& z)
 {
-	shared_zone life(new mp::zone());
-	life->push_finalizer(
-			&mp::object_delete<msgpack::zone>,
-			z.get());
-	z.release();
+	shared_zone life(z.release());
 	weak_responder response(s, msgid);
 	shared_node from = mp::static_pointer_cast<node>(s);
 	cluster_dispatch(from, role, response, method, param, life);
 }
 
-
-void cluster::subsystem_dispatch_request(
+inline void cluster::subsystem_dispatch_request(
 		basic_shared_session& s,
 		method_id method, msgobj param,
 		msgid_t msgid, auto_zone& z)
 {
-	shared_zone life(new mp::zone());
-	life->push_finalizer(
-			&mp::object_delete<msgpack::zone>,
-			z.get());
-	z.release();
+	shared_zone life(z.release());
 	weak_responder response(s, msgid);
 	shared_peer from = mp::static_pointer_cast<peer>(s);
 	subsystem_dispatch(from, response, method, param, life);
-}
-
-
-void cluster::dispatch_request(
-		basic_shared_session& s, weak_responder response,
-		method_id method, msgobj param, shared_zone& life)
-{
-	// connection<IMPL>::process_message is hooked.
-	// transport<IMPL>::process_request won't be called.
-	throw std::logic_error("cluster::dispatch_request called");
-}
-
-void cluster::dispatch(
-		shared_node& from, weak_responder response,
-		method_id method, msgobj param, shared_zone& life)
-{
-	throw std::logic_error("cluster::dispatch called");
 }
 
 
@@ -353,15 +214,31 @@ cluster::subsys::subsys(cluster* srv) :
 
 cluster::subsys::~subsys() { }
 
-void cluster::subsys::add_session(basic_shared_session s)
+basic_shared_session cluster::subsys::add_session()
 {
+	basic_shared_session s(new peer(this));
 	void* k = (void*)s.get();
+
+	pthread_scoped_lock lk(m_peers_mutex);
 	m_peers.insert( peers_t::value_type(k, basic_weak_session(s)) );
+	return s;
+}
+
+
+
+// connection<IMPL>::process_message is hooked.
+// transport<IMPL>::process_request won't be called.
+
+void cluster::dispatch(
+		shared_node& from, weak_responder response,
+		method_id method, msgobj param, auto_zone z)
+{
+	throw std::logic_error("cluster::dispatch called");
 }
 
 void cluster::subsys::dispatch(
 		shared_peer& from, weak_responder response,
-		method_id method, msgobj param, shared_zone& life)
+		method_id method, msgobj param, auto_zone z)
 {
 	throw std::logic_error("cluster::subsys::dispatch called");
 }

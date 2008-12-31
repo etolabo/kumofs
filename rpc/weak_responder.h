@@ -1,106 +1,48 @@
-#ifndef RPC_WEAK_RESPONDER_H__
-#define RPC_WEAK_RESPONDER_H__
+#ifndef RPC_WEAK_RESPONDER_FWD_H__
+#define RPC_WEAK_RESPONDER_FWD_H__
 
-#include "rpc/weak_responder_fwd.h"
-#include <mp/wavy.h>
-#include <mp/object_callback.h>
+#include "rpc/types.h"
 
 namespace rpc {
 
 
-inline weak_responder::weak_responder(basic_weak_session s, msgid_t msgid) :
-	m_session(s), m_msgid(msgid) { }
+class weak_responder {
+public:
+	weak_responder(basic_weak_session s, msgid_t msgid);
 
-inline weak_responder::~weak_responder() { }
+	~weak_responder();
 
+	template <typename Result>
+	void result(Result res);
 
-template <typename Result>
-void weak_responder::result(Result res)
-{
-	LOG_TRACE("send response data with Success id=",m_msgid);
-	msgpack::type::nil err;
-	call(res, err);
-}
+	template <typename Result>
+	void result(Result res, shared_zone& life);
 
-template <typename Result>
-void weak_responder::result(Result res, shared_zone& life)
-{
-	LOG_TRACE("send response data with Success id=",m_msgid);
-	msgpack::type::nil err;
-	call(res, err, life);
-}
+	template <typename Error>
+	void error(Error err);
 
-template <typename Error>
-void weak_responder::error(Error err)
-{
-	LOG_TRACE("send response data with Error id=",m_msgid);
-	msgpack::type::nil res;
-	call(res, err);
-}
+	template <typename Error>
+	void error(Error err, shared_zone& life);
 
-template <typename Error>
-void weak_responder::error(Error err, shared_zone& life)
-{
-	LOG_TRACE("send response data with Error id=",m_msgid);
-	msgpack::type::nil res;
-	call(res, err, life);
-}
+	void null();
 
-inline void weak_responder::null()
-{
-	msgpack::type::nil res;
-	msgpack::type::nil err;
-	call(res, err);
-}
+private:
+	template <typename Result, typename Error>
+	void call(Result& res, Error& err);
 
+	template <typename Result, typename Error>
+	void call(Result& res, Error& err, shared_zone& life);
 
-namespace detail {
-	struct response_zone_keeper {
-		response_zone_keeper(shared_zone z) : m(z) { }
-		~response_zone_keeper() { }
-		vrefbuffer buf;
-	private:
-		shared_zone m;
-		response_zone_keeper();
-		response_zone_keeper(const response_zone_keeper&);
-	};
-}
+private:
+	basic_weak_session m_session;
+	const msgid_t m_msgid;
 
-template <typename Result, typename Error>
-void weak_responder::call(Result& res, Error& err)
-{
-	rpc::sbuffer buf;  // FIXME use vrefbuffer?
-	rpc_response<Result, Error> msgres(res, err, m_msgid);
-	msgpack::pack(buf, msgres);
-
-	basic_shared_session s(m_session.lock());
-	if(!s) { throw std::runtime_error("lost session"); }
-
-	s->send_data((const char*)buf.data(), buf.size(),
-			&::free,
-			reinterpret_cast<void*>(buf.data()));
-	buf.release();
-}
-
-template <typename Result, typename Error>
-void weak_responder::call(Result& res, Error& err, shared_zone& life)
-{
-	std::auto_ptr<detail::response_zone_keeper> zk(new detail::response_zone_keeper(life));
-
-	rpc_response<Result&, Error> msgres(res, err, m_msgid);
-	msgpack::pack(zk->buf, msgres);
-
-	basic_shared_session s(m_session.lock());
-	if(!s) { throw std::runtime_error("lost session"); }
-
-	s->send_datav(&zk->buf,
-			&mp::object_delete<detail::response_zone_keeper>,
-			reinterpret_cast<void*>(zk.get()));
-	zk.release();
-}
+private:
+	weak_responder();
+};
 
 
 }  // namespace rpc
 
-#endif /* rpc/weak_responder.h */
+#endif /* rpc/weak_responder_fwd.h */
 

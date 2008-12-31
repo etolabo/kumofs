@@ -2,14 +2,10 @@
 #define RPC_MESSAGE_H__
 
 #include <msgpack.hpp>
+#include "rpc/types.h"
 #include "rpc/address.h"
 
 namespace rpc {
-
-
-typedef uint16_t method_id;
-typedef uint32_t msgid_t;
-typedef uint8_t role_type;
 
 
 struct rpc_message : msgpack::define<

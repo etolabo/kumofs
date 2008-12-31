@@ -5,46 +5,39 @@ namespace rpc {
 
 
 server::server() { }
+
 server::~server() { }
 
 
-server_transport::server_transport(
-		int fd, basic_shared_session& s, transport_manager* mgr) :
-	basic_transport(s, mgr),
-	connection<server_transport>(fd)
+server::shared_peer server::accepted(int fd)
 {
-	m_session->bind_transport(connection<server_transport>::fd());
+	basic_shared_session s(new peer(this));
+	wavy::add<transport>(fd, s, this);
+	void* k = (void*)s.get();
+
+	pthread_scoped_lock lk(m_peers_mutex);
+	m_peers.insert( peers_t::value_type(k, basic_weak_session(s)) );
+	return mp::static_pointer_cast<peer>(s);
 }
 
-server_transport::~server_transport()
-{
-	m_session->unbind_transport(connection<server_transport>::fd(), m_session);
-}
 
 void server::dispatch_request(
 		basic_shared_session& s, weak_responder response,
-		method_id method, msgobj param, shared_zone& life)
+		method_id method, msgobj param, auto_zone z)
 {
 	shared_peer from = mp::static_pointer_cast<peer>(s);
-	dispatch(from, response, method, param, life);
-}
-
-void server::accepted(int fd)
-{
-	basic_shared_session s(new peer(this));
-	mp::iothreads::add<server_transport>(fd, s, this);
-	void* k = (void*)s.get();
-	m_peers.insert( peers_t::value_type(k, basic_weak_session(s)) );
+	dispatch(from, response, method, param, z);
 }
 
 
 void server::step_timeout()
 {
+	pthread_scoped_lock lk(m_peers_mutex);
 	for(peers_t::iterator it(m_peers.begin()), it_end(m_peers.end());
 			it != it_end; ) {
 		basic_shared_session p(it->second.lock());
 		if(p && !p->is_lost()) {
-			p->step_timeout(p);
+			wavy::submit(&basic_session::step_timeout, p.get(), p);
 			++it;
 		} else {
 			m_peers.erase(it++);
@@ -61,7 +54,10 @@ void server::transport_lost_notify(basic_shared_session& s)
 	err.via.u64 = protocol::NODE_LOST_ERROR;
 
 	void* k = (void*)s.get();
-	m_peers.erase(k);
+	{
+		pthread_scoped_lock lk(m_peers_mutex);
+		m_peers.erase(k);
+	}
 
 	s->force_lost(res, err);
 }

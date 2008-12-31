@@ -9,71 +9,21 @@
 
 namespace rpc {
 
-typedef mp::shared_ptr<mp::zone> shared_zone;
 
 class basic_transport;
-class basic_session;
-class session;
-
-typedef mp::shared_ptr<basic_session> basic_shared_session;
-typedef mp::weak_ptr<basic_session> basic_weak_session;
-
-typedef mp::function<void (basic_shared_session, msgobj, msgobj, shared_zone)> callback_t;
-
-
-class weak_responder {
-public:
-	weak_responder(basic_weak_session s, msgid_t msgid);
-
-	~weak_responder();
-
-	template <typename Result>
-	void result(Result res);
-
-	template <typename Result>
-	void result(Result res, shared_zone& life);
-
-	template <typename Error>
-	void error(Error err);
-
-	template <typename Error>
-	void error(Error err, shared_zone& life);
-
-	void null();
-
-private:
-	template <typename Result, typename Error>
-	void call(Result& res, Error& err);
-
-	template <typename Result, typename Error>
-	void call(Result& res, Error& err, shared_zone& life);
-
-private:
-	basic_weak_session m_session;
-	msgid_t m_msgid;
-
-private:
-	weak_responder();
-};
-
-
 
 struct session_manager {
 	session_manager() { }
 
 	virtual ~session_manager() { }
 
-	typedef std::auto_ptr<msgpack::zone> auto_zone;
-	typedef rpc::msgobj      msgobj;
-	typedef rpc::method_id   method_id;
-	typedef rpc::msgid_t     msgid_t;
-
 	virtual void dispatch_request(
 			basic_shared_session& s, weak_responder response,
-			method_id method, msgobj param, shared_zone& life) = 0;
+			method_id method, msgobj param, auto_zone z) = 0;
 
 	virtual void transport_lost_notify(basic_shared_session& s) = 0;
 };
+
 
 class basic_session {
 public:
@@ -93,7 +43,7 @@ public:
 	// if this session is not bound, exception will be thrown.
 	template <typename Parameter>
 	void call(method_id method, Parameter& params,
-			shared_zone& life, callback_t callback,
+			shared_zone life, callback_t callback,
 			unsigned short timeout_steps);
 
 	// return true if callbacks are empty.
@@ -102,15 +52,11 @@ public:
 	// get session manager
 	session_manager* get_manager();
 
-	void send_response_data(const char* buf, size_t buflen,
+	void send_data(const char* buf, size_t buflen,
 			void (*finalize)(void*), void* data);
 
-	void send_response_datav(vrefbuffer* buf,
+	void send_datav(vrefbuffer* buf,
 			void (*finalize)(void*), void* data);
-
-public:
-	//// delegate callback functions to other basic_session.
-	//void delegate_to(basic_session& guardian);
 
 public:
 	// called from server::connect_session.
@@ -125,8 +71,6 @@ public:
 	// call all registered callback functions with specified arguments
 	// and set is_lost == true
 	void force_lost(msgobj res, msgobj err);
-private:
-	void destroy(msgobj res, msgobj err);
 
 public:
 	// return true if the destructor of this session is already running or
@@ -142,29 +86,20 @@ public:
 	void process_request(
 			basic_shared_session& s,
 			method_id method, msgobj param,
-			msgid_t msgid, auto_zone& z);
+			msgid_t msgid, auto_zone z);
 
 	// process callback.
 	void process_response(
 			basic_shared_session& self,
 			msgobj result, msgobj error,
-			msgid_t msgid, msgpack::zone* new_z);
+			msgid_t msgid, auto_zone z);
 
-	virtual bool bind_transport(int fd);
-	virtual bool unbind_transport(int fd, basic_shared_session& self);
+	virtual bool bind_transport(basic_transport* t);
+	virtual bool unbind_transport(basic_transport* t, basic_shared_session& self);
 
 protected:
 	template <typename Parameter>
 	msgid_t pack(vrefbuffer& buffer, method_id method, Parameter& params);
-
-	void set_callback(msgid_t msgid, callback_t callback,
-			shared_zone life, unsigned short timeout_steps);
-
-	void send_buffer(const char* buf, size_t buflen,
-			void (*finalize)(void*), void* data);
-
-	void send_bufferv(vrefbuffer* buf,
-			void (*finalize)(void*), void* data);
 
 private:
 	class callback_entry {
@@ -175,8 +110,9 @@ private:
 	public:
 		void callback(basic_shared_session& s, msgobj res, msgobj err, auto_zone& z);
 		void callback(basic_shared_session& s, msgobj res, msgobj err);
-		void callback_submit(basic_shared_session& s, msgobj res, msgobj err);
-		inline bool step_timeout();
+		inline void callback_submit(basic_shared_session& s,
+				msgobj res, msgobj err);
+		inline bool step_timeout();  // Note: NOT thread-safe
 	private:
 		unsigned short m_timeout_steps;
 		callback_t m_callback;
@@ -186,10 +122,12 @@ private:
 	msgid_t m_msgid_rr;
 
 protected:
+	mp::pthread_mutex m_callbacks_mutex;
 	typedef std::map<msgid_t, callback_entry> callbacks_t;
 	callbacks_t m_callbacks;
 
-	typedef std::vector<int> binds_t;
+	mp::pthread_mutex m_binds_mutex;
+	typedef std::vector<basic_transport*> binds_t;
 	binds_t m_binds;
 
 	bool m_lost;
@@ -214,7 +152,7 @@ public:
 	// be kept till connected.
 	template <typename Parameter>
 	void call(method_id method, Parameter& params,
-			shared_zone& life, callback_t callback,
+			shared_zone life, callback_t callback,
 			unsigned short timeout_steps);
 
 	// return true if both pending requests and
@@ -224,16 +162,13 @@ public:
 	// clear all pending requests.
 	void cancel_pendings();
 
-	//// delegate callback functions to other session.
-	//void delegate_to(session& guardian);
-
 public:
-	virtual bool bind_transport(int fd);
-	virtual bool unbind_transport(int fd, basic_shared_session& self);
+	virtual bool bind_transport(basic_transport* t);
+	virtual bool unbind_transport(basic_transport* t, basic_shared_session& self);
 
 protected:
 	typedef std::vector<vrefbuffer*> pending_queue_t;
-	pending_queue_t m_pending_queue;
+	pending_queue_t m_pending_queue;  // synchronized by m_callbacks_mutex
 
 private:
 	session();
@@ -242,9 +177,6 @@ private:
 
 
 }  // namespace rpc
-
-#include "rpc/session_tmpl.h"
-#include "rpc/transport.h"
 
 #endif /* rpc/session.h */
 

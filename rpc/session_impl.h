@@ -97,11 +97,11 @@ void basic_session::call(
 	vrefbuffer* buf = life->allocate<vrefbuffer>();
 	msgid_t msgid = pack(*buf, method, params);
 
-	mp::pthread_scoped_lock lk(m_callbacks_mutex);
+	pthread_scoped_lock lk(m_callbacks_mutex);
 	m_callbacks[msgid] =  // FIXME m_callbacks.insert
 		callback_entry(callback, life, timeout_steps);
 
-	mp::pthread_scoped_lock blk(m_binds_mutex);
+	pthread_scoped_lock blk(m_binds_mutex);
 	if(m_binds.empty()) {
 		m_callbacks.erase(msgid);
 		throw std::runtime_error("session not bound");
@@ -126,11 +126,11 @@ void session::call(
 	vrefbuffer* buf = life->allocate<vrefbuffer>();
 	msgid_t msgid = pack(*buf, method, params);
 
-	mp::pthread_scoped_lock lk(m_callbacks_mutex);
+	pthread_scoped_lock lk(m_callbacks_mutex);
 	m_callbacks[msgid] =  // FIXME m_callbacks.insert
 		callback_entry(callback, life, timeout_steps);
 
-	mp::pthread_scoped_lock blk(m_binds_mutex);
+	pthread_scoped_lock blk(m_binds_mutex);
 	if(m_binds.empty()) {
 		LOG_TRACE("push pending queue ",m_pending_queue.size()+1);
 		m_pending_queue.push_back(buf);
@@ -146,7 +146,7 @@ void session::call(
 
 inline void session::cancel_pendings()
 {
-	mp::pthread_scoped_lock lk(m_callbacks_mutex);
+	pthread_scoped_lock lk(m_callbacks_mutex);
 	m_pending_queue.clear();
 }
 

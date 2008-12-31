@@ -1,7 +1,8 @@
 #ifndef RPC_CLIENT_H__
 #define RPC_CLIENT_H__
 
-#include "rpc/session.h"
+#include "rpc/rpc.h"
+#include "rpc/protocol.h"
 #include "log/mlogger.h"  // FIXME
 #include <mp/pthread.h>
 #include <map>
@@ -15,29 +16,23 @@ public:
 	typedef mp::shared_ptr<Session> shared_session;
 	typedef mp::weak_ptr<Session> weak_session;
 
-	typedef rpc::msgobj          msgobj;
-	typedef rpc::method_id       method_id;
-	typedef rpc::msgid_t         msgid_t;
-	typedef rpc::shared_zone     shared_zone;
-
 	typedef mp::function<void (shared_session, msgobj, msgobj, shared_zone)> callback_t;
 
 public:
-	client(unsigned short connect_timeout_steps,
-			unsigned int reconnect_timeout_msec = 5*1000);
+	client(unsigned int connect_timeout_msec,
+			unsigned short connect_retry_limit);
 	virtual ~client();
 
-	virtual void transport_lost(shared_session& s) { }
+	virtual void transport_lost(shared_session& s);
 
-	virtual void connect_timeout(const address& addr, shared_session& s) { }
+	virtual void connect_failed(shared_session s, address addr, int error)
+	{
+		transport_lost(s);
+	}
 
 	virtual void dispatch(
 			shared_session& from, weak_responder response,
-			method_id method, msgobj param, shared_zone& life) = 0;
-
-	virtual void dispatch_request(
-			basic_shared_session& s, weak_responder response,
-			method_id method, msgobj param, shared_zone& life);
+			method_id method, msgobj param, auto_zone z) = 0;
 
 public:
 	// step callback timeout count
@@ -58,39 +53,48 @@ public:
 protected:
 	// connect session to the address and return true if
 	// it is not bound.
-	bool connect_session(const address& addr, shared_session& s);
+	bool async_connect(const address& addr, shared_session& s);
 
 private:
+	template <bool CONNECT>
+	shared_session get_session_impl(const address& addr);
+
+private:
+	mp::pthread_mutex m_sessions_mutex;
 	typedef std::multimap<address, weak_session> sessions_t;
 	sessions_t m_sessions;
 
-	struct unbound_entry {
+	struct connect_pack {
 		shared_session session;
-		unsigned short timeout_steps;
 		address addr;
 	};
 
-	typedef std::map<address, unbound_entry> unbounds_t;
-	unbounds_t m_unbounds;
+	void connect_callback(address addr, shared_session s, int fd, int err);
+//	void connect_success(const address& addr, int fd);
+//	void connect_failed(const address& addr, int error);
+
+//	mp::pthread_mutex m_unbounds_mutex;
+//	typedef std::map<address, unbound_entry> unbounds_t;
+//	unbounds_t m_unbounds;
 
 private:
-	struct connect_pack {
-		connect_pack(client* srv, const address& addr);
-		static void callback(void* data, int fd);
-	private:
-		client* m_srv;
-		address m_addr;
-	};
+	//struct connect_pack {
+		//connect_pack(client* srv, const address& addr);
+		//static void callback(void* data, int fd);
+	//private:
+		//client* m_srv;
+		//address m_addr;
+	//};
+
+protected:
+	unsigned int m_connect_timeout_msec;
+	unsigned short m_connect_retry_limit;
 
 public:
-	void connect_success(const address& addr, int fd);
-	void connect_failed(const address& addr, int error);
+	virtual void dispatch_request(
+			basic_shared_session& s, weak_responder response,
+			method_id method, msgobj param, auto_zone z);
 
-private:
-	unsigned short m_connect_timeout_steps;
-	unsigned int m_reconnect_timeout_msec;
-
-public:
 	virtual void transport_lost_notify(basic_shared_session& s);
 
 private:

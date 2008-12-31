@@ -4,7 +4,6 @@ noinst_LIBRARIES = libkumo_rpc.a libkumo_cluster.a
 libkumo_rpc_a_SOURCES = \
 		address.cc \
 		session.cc \
-		transport.cc \
 		vrefbuffer.cc
 
 libkumo_cluster_a_SOURCES = \
@@ -23,7 +22,8 @@ noinst_HEADERS = \
 		client_tmpl.h \
 		server.h \
 		session.h \
-		session_tmpl.h \
+		session_impl.h \
 		transport.h \
+		transport_impl.h \
 		vrefbuffer.h
 
