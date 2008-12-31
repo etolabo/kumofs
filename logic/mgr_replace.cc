@@ -113,7 +113,7 @@ RPC_REPLY(ResReplaceElection, from, res, err, life)
 
 
 
-void Manager::attach_new_servers(const pthread_scoped_lock& hslk)
+void Manager::attach_new_servers(REQUIRE_HSLK)
 {
 	// update hash space
 	ClockTime ct = m_clock.now_incr();
@@ -146,7 +146,7 @@ void Manager::attach_new_servers(const pthread_scoped_lock& hslk)
 	//push_hash_space_clients();
 }
 
-void Manager::detach_fault_servers(const pthread_scoped_lock& hslk)
+void Manager::detach_fault_servers(REQUIRE_HSLK)
 {
 	ClockTime ct = m_clock.now_incr();
 
@@ -189,7 +189,7 @@ void Manager::ReplaceContext::invalidate()
 }
 
 
-void Manager::start_replace(const pthread_scoped_lock& hslk)
+void Manager::start_replace(REQUIRE_HSLK)
 {
 	LOG_INFO("start replace copy");
 	pthread_scoped_lock relk(m_replace_mutex);
@@ -215,6 +215,7 @@ void Manager::start_replace(const pthread_scoped_lock& hslk)
 
 	m_copying.reset(ct, num_active);
 	m_deleting.reset(0, 0);
+	relk.unlock();
 
 	// push hashspace to the clients
 	try {
@@ -282,9 +283,10 @@ try {
 
 	ClockTime ct(param.clocktime());
 	if(m_copying.pop(ct)) {
-		finish_replace_copy();
+		finish_replace_copy(relk);
 	}
 
+	relk.unlock();
 	response.result(true);
 }
 RPC_CATCH(ReplaceCopyEnd, response)
@@ -298,18 +300,17 @@ try {
 
 	ClockTime ct(param.clocktime());
 	if(m_deleting.pop(ct)) {
-		finish_replace();
+		finish_replace(relk);
 	}
 
+	relk.unlock();
 	response.result(true);
 }
 RPC_CATCH(ReplaceDeleteEnd, response)
 
 
-void Manager::finish_replace_copy()
+void Manager::finish_replace_copy(REQUIRE_RELK)
 {
-	// called from ReplaceDeleteEnd
-
 	// FIXME
 	ClockTime clocktime = m_copying.clocktime();
 	LOG_INFO("start replace delete time(",clocktime.get(),")");
@@ -346,10 +347,8 @@ RPC_REPLY(ResReplaceDeleteStart, from, res, err, life)
 }
 
 
-inline void Manager::finish_replace()
+inline void Manager::finish_replace(REQUIRE_RELK)
 {
-	// called from ReplaceDeleteEnd
-
 	// FIXME
 	LOG_INFO("replace finished time(",m_deleting.clocktime().get(),")");
 	m_deleting.reset(0, 0);

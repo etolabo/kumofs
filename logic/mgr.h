@@ -71,8 +71,10 @@ private:
 	void start_replace(REQUIRE_HSLK);
 	RPC_REPLY_DECL(ResReplaceCopyStart, from, res, err, life);
 	RPC_REPLY_DECL(ResReplaceDeleteStart, from, res, err, life);
-	void finish_replace_copy();
-	void finish_replace();
+
+#define REQUIRE_RELK const pthread_scoped_lock& relk
+	void finish_replace_copy(REQUIRE_RELK);
+	void finish_replace(REQUIRE_RELK);
 
 public:
 	// mgr_control.cc
