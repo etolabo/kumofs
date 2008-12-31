@@ -106,7 +106,7 @@ protected:
 		// initialize wavy
 		m_core_threads = cfg.rthreads;
 		m_output_threads = cfg.wthreads;
-		wavy::initialize();
+		wavy::initialize(0,0,2,2);  // FIXME
 	
 		// initialize signal handler before starting threads
 		sigset_t ss;

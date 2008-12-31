@@ -65,6 +65,8 @@ RPC_REPLY(ResWHashSpaceRequest, from, res, err, life)
 	} else {
 		LOG_DEBUG("renew hash space");
 		HashSpace::Seed hsseed(res.convert());
+
+		pthread_scoped_wrlock whlk(m_whs_mutex);
 		if(m_whs.empty() || m_whs.clocktime() < ClockTime(hsseed.clocktime())) {
 		//   ^                ^
 			m_whs = HashSpace(hsseed);
@@ -92,6 +94,8 @@ RPC_REPLY(ResRHashSpaceRequest, from, res, err, life)
 	} else {
 		LOG_DEBUG("renew hash space");
 		HashSpace::Seed hsseed(res.convert());
+
+		pthread_scoped_wrlock rhlk(m_rhs_mutex);
 		if(m_rhs.empty() || m_rhs.clocktime() < ClockTime(hsseed.clocktime())) {
 		//   ^                ^
 			m_rhs = HashSpace(hsseed);
@@ -109,17 +113,24 @@ try {
 
 	bool ret = false;
 
+	pthread_scoped_wrlock whlk(m_whs_mutex);
+
 	if(!param.wseed().empty() && (m_whs.empty() ||
 			m_whs.clocktime() <= ClockTime(param.wseed().clocktime()))) {
 		m_whs = HashSpace(param.wseed());
 		ret = true;
 	}
 
+	pthread_scoped_wrlock rhlk(m_rhs_mutex);
+
 	if(!param.rseed().empty() && (m_rhs.empty() ||
 			m_rhs.clocktime() <= ClockTime(param.rseed().clocktime()))) {
 		m_rhs = HashSpace(param.rseed());
 		ret = true;
 	}
+
+	rhlk.unlock();
+	whlk.unlock();
 
 	if(ret) {
 		response.result(true);

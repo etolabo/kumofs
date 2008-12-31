@@ -44,7 +44,10 @@ RPC_FUNC(Get, from, response, z, param)
 try {
 	LOG_DEBUG("Get '",std::string(param.key(),param.keylen()),"'");
 
-	check_replicator_assign(m_rhs, param.key(), param.keylen());
+	{
+		pthread_scoped_rdlock rhlk(m_rhs_mutex);
+		check_replicator_assign(m_rhs, param.key(), param.keylen());
+	}
 
 	uint32_t meta_vallen;
 	const char* meta_val = m_db.get(param.key(), param.keylen(),
@@ -73,7 +76,20 @@ try {
 			std::string(param.meta_val()+DBFormat::LEADING_METADATA_SIZE,
 				param.meta_vallen()-DBFormat::LEADING_METADATA_SIZE),"'");
 
+	pthread_scoped_rdlock whlk(m_whs_mutex);
 	check_coordinator_assign(m_whs, param.key(), param.keylen());
+
+	unsigned short* copy_required = z->allocate<unsigned short>(0);
+	shared_node repto[NUM_REPLICATION];
+
+	uint64_t x = HashSpace::hash(param.key(), param.keylen());
+	EACH_ASSIGNED_ACTIVE_NODE_EXCLUDE(addr(),
+			m_whs, x, n, {
+				repto[*copy_required] = n;
+				++*copy_required;
+			})
+	whlk.unlock();
+
 
 	ClockTime ct(m_clock.now_incr());
 
@@ -85,10 +101,7 @@ try {
 	m_db.set(param.key(), param.keylen(),
 			param.meta_val(), param.meta_vallen());
 
-
 	// Replication
-	unsigned short* copy_required = z->allocate<unsigned short>(0);
-
 	RetryReplicateSet* retry = z->allocate<RetryReplicateSet>(
 			protocol::type::ReplicateSet(
 				param.key(), param.keylen(),
@@ -103,12 +116,9 @@ try {
 			response, ct.get()) );
 
 	SHARED_ZONE(life, z);
-	uint64_t x = HashSpace::hash(param.key(), param.keylen());
-	EACH_ASSIGNED_ACTIVE_NODE_EXCLUDE(addr(),
-			m_whs, x, n, {
-				retry->call(n, life, 10);
-				++*copy_required;
-			})
+	for(unsigned short i=0; i < *copy_required; ++i) {
+		retry->call(repto[i], life, 10);
+	}
 #ifdef KUMO_SET_ASYNC
 	*copy_required = 0;
 #endif
@@ -125,7 +135,20 @@ RPC_FUNC(Delete, from, response, z, param)
 try {
 	LOG_DEBUG("Delete '",std::string(param.key(),param.keylen()),"'");
 
+	pthread_scoped_rdlock whlk(m_whs_mutex);
 	check_coordinator_assign(m_whs, param.key(), param.keylen());
+
+	unsigned short* copy_required = z->allocate<unsigned short>(0);
+	shared_node repto[NUM_REPLICATION];
+
+	uint64_t x = HashSpace::hash(param.key(), param.keylen());
+	EACH_ASSIGNED_ACTIVE_NODE_EXCLUDE(addr(),
+			m_whs, x, n, {
+				repto[*copy_required] = n;
+				++*copy_required;
+			})
+	whlk.unlock();
+
 
 	if(!m_db.erase(param.key(), param.keylen())) {
 		// the key is not stored
@@ -137,8 +160,6 @@ try {
 	ClockTime ct(m_clock.now_incr());
 
 	// Replication
-	unsigned short* copy_required = z->allocate<unsigned short>(0);
-
 	RetryReplicateDelete* retry = z->allocate<RetryReplicateDelete>(
 			protocol::type::ReplicateDelete(
 				param.key(), param.keylen(),
@@ -152,12 +173,9 @@ try {
 				response) );
 	
 	SHARED_ZONE(life, z);
-	uint64_t x = HashSpace::hash(param.key(), param.keylen());
-	EACH_ASSIGNED_ACTIVE_NODE_EXCLUDE(addr(),
-			m_whs, x, node, {
-				retry->call(node, life);
-				++*copy_required;
-			})
+	for(unsigned short i=0; i < *copy_required; ++i) {
+		retry->call(repto[i], life, 10);
+	}
 #ifdef KUMO_DELETE_ASYNC
 	*copy_required = 0;
 #endif
@@ -231,7 +249,10 @@ try {
 	LOG_TRACE("ReplicateSet");
 	m_clock.update(param.clock());
 
-	check_replicator_assign(m_whs, param.key(), param.keylen());
+	{
+		pthread_scoped_rdlock whlk(m_whs_mutex);
+		check_replicator_assign(m_whs, param.key(), param.keylen());
+	}
 
 	DBFormat form(param.meta_val(), param.meta_vallen());
 
@@ -258,7 +279,10 @@ try {
 	m_clock.update(param.clock());
 
 	// FIXME check write-hash-space assignment?
-	//check_replicator_assign(m_whs, paramn.key(), param.keylen());
+	//{
+	//	pthread_scoped_rdlock whlk(m_whs_mutex);
+	//	check_replicator_assign(m_whs, paramn.key(), param.keylen());
+	//}
 
 	char meta[DBFormat::LEADING_METADATA_SIZE];
 	int32_t ret = m_db.get_header(param.key(), param.keylen(), meta, sizeof(meta));

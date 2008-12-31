@@ -164,6 +164,7 @@ static void* bench_func(void* trash)
 		} else if(!value) {
 			fprintf(stderr, "get failed: key not found\n");
 		}
+		free(value);
 	}
 
 	memcached_free(st);

@@ -91,11 +91,19 @@ RPC_CATCH(ReplaceDeleteStart, response)
 void Server::replace_copy(const address& manager_addr, HashSpace& hs)
 {
 	ClockTime replace_time = hs.clocktime();
-	m_replacing.reset(manager_addr, replace_time);
+
+	{
+		pthread_scoped_lock relk(m_replacing_mutex);
+		m_replacing.reset(manager_addr, replace_time);
+	}
 
 	LOG_INFO("start replace copy for time(",replace_time.get(),")");
 
-	HashSpace& srchs(m_whs);
+	pthread_scoped_wrlock whlock(m_whs_mutex);
+	HashSpace srchs(m_whs);
+	m_whs = hs;
+	whlock.unlock();
+
 	HashSpace& dsths(hs);
 
 	typedef std::vector<address> addrs_t;
@@ -206,8 +214,7 @@ void Server::replace_copy(const address& manager_addr, HashSpace& hs)
 }
 
 skip_replace:
-	m_whs = hs;
-
+	pthread_scoped_lock relk(m_replacing_mutex);
 	if(m_replacing.is_finished(replace_time)) {
 		finish_replace_copy(replace_time);
 	}
@@ -227,6 +234,7 @@ inline void Server::propose_replace_push(const address& node,
 
 	retry->call(get_node(node), life, 10);
 
+	pthread_scoped_lock relk(m_replacing_mutex);
 	m_replacing.proposed(replace_time);
 }
 
@@ -245,6 +253,7 @@ inline void Server::replace_push(const address& node,
 
 	retry->call(get_node(node), life, 10);
 
+	pthread_scoped_lock relk(m_replacing_mutex);
 	m_replacing.pushed(replace_time);
 }
 
@@ -252,6 +261,8 @@ inline void Server::replace_push(const address& node,
 
 CLUSTER_FUNC(ReplacePropose, from, response, z, param)
 try {
+	pthread_scoped_rdlock whlk(m_whs_mutex);
+
 	if(m_whs.empty()) {
 		//throw std::runtime_error("server not ready");
 		// don't send response if server not ready.
@@ -266,6 +277,8 @@ try {
 		response.null();
 		return;
 	}
+
+	whlk.unlock();
 
 	char meta[DBFormat::LEADING_METADATA_SIZE];
 	int32_t ret = m_db.get_header(param.key(), param.keylen(), meta, sizeof(meta));
@@ -285,6 +298,8 @@ RPC_CATCH(ReplacePropose, response)
 
 CLUSTER_FUNC(ReplacePush, from, response, z, param)
 try {
+	pthread_scoped_rdlock whlk(m_whs_mutex);
+
 	if(m_whs.empty()) {
 		//throw std::runtime_error("server not ready");
 		// don't send response if server not ready.
@@ -299,6 +314,8 @@ try {
 		response.null();
 		return;
 	}
+
+	whlk.unlock();
 
 	DBFormat form(param.meta_val(), param.meta_vallen());
 
@@ -338,8 +355,6 @@ RPC_REPLY(ResReplacePropose, from, res, err, life,
 		LOG_ERROR("ReplacePropose failed: ",err);
 	}
 
-	m_replacing.propose_returned(replace_time);
-
 	if(!res.is_nil() && SESSION_IS_ACTIVE(from)) {
 		const char* key = retry->param().key();
 		size_t keylen = retry->param().keylen();
@@ -350,6 +365,10 @@ RPC_REPLY(ResReplacePropose, from, res, err, life,
 				key, keylen, meta_val, meta_vallen,
 				life, replace_time);
 	}
+
+	pthread_scoped_lock relk(m_replacing_mutex);
+
+	m_replacing.propose_returned(replace_time);
 
 	if(m_replacing.is_finished(replace_time)) {
 		finish_replace_copy(replace_time);
@@ -372,6 +391,8 @@ RPC_REPLY(ResReplacePush, from, res, err, life,
 		LOG_ERROR("ReplacePush failed: ",err);
 	}
 
+	pthread_scoped_lock relk(m_replacing_mutex);
+
 	m_replacing.push_returned(replace_time);
 
 	if(m_replacing.is_finished(replace_time)) {
@@ -386,11 +407,18 @@ void Server::finish_replace_copy(ClockTime replace_time)
 {
 	shared_zone nullz;
 	protocol::type::ReplaceCopyEnd arg(replace_time.get(), m_clock.get_incr());
+
+	address addr;
+	{
+		pthread_scoped_lock relk(m_replacing_mutex);
+		addr = m_replacing.mgr_addr();
+		m_replacing.invalidate();
+	}
+
 	using namespace mp::placeholders;
-	get_node(m_replacing.mgr_addr())->call(
+	get_node(addr)->call(
 			protocol::ReplaceCopyEnd, arg, nullz,
 			BIND_RESPONSE(ResReplaceCopyEnd), 10);
-	m_replacing.invalidate();
 }
 
 RPC_REPLY(ResReplaceCopyEnd, from, res, err, life)
@@ -402,7 +430,11 @@ RPC_REPLY(ResReplaceCopyEnd, from, res, err, life)
 
 void Server::replace_delete(shared_node& manager, HashSpace& hs)
 {
+	pthread_scoped_rdlock whlk(m_whs_mutex);
+
+	pthread_scoped_wrlock rhlk(m_rhs_mutex);
 	m_rhs = m_whs;
+	rhlk.unlock();
 
 	LOG_INFO("start replace delete for time(",m_whs.clocktime().get(),")");
 
@@ -433,7 +465,6 @@ RPC_REPLY(ResReplaceDeleteEnd, from, res, err, life)
 	if(!err.is_nil()) { LOG_ERROR("ReplaceDeleteEnd failed: ",err); }
 	// FIXME
 }
-
 
 
 }  // namespace kumo

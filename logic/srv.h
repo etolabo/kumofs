@@ -104,7 +104,10 @@ private:
 private:
 	Clock m_clock;
 
+	mp::pthread_rwlock m_rhs_mutex;
 	HashSpace m_rhs;
+
+	mp::pthread_rwlock m_whs_mutex;
 	HashSpace m_whs;
 
 	Storage& m_db;
@@ -138,6 +141,7 @@ private:
 		address m_mgr;
 	};
 
+	mp::pthread_mutex m_replacing_mutex;
 	ReplaceContext m_replacing;
 
 	std::string m_cfg_db_backup_basename;
