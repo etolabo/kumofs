@@ -159,6 +159,7 @@ void Server::replace_copy(const address& manager_addr, HashSpace& hs)
 	current_owners.reserve(NUM_REPLICATION+1);
 	newbies.reserve(NUM_REPLICATION+1);
 
+	// only one thread can use iterator
 	pthread_scoped_wrlock dblk(m_db.mutex());
 
 	Storage::iterator kv;
@@ -277,11 +278,13 @@ try {
 
 	protocol::type::DBKey key(param.dbkey());
 
-	if(!test_replicator_assign(m_whs, key.hash(), addr())) {
-		// ignore obsolete hash space error
-		response.null();
-		return;
-	}
+// FIXME ReplacePropose may go ahead of ReplaceCopyStart
+//       This node may have old hash space while proposer have new one
+//	if(!test_replicator_assign(m_whs, key.hash(), addr())) {
+//		// ignore obsolete hash space error
+//		response.null();
+//		return;
+//	}
 
 	whlk.unlock();
 
@@ -319,11 +322,13 @@ try {
 	protocol::type::DBKey key(param.dbkey());
 	protocol::type::DBValue val(param.dbval());
 
-	if(!test_replicator_assign(m_whs, key.hash(), addr())) {
-		// ignore obsolete hash space error
-		response.null();
-		return;
-	}
+// FIXME ReplacePush may go ahead of ReplaceCopyStart
+//       This node may have old hash space while proposer have new one
+//	if(!test_replicator_assign(m_whs, key.hash(), addr())) {
+//		// ignore obsolete hash space error
+//		response.null();
+//		return;
+//	}
 
 	whlk.unlock();
 
