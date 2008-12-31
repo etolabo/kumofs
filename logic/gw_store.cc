@@ -60,28 +60,26 @@ node_found:
 }
 
 
+// FIXME submit callback?
 #define GATEWAY_CATCH(NAME, response_type) \
 catch (std::runtime_error& e) { \
 	LOG_WARN(#NAME " FAILED: ",e.what()); \
 	response_type res; \
 	res.life = life; \
 	res.error = 1; \
-	(*callback)(user, res); \
-	throw; \
+	wavy::submit(*callback, user, res); \
 } catch (std::bad_alloc& e) { \
 	LOG_WARN(#NAME " FAILED: bad alloc"); \
 	response_type res; \
 	res.life = life; \
 	res.error = 1; \
-	(*callback)(user, res); \
-	throw; \
+	wavy::submit(*callback, user, res); \
 } catch (...) { \
 	LOG_WARN(#NAME " FAILED: unknown error"); \
 	response_type res; \
 	res.life = life; \
 	res.error = 1; \
-	(*callback)(user, res); \
-	throw; \
+	wavy::submit(*callback, user, res); \
 }
 
 
@@ -136,7 +134,7 @@ GATEWAY_CATCH(Delete, delete_response)
 RPC_REPLY(ResGet, from, res, err, life,
 		RetryGet* retry,
 		void (*callback)(void*, get_response&), void* user)
-{
+try {
 	protocol::type::DBKey key(retry->param().dbkey());
 	LOG_TRACE("ResGet ",err);
 
@@ -157,14 +155,12 @@ RPC_REPLY(ResGet, from, res, err, life,
 			ret.vallen    = st.size();
 			ret.clocktime = st.clocktime();
 		}
-		(*callback)(user, ret);
+		try { (*callback)(user, ret); } catch (...) { }
 
 	} else if( retry->retry_incr((NUM_REPLICATION+1) * m_cfg_get_retry_num - 1) ) {
 		incr_error_count();
 		unsigned short offset = retry->num_retried() % (NUM_REPLICATION+1);
-		retry->call(
-				server_for(key.hash(), offset),
-				life, 10);
+		retry->call(server_for(key.hash(), offset), life, 10);
 		LOG_INFO("Get error: ",err,", fallback to offset +",offset," node");
 
 	} else {
@@ -181,16 +177,17 @@ RPC_REPLY(ResGet, from, res, err, life,
 		ret.val       = NULL;
 		ret.vallen    = 0;
 		ret.clocktime = 0;
-		(*callback)(user, ret);
+		try { (*callback)(user, ret); } catch (...) { }
 		LOG_ERROR("Get error: ", err);
 	}
 }
+GATEWAY_CATCH(ResGet, get_response)
 
 
 RPC_REPLY(ResSet, from, res, err, life,
 		RetrySet* retry,
 		void (*callback)(void*, set_response&), void* user)
-{
+try {
 	protocol::type::DBKey key(retry->param().dbkey());
 	protocol::type::DBValue val(retry->param().dbval());
 	LOG_TRACE("ResSet ",err);
@@ -206,7 +203,7 @@ RPC_REPLY(ResSet, from, res, err, life,
 		ret.val       = val.data();
 		ret.vallen    = val.size();
 		ret.clocktime = st.get<0>();
-		(*callback)(user, ret);
+		try { (*callback)(user, ret); } catch (...) { }
 
 	} else if( retry->retry_incr(m_cfg_set_retry_num) ) {
 		incr_error_count();
@@ -232,16 +229,17 @@ RPC_REPLY(ResSet, from, res, err, life,
 		ret.val       = val.data();
 		ret.vallen    = val.size();
 		ret.clocktime = 0;
-		(*callback)(user, ret);
+		try { (*callback)(user, ret); } catch (...) { }
 		LOG_ERROR("Set error: ",err);
 	}
 }
+GATEWAY_CATCH(ResSet, set_response)
 
 
 RPC_REPLY(ResDelete, from, res, err, life,
 		RetryDelete* retry,
 		void (*callback)(void*, delete_response&), void* user)
-{
+try {
 	protocol::type::DBKey key(retry->param().dbkey());
 	LOG_TRACE("ResDelete ",err);
 
@@ -254,7 +252,7 @@ RPC_REPLY(ResDelete, from, res, err, life,
 		ret.keylen    = key.size();
 		ret.hash      = key.hash();
 		ret.deleted   = st;
-		(*callback)(user, ret);
+		try { (*callback)(user, ret); } catch (...) { }
 
 	} else if( retry->retry_incr(m_cfg_delete_retry_num) ) {
 		incr_error_count();
@@ -278,10 +276,11 @@ RPC_REPLY(ResDelete, from, res, err, life,
 		ret.keylen    = key.size();
 		ret.hash      = key.hash();
 		ret.deleted   = false;
-		(*callback)(user, ret);
+		try { (*callback)(user, ret); } catch (...) { }
 		LOG_ERROR("Delete error: ",err);
 	}
 }
+GATEWAY_CATCH(ResDelete, delete_response)
 
 
 }  // namespace kumo
