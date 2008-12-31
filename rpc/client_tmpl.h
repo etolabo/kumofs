@@ -174,6 +174,7 @@ void client<Transport, Session>::connect_failed(const address& addr, int error)
 	asc.release();
 #else
 	shared_session delete_after(it->second.session);
+	m_unbounds.erase(it);
 	transport_lost(delete_after);
 #endif
 }
