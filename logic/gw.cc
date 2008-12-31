@@ -22,27 +22,42 @@ void Gateway::dispatch(
 
 void Gateway::submit(get_request& req)
 {
+#ifdef GATEWAY_NO_SUBMIT
+	Get(req.callback, req.user, req.life,
+			req.key, req.keylen);
+#else
 	wavy::submit(
 			&Gateway::Get, this,
 			req.callback, req.user, req.life,
 			req.key, req.keylen);
+#endif
 }
 
 void Gateway::submit(set_request& req)
 {
+#ifdef GATEWAY_NO_SUBMIT
+	Set(req.callback, req.user, req.life,
+			req.key, req.keylen, req.val, req.vallen);
+#else
 	wavy::submit(
 			&Gateway::Set, this,
 			req.callback, req.user, req.life,
 			req.key, req.keylen,
 			req.val, req.vallen);
+#endif
 }
 
 void Gateway::submit(delete_request& req)
 {
+#ifdef GATEWAY_NO_SUBMIT
+	Delete(req.callback, req.user, req.life,
+			req.key, req.keylen);
+#else
 	wavy::submit(
 			&Gateway::Delete, this,
 			req.callback, req.user, req.life,
 			req.key, req.keylen);
+#endif
 }
 
 void Gateway::add_gateway(GatewayInterface* gw)

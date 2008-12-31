@@ -7,6 +7,7 @@
 #include "rpc/wavy.h"
 #include <msgpack.hpp>
 #include <stdexcept>
+#include <memory>
 #include <errno.h>
 #include <sys/types.h>
 #include <sys/uio.h>
@@ -28,6 +29,8 @@ public:
 public:
 	// from wavy: readable notification
 	void read_event();
+
+	void submit_message(msgobj msg, auto_zone& z);
 
 	void process_message(msgobj msg, msgpack::zone* newz);
 
@@ -82,9 +85,7 @@ try {
 		msgobj msg = m_pac.data();
 		std::auto_ptr<msgpack::zone> z( m_pac.release_zone() );
 		m_pac.reset();
-		wavy::submit(&IMPL::process_message,
-				shared_self<IMPL>(), msg, z.get());
-		z.release();
+		static_cast<IMPL*>(this)->submit_message(msg, z);
 	}
 
 } catch(msgpack::type_error& e) {
@@ -98,6 +99,13 @@ try {
 	throw;
 }
 
+template <typename IMPL>
+void connection<IMPL>::submit_message(msgobj msg, auto_zone& z)
+{
+	wavy::submit(&IMPL::process_message,
+			shared_self<IMPL>(), msg, z.get());
+	z.release();
+}
 
 template <typename IMPL>
 void connection<IMPL>::process_message(msgobj msg, msgpack::zone* newz)

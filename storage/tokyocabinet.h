@@ -18,6 +18,10 @@ public:
 			throw std::runtime_error("can't create tchdb");
 		}
 
+		if(!tchdbsetmutex(m_db)) {
+			throw std::runtime_error("can't initialize tchdb mutex");
+		}
+
 		if(!tchdbopen(m_db, path, HDBOWRITER|HDBOCREAT)) {
 			tchdbdel(m_db);
 			throw std::runtime_error("can't open tchdb");

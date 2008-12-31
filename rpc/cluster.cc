@@ -8,7 +8,7 @@ cluster_transport::cluster_transport(int fd,
 		basic_shared_session s, transport_manager* srv) :
 	basic_transport(fd, s, srv),
 	connection<cluster_transport>(fd),
-	m_process_state(&cluster_transport::init_state)
+	m_process_state(NULL)
 {
 	send_init();
 	s->bind_transport(this);
@@ -18,7 +18,7 @@ cluster_transport::cluster_transport(int fd,
 		transport_manager* srv) :
 	basic_transport(fd, basic_shared_session(), srv),  // null session
 	connection<cluster_transport>(fd),
-	m_process_state(&cluster_transport::init_state)
+	m_process_state(NULL)
 { }
 
 cluster_transport::~cluster_transport()
@@ -71,23 +71,24 @@ bool node::set_role(role_type role_id)
 	return __sync_bool_compare_and_swap(&m_role, -1, role_id);
 }
 
-
-void cluster_transport::init_state(msgobj msg, auto_zone z)
+void cluster_transport::init_message(msgobj msg, auto_zone z)
 {
 	rpc_initmsg init;
 	try {
 		init = msg.convert();
 	} catch (msgpack::type_error&) {
 		// server node
+		LOG_DEBUG("enter subsys state ",msg);
 		if(m_session) { throw msgpack::type_error(); }
 
 		cluster::subsys* sub =
 				static_cast<cluster::subsys*>(&get_server()->subsystem());
-		m_process_state = &cluster_transport::subsys_state;
-
 		rebind( sub->add_session() );
 
-		(this->*m_process_state)(msg, z);
+		m_process_state = &cluster_transport::subsys_state;
+
+		// re-process this message
+		submit_message(msg, z);
 		return;
 	}
 
@@ -106,15 +107,18 @@ void cluster_transport::init_state(msgobj msg, auto_zone z)
 	node* n = static_cast<node*>(m_session.get());
 	if(n->set_role(init.role_id())) {
 		n->m_addr = init.addr();
-		get_server()->new_node(init.addr(), init.role_id(),
+		// FIXME submit?
+		wavy::submit(&cluster::new_node, get_server(),
+				init.addr(), init.role_id(),
 				mp::static_pointer_cast<node>(m_session));
 	}
 
 	m_process_state = &cluster_transport::cluster_state;
 }
 
-void cluster_transport::subsys_state(msgobj msg, auto_zone z)
+void cluster_transport::subsys_state(msgobj msg, msgpack::zone* newz)
 {
+	auto_zone z(newz);
 	LOG_TRACE("receive rpc message: ",msg);
 	rpc_message rpc(msg.convert());
 
@@ -132,8 +136,9 @@ void cluster_transport::subsys_state(msgobj msg, auto_zone z)
 	}
 }
 
-void cluster_transport::cluster_state(msgobj msg, auto_zone z)
+void cluster_transport::cluster_state(msgobj msg, msgpack::zone* newz)
 {
+	auto_zone z(newz);
 	LOG_TRACE("receive rpc message: ",msg);
 	rpc_message rpc(msg.convert());
 

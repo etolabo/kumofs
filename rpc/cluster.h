@@ -32,6 +32,10 @@ private:
 	inline bool set_role(role_type role_id);
 	friend class cluster_transport;
 	short m_role;
+
+private:
+	node();
+	node(const node&);
 };
 
 typedef mp::shared_ptr<node> shared_node;
@@ -48,7 +52,7 @@ public:
 
 	~cluster_transport();
 
-	void process_message(msgobj msg, msgpack::zone* rawz);
+	void submit_message(msgobj msg, auto_zone& z);
 
 private:
 	void send_init();
@@ -60,23 +64,28 @@ private:
 	static const short PEER_NOT_SET = -1;
 	static const short PEER_SERVER  = -2;
 
-	void (cluster_transport::*m_process_state)(msgobj msg, auto_zone z);
+	void (cluster_transport::*m_process_state)(msgobj msg, msgpack::zone* newz);
 
-	void init_state(msgobj msg, auto_zone z);
-	void subsys_state(msgobj msg, auto_zone z);
-	void cluster_state(msgobj msg, auto_zone z);
+	void init_message(msgobj msg, auto_zone z);
+	void subsys_state(msgobj msg, msgpack::zone* newz);
+	void cluster_state(msgobj msg, msgpack::zone* newz);
 
 private:
 	cluster_transport();
 	cluster_transport(const cluster_transport&);
 };
 
-inline void cluster_transport::process_message(msgobj msg, msgpack::zone* rawz)
+inline void cluster_transport::submit_message(msgobj msg, auto_zone& z)
 {
-	auto_zone z(rawz);
-	(this->*m_process_state)(msg, z);
+	if(!m_process_state) {
+		init_message(msg, z);
+	} else {
+		wavy::submit(m_process_state,
+				shared_self<cluster_transport>(),
+				msg, z.get());
+		z.release();
+	}
 }
-
 
 
 class cluster : protected client<cluster_transport, node> {
