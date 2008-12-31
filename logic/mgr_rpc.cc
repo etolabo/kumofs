@@ -159,20 +159,20 @@ void Manager::keep_alive()
 	pthread_scoped_lock sslk(m_servers_mutex);
 	EACH_ACTIVE_SERVERS_BEGIN(node)
 		// FIXME exception
-		node->call(protocol::KeepAlive, arg, nullz, callback, 10);
+		node->call(protocol::KeepAlive, arg,  // FIXME exception
+				nullz, callback, 10);
 	EACH_ACTIVE_SERVERS_END
 	sslk.unlock();
 
 	pthread_scoped_lock nslk(m_new_servers_mutex);
 	EACH_ACTIVE_NEW_COMERS_BEGIN(node)
-		// FIXME exception
-		node->call(protocol::KeepAlive, arg,
+		node->call(protocol::KeepAlive, arg,  // FIXME exception
 				nullz, callback, 10);
 	EACH_ACTIVE_NEW_COMERS_END
 	nslk.unlock();
 
 	if(m_partner.connectable()) {
-		// FIXME cache result of get_node(m_partner)
+		// FIXME cache result of get_node(m_partner)?
 		get_node(m_partner)->call(
 				protocol::KeepAlive, arg, nullz, callback, 10);
 	}

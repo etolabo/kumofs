@@ -198,20 +198,20 @@ void Server::replace_copy(const address& manager_addr, HashSpace& hs)
 			}
 		}
 
-		shared_zone z(new msgpack::zone());
-		kv.release_key(*z);
+		shared_zone life(new msgpack::zone());
+		kv.release_key(*life);
 		if(raw_vallen > 512) {   // FIXME
 			// propose -> push
 			uint64_t clocktime = DBFormat::clocktime(raw_val);
 			for(addrs_it it(newbies.begin()); it != newbies.end(); ++it) {
-				propose_replace_push(*it, raw_key, raw_keylen, clocktime, z, replace_time);
+				propose_replace_push(*it, raw_key, raw_keylen, clocktime, life, replace_time);
 			}
 
 		} else {
 			// push directly
-			kv.release_val(*z);
+			kv.release_val(*life);
 			for(addrs_it it(newbies.begin()); it != newbies.end(); ++it) {
-				replace_push(*it, raw_key, raw_keylen, raw_val, raw_vallen, z, replace_time);
+				replace_push(*it, raw_key, raw_keylen, raw_val, raw_vallen, life, replace_time);
 			}
 		}
 	}
