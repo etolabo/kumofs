@@ -5,6 +5,7 @@
 #include "rpc/connection.h"
 #include "rpc/vrefbuffer.h"
 #include <mp/memory.h>
+#include <mp/object_callback.h>
 #include <algorithm>
 
 namespace rpc {
@@ -166,9 +167,10 @@ public:
 	virtual bool bind_transport(basic_transport* t);
 	virtual bool unbind_transport(basic_transport* t, basic_shared_session& self);
 
-protected:
+private:
 	typedef std::vector<vrefbuffer*> pending_queue_t;
 	pending_queue_t m_pending_queue;  // synchronized by m_callbacks_mutex
+	void clear_pending_queue(pending_queue_t& queue);
 
 private:
 	session();

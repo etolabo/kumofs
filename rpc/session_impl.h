@@ -95,7 +95,7 @@ void basic_session::call(
 	if(is_lost()) { throw std::runtime_error("lost session"); }
 	if(!life) { life.reset(new msgpack::zone()); }
 
-	vrefbuffer* buf = life->allocate<vrefbuffer>();
+	std::auto_ptr<vrefbuffer> buf(new vrefbuffer());
 	msgid_t msgid = pack(*buf, method, params);
 
 	pthread_scoped_lock lk(m_callbacks_mutex);
@@ -111,7 +111,8 @@ void basic_session::call(
 		lk.unlock();
 		// ad-hoc load balancing
 		m_binds[m_msgid_rr % m_binds.size()]->send_datav(
-				buf, NULL, NULL);
+				buf.get(), &mp::object_delete<vrefbuffer>, buf.get());
+		buf.release();
 	}
 }
 
@@ -126,7 +127,7 @@ void session::call(
 	if(is_lost()) { throw std::runtime_error("lost session"); }
 	if(!life) { life.reset(new msgpack::zone()); }
 
-	vrefbuffer* buf = life->allocate<vrefbuffer>();
+	std::auto_ptr<vrefbuffer> buf(new vrefbuffer());
 	msgid_t msgid = pack(*buf, method, params);
 
 	pthread_scoped_lock lk(m_callbacks_mutex);
@@ -136,7 +137,8 @@ void session::call(
 	pthread_scoped_lock blk(m_binds_mutex);
 	if(m_binds.empty()) {
 		LOG_TRACE("push pending queue ",m_pending_queue.size()+1);
-		m_pending_queue.push_back(buf);
+		m_pending_queue.push_back(buf.get());
+		buf.release();
 		// FIXME clear pending queue if it is too big
 		// FIXME or throw exception
 
@@ -144,14 +146,24 @@ void session::call(
 		lk.unlock();
 		// ad-hoc load balancing
 		m_binds[m_msgid_rr % m_binds.size()]->send_datav(
-				buf, NULL, NULL);
+				buf.get(), &mp::object_delete<vrefbuffer>, buf.get());
+		buf.release();
 	}
 }
 
 inline void session::cancel_pendings()
 {
 	pthread_scoped_lock lk(m_callbacks_mutex);
-	m_pending_queue.clear();
+	clear_pending_queue(m_pending_queue);
+}
+
+inline void session::clear_pending_queue(pending_queue_t& queue)
+{
+	for(pending_queue_t::iterator it(queue.begin()),
+			it_end(queue.end()); it != it_end; ++it) {
+		delete *it;
+	}
+	queue.clear();
 }
 
 

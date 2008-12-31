@@ -89,10 +89,17 @@ bool session::bind_transport(basic_transport* t)
 		pendings.swap(m_pending_queue);
 	}
 
-	for(pending_queue_t::iterator it(pendings.begin()),
-			it_end(pendings.end()); it != it_end; ++it) {
-		t->send_datav(*it, NULL, NULL);
+	try {
+		for(pending_queue_t::iterator it(pendings.begin()),
+				it_end(pendings.end()); it != it_end; ++it) {
+			t->send_datav(*it, NULL, NULL);
+		}
+
+	} catch (...) {
+		clear_pending_queue(pendings);
+		throw;
 	}
+	clear_pending_queue(pendings);
 
 	return ret;
 }
