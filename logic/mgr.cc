@@ -8,9 +8,10 @@ Manager::~Manager()
 }
 
 void Manager::cluster_dispatch(
-		shared_node& from, role_type role, rpc::weak_responder response,
-		method_id method, msgobj param, shared_zone& life)
+		shared_node from, weak_responder response,
+		method_id method, msgobj param, auto_zone z)
 {
+	role_type role = from->role();
 	if(role == protocol::MANAGER) {
 		switch(method) {
 		RPC_DISPATCH(KeepAlive);
@@ -38,8 +39,8 @@ void Manager::cluster_dispatch(
 
 
 void Manager::subsystem_dispatch(
-		shared_peer& from, rpc::weak_responder response,
-		method_id method, msgobj param, shared_zone& life)
+		shared_peer from, weak_responder response,
+		method_id method, msgobj param, auto_zone z)
 {
 	switch(method) {
 	RPC_DISPATCH(HashSpaceRequest);

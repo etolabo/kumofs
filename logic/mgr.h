@@ -17,12 +17,12 @@ public:
 	~Manager();
 
 	void cluster_dispatch(
-			shared_node& from, role_type role, rpc::weak_responder response,
-			method_id method, msgobj param, shared_zone& life);
+			shared_node from, weak_responder response,
+			method_id method, msgobj param, auto_zone z);
 
 	void subsystem_dispatch(
-			shared_peer& from, rpc::weak_responder response,
-			method_id method, msgobj param, shared_zone& life);
+			shared_peer from, weak_responder response,
+			method_id method, msgobj param, auto_zone z);
 
 	void new_node(address addr, role_type id, shared_node n);
 	void lost_node(address addr, role_type id);

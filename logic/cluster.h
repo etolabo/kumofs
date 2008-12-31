@@ -8,6 +8,7 @@
 namespace kumo {
 
 using rpc::role_type;
+using rpc::shared_node;
 
 template <typename Logic>
 class ClusterBase : public RPCBase<Logic> {

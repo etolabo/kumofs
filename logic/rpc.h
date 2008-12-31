@@ -4,11 +4,21 @@
 #include "logic/global.h"
 #include "logic/base.h"
 #include "rpc/client.h"
+#include "rpc/server.h"
 #include <memory>
 
 namespace kumo {
 
+using rpc::msgobj;
+using rpc::method_id;
+
 using rpc::address;
+using rpc::auto_zone;
+using rpc::shared_zone;
+
+using rpc::weak_responder;
+using rpc::basic_shared_session;
+using rpc::shared_peer;
 
 namespace iothreads {
 	using namespace mp::iothreads;
@@ -122,32 +132,38 @@ private:
 
 #define RPC_DISPATCH(NAME) \
 	case protocol::NAME: \
-		mp::iothreads::submit( \
-				&ServerClass::NAME, this, \
-				from, response, life, \
-				param.as<protocol::type::NAME>()); \
+		NAME(from, response, param.as<protocol::type::NAME>(), z); \
 		return
-
+//		mp::iothreads::submit(
+//				&ServerClass::NAME, this,
+//				from, response, life,
+//				param.as<protocol::type::NAME>());
 
 #define RPC_DECL(NAME) \
-	void NAME(shared_session from, rpc::weak_responder, shared_zone, protocol::type::NAME)
+	void NAME(shared_session& from, rpc::weak_responder, \
+			protocol::type::NAME, auto_zone)
 
 #define RPC_IMPL(CLASS, NAME, from, response, life, param) \
-	void CLASS::NAME(shared_session from, rpc::weak_responder response, shared_zone life, protocol::type::NAME param)
+	void CLASS::NAME(shared_session& from, rpc::weak_responder response, \
+			protocol::type::NAME param, auto_zone z)
 
 
 #define CLUSTER_DECL(NAME) \
-	void NAME(rpc::shared_node from, rpc::weak_responder, shared_zone, protocol::type::NAME)
+	void NAME(shared_node& from, weak_responder, \
+			protocol::type::NAME, auto_zone)
 
 #define CLUSTER_IMPL(CLASS, NAME, from, response, life, param) \
-	void CLASS::NAME(rpc::shared_node from, rpc::weak_responder response, shared_zone life, protocol::type::NAME param)
+	void CLASS::NAME(shared_node& from, weak_responder response, \
+			protocol::type::NAME param, auto_zone z)
 
 
 #define RPC_REPLY_DECL(NAME, from, res, err, life, ...) \
-	void NAME(rpc::basic_shared_session& from, msgobj res, msgobj err, shared_zone life, ##__VA_ARGS__);
+	void NAME(basic_shared_session from, msgobj res, msgobj err, \
+			shared_zone life, ##__VA_ARGS__);
 
 #define RPC_REPLY_IMPL(CLASS, NAME, from, res, err, life, ...) \
-	void CLASS::NAME(rpc::basic_shared_session& from, msgobj res, msgobj err, shared_zone life, ##__VA_ARGS__)
+	void CLASS::NAME(basic_shared_session from, msgobj res, msgobj err, \
+			shared_zone life, ##__VA_ARGS__)
 
 
 #define RPC_CATCH(NAME, response) \
