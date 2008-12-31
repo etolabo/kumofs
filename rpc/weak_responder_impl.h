@@ -21,6 +21,14 @@ void weak_responder::result(Result res)
 }
 
 template <typename Result>
+void weak_responder::result(Result res, auto_zone& z)
+{
+	LOG_TRACE("send response data with Success id=",m_msgid);
+	msgpack::type::nil err;
+	call(res, err, z);
+}
+
+template <typename Result>
 void weak_responder::result(Result res, shared_zone& life)
 {
 	LOG_TRACE("send response data with Success id=",m_msgid);
@@ -34,6 +42,14 @@ void weak_responder::error(Error err)
 	LOG_TRACE("send response data with Error id=",m_msgid);
 	msgpack::type::nil res;
 	call(res, err);
+}
+
+template <typename Error>
+void weak_responder::error(Error err, auto_zone& z)
+{
+	LOG_TRACE("send response data with Error id=",m_msgid);
+	msgpack::type::nil res;
+	call(res, err, z);
 }
 
 template <typename Error>
@@ -53,14 +69,15 @@ inline void weak_responder::null()
 
 
 namespace detail {
-	struct response_zone_keeper {
-		response_zone_keeper(shared_zone z) : m(z) { }
-		~response_zone_keeper() { }
+	template <typename ZoneType>
+	struct zone_keeper {
+		zone_keeper(ZoneType& z) : m(z) { }
+		~zone_keeper() { }
 		vrefbuffer buf;
 	private:
-		shared_zone m;
-		response_zone_keeper();
-		response_zone_keeper(const response_zone_keeper&);
+		ZoneType m;
+		zone_keeper();
+		zone_keeper(const zone_keeper&);
 	};
 }
 
@@ -81,9 +98,21 @@ void weak_responder::call(Result& res, Error& err)
 }
 
 template <typename Result, typename Error>
-void weak_responder::call(Result& res, Error& err, shared_zone& life)
+inline void weak_responder::call(Result& res, Error& err, auto_zone& z)
 {
-	std::auto_ptr<detail::response_zone_keeper> zk(new detail::response_zone_keeper(life));
+	call_impl<Result, Error>(res, err, z);
+}
+
+template <typename Result, typename Error>
+inline void weak_responder::call(Result& res, Error& err, shared_zone& z)
+{
+	call_impl<Result, Error>(res, err, z);
+}
+
+template <typename Result, typename Error, typename ZoneType>
+void weak_responder::call_impl(Result& res, Error& err, ZoneType& life)
+{
+	std::auto_ptr<detail::zone_keeper<ZoneType> > zk(new detail::zone_keeper<ZoneType>(life));
 
 	rpc_response<Result&, Error> msgres(res, err, m_msgid);
 	msgpack::pack(zk->buf, msgres);
@@ -92,7 +121,7 @@ void weak_responder::call(Result& res, Error& err, shared_zone& life)
 	if(!s) { throw std::runtime_error("lost session"); }
 
 	s->send_datav(&zk->buf,
-			&mp::object_delete<detail::response_zone_keeper>,
+			&mp::object_delete<detail::zone_keeper<ZoneType> >,
 			reinterpret_cast<void*>(zk.get()));
 	zk.release();
 }

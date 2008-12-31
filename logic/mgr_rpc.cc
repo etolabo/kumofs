@@ -3,10 +3,10 @@
 namespace kumo {
 
 
-CLUSTER_FUNC(WHashSpaceRequest, from, response, life, param)
+CLUSTER_FUNC(WHashSpaceRequest, from, response, z, param)
 try {
-	HashSpace::Seed* seed = life->allocate<HashSpace::Seed>(m_whs);
-	response.result(*seed, life);
+	HashSpace::Seed* seed = z->allocate<HashSpace::Seed>(m_whs);
+	response.result(*seed, z);
 }
 RPC_CATCH(WHashSpaceRequest, response)
 

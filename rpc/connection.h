@@ -4,11 +4,8 @@
 #include "log/mlogger.h" //FIXME
 #include "rpc/types.h"
 #include "rpc/message.h"
-#include "rpc/sbuffer.h"
-#include "rpc/vrefbuffer.h"
 #include "rpc/wavy.h"
 #include <msgpack.hpp>
-#include <memory>
 #include <stdexcept>
 #include <errno.h>
 #include <sys/types.h>
@@ -34,7 +31,9 @@ public:
 
 	void process_message(msgobj msg, msgpack::zone* newz);
 
-	void process_request(method_id method, msgobj param, msgid_t msgid, auto_zone& z)
+	void process_request(method_id method, msgobj param, msgid_t msgid, auto_zone& z);
+
+	void dispatch_request(method_id method, msgobj param, responder& response, auto_zone& z)
 	{
 		throw msgpack::type_error();
 	}
@@ -124,6 +123,16 @@ try {
 } catch(...) {
 	LOG_ERROR("rpc packet: unknown error");
 	throw;
+}
+
+
+template <typename IMPL>
+void connection<IMPL>::process_request(method_id method, msgobj param,
+		msgid_t msgid, auto_zone& z)
+{
+	responder response(fd(), msgid);
+	static_cast<IMPL*>(this)->dispatch_request(
+			method, param, response, z);
 }
 
 

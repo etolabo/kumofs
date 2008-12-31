@@ -101,8 +101,11 @@ private:
 
 #define CONTROL_DISPATCH(NAME) \
 	case control::NAME: \
-		iothreads::submit(&Manager::NAME, m_mgr, param.as<control::type::NAME>(), response); \
-		break
+		m_mgr->NAME(param.as<control::type::NAME>(), response); \
+		break;
+
+//		iothreads::submit(&Manager::NAME, m_mgr, param.as<control::type::NAME>(), response);
+//		break
 
 void Manager::ControlConnection::dispatch_request(method_id method, msgobj param, rpc::responder& response, auto_zone& z)
 {
@@ -119,23 +122,22 @@ void Manager::ControlConnection::dispatch_request(method_id method, msgobj param
 	}
 }
 
-void Manager::control_checked_accepted(void* data, int fd)
+void Manager::control_checked_accepted(int fd, int err)
 {
-	Manager* self = reinterpret_cast<Manager*>(data);
 	if(fd < 0) {
-		LOG_FATAL("accept failed: ",strerror(-fd));
-		self->signal_end(SIGTERM);
+		LOG_FATAL("accept failed: ",strerror(err));
+		signal_end(SIGTERM);
 		return;
 	}
-	mp::set_nonblock(fd);
-	mp::iothreads::add<ControlConnection>(fd, self);
+	wavy::add<ControlConnection>(fd, this);
 }
 
 void Manager::listen_control(int lsock)
 {
-	mp::iothreads::listen(lsock,
-			&Manager::control_checked_accepted,
-			reinterpret_cast<void*>(this));
+	using namespace mp::placeholders;
+	wavy::listen(lsock, mp::bind(
+				&Manager::control_checked_accepted, this,
+				_1, _2));
 }
 
 void Manager::ControlConnection::process_response(msgobj result, msgobj error, msgid_t msgid, auto_zone& z)

@@ -176,7 +176,7 @@ Gateway::Gateway(Config& cfg) :
 	m_cfg_delete_retry_num(cfg.delete_retry_num),
 	m_cfg_renew_threshold(cfg.renew_threshold)
 {
-	start_timeout_step<Gateway>(cfg.clock_interval_usec, this);
+	start_timeout_step(cfg.clock_interval_usec);
 	renew_hash_space();
 }
 

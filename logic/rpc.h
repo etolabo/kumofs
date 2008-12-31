@@ -10,6 +10,7 @@
 namespace kumo {
 
 using rpc::msgobj;
+using rpc::msgid_t;
 using rpc::method_id;
 
 using rpc::address;
@@ -24,13 +25,8 @@ using mp::pthread_scoped_lock;
 using mp::pthread_scoped_rdlock;
 using mp::pthread_scoped_wrlock;
 
-namespace iothreads {
-	using namespace mp::iothreads;
-}
-
-
 template <typename Logic>
-class RPCBase : public iothreads_server {
+class RPCBase : public wavy_server {
 public:
 	typedef Logic ServerClass;
 
@@ -44,10 +40,27 @@ public:
 	template <typename Config>
 	RPCBase(Config& cfg)
 	{
-		init_iothreads(cfg);
+		init_wavy(cfg);
 	}
 
 	~RPCBase() { }
+
+protected:
+	void start_timeout_step(unsigned long interval)
+	{
+		struct timespec ts = {interval / 1000, interval % 1000 * 1000};
+		wavy::timer(&ts, mp::bind(&Logic::step_timeout,
+					static_cast<Logic*>(this)));
+		LOG_TRACE("start timeout stepping interval = ",interval," usec");
+	}
+
+	void start_keepalive(unsigned long interval)
+	{
+		struct timespec ts = {interval / 1000, interval % 1000 * 1000};
+		wavy::timer(&ts, mp::bind(&Logic::keep_alive,
+					static_cast<Logic*>(this)));
+		LOG_TRACE("start keepalive interval = ",interval," usec");
+	}
 
 public:
 	static ServerClass& instance()
@@ -58,28 +71,6 @@ public:
 
 template <typename ServerClass>
 std::auto_ptr<ServerClass> RPCBase<ServerClass>::s_instance;
-
-
-// avoid compile error
-	template <typename T>
-inline void start_timeout_step(unsigned long interval, T* self)
-{
-	void (*f)(void*) = &mp::object_callback<void ()>
-		::mem_fun<T, &T::step_timeout>;
-	mp::iothreads::start_timer(interval,
-		f, reinterpret_cast<void*>(self));
-	LOG_TRACE("start timeout stepping interval = ",interval," usec");
-}
-
-template <typename T>
-inline void start_keepalive(unsigned long interval, T* self)
-{
-	void (*f)(void*) = &mp::object_callback<void ()>
-		::mem_fun<T, &T::keep_alive>;
-	mp::iothreads::start_timer(interval,
-		f, reinterpret_cast<void*>(self));
-	LOG_TRACE("start keepalive interval = ",interval," usec");
-}
 
 
 template <rpc::method_id Method, typename Parameter>
@@ -130,6 +121,9 @@ private:
 	(SESSION && !SESSION->is_lost())
 
 
+#define SHARED_ZONE(life, z) shared_zone(z.release())
+
+
 #define RPC_RETRY(NAME) \
 	retry_pack<protocol::NAME, protocol::type::NAME>
 
@@ -144,11 +138,11 @@ private:
 //				param.as<protocol::type::NAME>());
 
 #define RPC_DECL(NAME) \
-	void NAME(shared_session& from, rpc::weak_responder, \
+	void NAME(shared_session& from, weak_responder, \
 			protocol::type::NAME, auto_zone)
 
-#define RPC_IMPL(CLASS, NAME, from, response, life, param) \
-	void CLASS::NAME(shared_session& from, rpc::weak_responder response, \
+#define RPC_IMPL(CLASS, NAME, from, response, z, param) \
+	void CLASS::NAME(shared_session& from, weak_responder response, \
 			protocol::type::NAME param, auto_zone z)
 
 
@@ -156,18 +150,18 @@ private:
 	void NAME(shared_node& from, weak_responder, \
 			protocol::type::NAME, auto_zone)
 
-#define CLUSTER_IMPL(CLASS, NAME, from, response, life, param) \
+#define CLUSTER_IMPL(CLASS, NAME, from, response, z, param) \
 	void CLASS::NAME(shared_node& from, weak_responder response, \
 			protocol::type::NAME param, auto_zone z)
 
 
-#define RPC_REPLY_DECL(NAME, from, res, err, life, ...) \
+#define RPC_REPLY_DECL(NAME, from, res, err, z, ...) \
 	void NAME(basic_shared_session from, msgobj res, msgobj err, \
-			shared_zone life, ##__VA_ARGS__);
+			shared_zone z, ##__VA_ARGS__);
 
-#define RPC_REPLY_IMPL(CLASS, NAME, from, res, err, life, ...) \
+#define RPC_REPLY_IMPL(CLASS, NAME, from, res, err, z, ...) \
 	void CLASS::NAME(basic_shared_session from, msgobj res, msgobj err, \
-			shared_zone life, ##__VA_ARGS__)
+			shared_zone z, ##__VA_ARGS__)
 
 
 #define RPC_CATCH(NAME, response) \

@@ -22,7 +22,7 @@ void Gateway::dispatch(
 
 void Gateway::submit(get_request& req)
 {
-	mp::iothreads::submit(
+	wavy::submit(
 			&Gateway::Get, this,
 			req.callback, req.user, req.life,
 			req.key, req.keylen);
@@ -30,7 +30,7 @@ void Gateway::submit(get_request& req)
 
 void Gateway::submit(set_request& req)
 {
-	mp::iothreads::submit(
+	wavy::submit(
 			&Gateway::Set, this,
 			req.callback, req.user, req.life,
 			req.key, req.keylen,
@@ -39,7 +39,7 @@ void Gateway::submit(set_request& req)
 
 void Gateway::submit(delete_request& req)
 {
-	mp::iothreads::submit(
+	wavy::submit(
 			&Gateway::Delete, this,
 			req.callback, req.user, req.life,
 			req.key, req.keylen);

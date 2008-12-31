@@ -5,10 +5,13 @@
 #include "log/mlogger_tty.h"
 #include "log/mlogger_ostream.h"
 #include "logic/global.h"
-#include <mp/iothreads.h>
+#include "rpc/wavy.h"
+#include <mp/object_callback.h>
 #include <mp/pthread.h>
 
 namespace kumo {
+
+using rpc::wavy;
 
 
 class scoped_listen_tcp {
@@ -95,13 +98,15 @@ protected:
 };
 
 
-class iothreads_server {
+class wavy_server {
 protected:
 	template <typename Config>
-	void init_iothreads(Config& cfg)
+	void init_wavy(Config& cfg)
 	{
-		// initialize iothreads
-		mp::iothreads::manager::initialize();
+		// initialize wavy
+		m_core_threads = cfg.rthreads;
+		m_output_threads = cfg.wthreads;
+		wavy::initialize();
 	
 		// initialize signal handler before starting threads
 		sigset_t ss;
@@ -113,11 +118,6 @@ protected:
 		s_pth.reset( new mp::pthread_signal(ss,
 					get_signal_end(),
 					reinterpret_cast<void*>(this)) );
-	
-		mp::iothreads::writer::initialize(cfg.wthreads);
-		mp::iothreads::reader::initialize(cfg.rthreads);
-		mp::iothreads::listener::initialize();
-		mp::iothreads::connector::initialize(cfg.cthreads);
 	
 		// ignore SIGPIPE
 		if( signal(SIGPIPE, SIG_IGN) == SIG_ERR ) {
@@ -131,19 +131,20 @@ protected:
 public:
 	virtual void run()
 	{
-		mp::iothreads::run();
+		wavy::add_output_thread(m_output_threads);
+		wavy::add_core_thread(m_core_threads);
 	}
 
 	virtual void join()
 	{
-		mp::iothreads::join();
+		wavy::join();
 	}
 
 public:
 	void signal_end(int signo)
 	{
-		mp::iothreads::end();
-		mp::iothreads::submit(finished);  // submit dummy function
+		wavy::end();
+		wavy::submit(finished);  // submit dummy function
 		end_preprocess();
 		LOG_INFO("end");
 	}
@@ -156,10 +157,12 @@ private:
 	static sigend_callback get_signal_end()
 	{
 		sigend_callback f = &mp::object_callback<void (int)>::
-			mem_fun<iothreads_server, &iothreads_server::signal_end>;
+			mem_fun<wavy_server, &wavy_server::signal_end>;
 		return f;
 	}
 
+	unsigned short m_core_threads;
+	unsigned short m_output_threads;
 	std::auto_ptr<mp::pthread_signal> s_pth;
 };
 

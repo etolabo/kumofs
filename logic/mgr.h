@@ -77,7 +77,7 @@ public:
 	// mgr_control.cc
 	class ControlConnection;
 
-	static void control_checked_accepted(void* data, int fd);
+	void control_checked_accepted(int fd, int err);
 	void listen_control(int lsock);
 
 	CONTROL_DECL(GetStatus);
@@ -140,8 +140,7 @@ Manager::Manager(Config& cfg) :
 			protocol::MANAGER,
 			cfg.cluster_addr,
 			cfg.connect_timeout_msec,
-			cfg.connect_retry_limit,
-			cfg.reconnect_timeout_msec),
+			cfg.connect_retry_limit),
 	m_partner(cfg.partner),
 	m_cfg_auto_replace(cfg.auto_replace),
 	m_cfg_replace_delay_clocks(cfg.replace_delay_clocks),
@@ -150,8 +149,8 @@ Manager::Manager(Config& cfg) :
 	LOG_INFO("start manager ",addr());
 	listen_cluster(cfg.cluster_lsock);
 	listen_control(cfg.ctlsock_lsock);
-	start_timeout_step<Manager>(cfg.clock_interval_usec, this);
-	start_keepalive<Manager>(cfg.keepalive_interval_usec, this);
+	start_timeout_step(cfg.clock_interval_usec);
+	start_keepalive(cfg.keepalive_interval_usec);
 }
 
 

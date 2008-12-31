@@ -8,6 +8,8 @@
 namespace kumo {
 
 using rpc::role_type;
+
+using rpc::weak_node;
 using rpc::shared_node;
 
 template <typename Logic>
@@ -23,20 +25,21 @@ public:
 
 	void listen_cluster(int fd)
 	{
-		mp::iothreads::listen(fd, ClusterBase<Logic>::checked_accepted, this);
+		using namespace mp::placeholders;
+		wavy::listen(fd, mp::bind(
+					&ClusterBase<Logic>::checked_accepted, this,
+					_1, _2));
 	}
 
 private:
-	static void checked_accepted(void* data, int fd)
+	void checked_accepted(int fd, int err)
 	{
-		ServerClass* self = static_cast<ServerClass*>(data);
 		if(fd < 0) {
-			LOG_FATAL("accept failed: ",strerror(-fd));
-			self->signal_end(SIGTERM);
+			LOG_FATAL("accept failed: ",strerror(err));
+			RPCBase<Logic>::signal_end(SIGTERM);
 			return;
 		}
-		mp::set_nonblock(fd);
-		self->accepted(fd);
+		static_cast<ServerClass*>(this)->rpc::cluster::accepted(fd);
 	}
 };
 

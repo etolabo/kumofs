@@ -160,8 +160,7 @@ Server::Server(Config& cfg) :
 			protocol::SERVER,
 			cfg.cluster_addr,
 			cfg.connect_timeout_msec,
-			cfg.connect_retry_limit,
-			cfg.reconnect_timeout_msec),
+			cfg.connect_retry_limit),
 	m_db(*cfg.db),
 	m_manager1(cfg.manager1),
 	m_manager2(cfg.manager2),
@@ -173,8 +172,8 @@ Server::Server(Config& cfg) :
 {
 	LOG_INFO("start server ",addr());
 	listen_cluster(cfg.cluster_lsock);
-	start_timeout_step<Server>(cfg.clock_interval_usec, this);
-	start_keepalive<Server>(cfg.keepalive_interval_usec, this);
+	start_timeout_step(cfg.clock_interval_usec);
+	start_keepalive(cfg.keepalive_interval_usec);
 }
 
 
