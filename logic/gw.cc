@@ -10,8 +10,8 @@ Gateway::~Gateway()
 
 
 void Gateway::dispatch(
-		shared_session& from, rpc::weak_responder response,
-		method_id method, msgobj param, shared_zone& life)
+		shared_session from, weak_responder response,
+		method_id method, msgobj param, auto_zone z)
 {
 	switch(method) {
 	RPC_DISPATCH(HashSpacePush);

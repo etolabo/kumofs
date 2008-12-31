@@ -119,9 +119,9 @@ private:
 		shared_zone m_life;
 	};
 
+protected:
 	msgid_t m_msgid_rr;
 
-protected:
 	mp::pthread_mutex m_callbacks_mutex;
 	typedef std::map<msgid_t, callback_entry> callbacks_t;
 	callbacks_t m_callbacks;

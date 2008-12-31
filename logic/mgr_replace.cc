@@ -74,7 +74,7 @@ void Manager::replace_election()
 		LOG_INFO("replace delegate to ",m_partner);
 		try {
 			// delegate replace
-			shared_zone life(new mp::zone());
+			shared_zone life(new msgpack::zone());
 			// FIXME protocol::type::HashSpace has HashSpace::Seed:
 			//       not so good efficiency
 			HashSpace::Seed* seed = life->allocate<HashSpace::Seed>(m_whs);
@@ -174,7 +174,7 @@ void Manager::start_replace()
 {
 	LOG_INFO("start replace copy");
 
-	shared_zone life(new mp::zone());
+	shared_zone life(new msgpack::zone());
 	HashSpace::Seed* seed = life->allocate<HashSpace::Seed>(m_whs);
 	// FIXME protocol::type::ReplaceCopyStart has HashSpace::Seed:
 	//       not so good efficiency
@@ -280,7 +280,7 @@ void Manager::finish_replace_copy()
 	LOG_INFO("start replace delete time(",clocktime.get(),")");
 	m_copying.reset(0, 0);
 
-	shared_zone life(new mp::zone());
+	shared_zone life(new msgpack::zone());
 	HashSpace::Seed* seed = life->allocate<HashSpace::Seed>(m_whs);
 	// FIXME protocol::type::ReplaceDeleteStart has HashSpace::Seed:
 	//       not so good efficiency

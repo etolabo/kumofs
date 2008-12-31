@@ -17,8 +17,8 @@ public:
 	~Gateway();
 
 	void dispatch(
-			shared_session& from, rpc::weak_responder response,
-			method_id method, msgobj param, shared_zone& life);
+			shared_session from, weak_responder response,
+			method_id method, msgobj param, auto_zone z);
 
 	void session_lost(const address& addr, shared_session& s);
 
@@ -37,7 +37,7 @@ public:
 	};
 
 	struct basic_request {
-		basic_request() : life(new mp::zone()) { }
+		basic_request() : life(new msgpack::zone()) { }
 		shared_zone life;
 	};
 
@@ -163,8 +163,8 @@ template <typename Config>
 Gateway::Gateway(Config& cfg) :
 	RPCBase<Gateway>(cfg),
 	rpc::client<>(
-			cfg.connect_timeout_steps,
-			cfg.reconnect_timeout_msec),
+			cfg.connect_timeout_msec,
+			cfg.connect_retry_limit),
 	m_manager1(cfg.manager1),
 	m_manager2(cfg.manager2),
 	m_error_count(0),

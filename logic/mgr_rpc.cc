@@ -30,7 +30,7 @@ RPC_CATCH(HashSpaceRequest, response)
 namespace {
 	struct each_client_push {
 		each_client_push(HashSpace& hs, rpc::callback_t cb) :
-			life(new mp::zone()),
+			life(new msgpack::zone()),
 			arg( *life->allocate<HashSpace::Seed>(hs) ),
 			callback(cb) { }
 
@@ -62,7 +62,7 @@ RPC_REPLY(ResHashSpacePush, from, res, err, life)
 
 void Manager::sync_hash_space_servers()
 {
-	shared_zone life(new mp::zone());
+	shared_zone life(new msgpack::zone());
 	HashSpace::Seed* wseed = life->allocate<HashSpace::Seed>(m_whs);
 	HashSpace::Seed* rseed = life->allocate<HashSpace::Seed>(m_rhs);
 	protocol::type::HashSpaceSync arg(*wseed, *rseed, m_clock.get_incr());
@@ -77,7 +77,7 @@ void Manager::sync_hash_space_servers()
 void Manager::sync_hash_space_partner()
 {
 	if(!m_partner.connectable()) { return; }
-	shared_zone life(new mp::zone());
+	shared_zone life(new msgpack::zone());
 	HashSpace::Seed* wseed = life->allocate<HashSpace::Seed>(m_whs);
 	HashSpace::Seed* rseed = life->allocate<HashSpace::Seed>(m_rhs);
 	protocol::type::HashSpaceSync arg(*wseed, *rseed, m_clock.get_incr());

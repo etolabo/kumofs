@@ -113,7 +113,8 @@ void client<Transport, Session>::connect_callback(
 	if(fd >= 0) {
 		LOG_INFO("connect success ",addr," fd(",fd,")");
 		try {
-			wavy::add<Transport>(fd, s, this);
+			basic_shared_session bs(mp::static_pointer_cast<basic_session>(s));
+			wavy::add<Transport>(fd, bs, this);
 		} catch (...) {
 			::close(fd);
 			throw;

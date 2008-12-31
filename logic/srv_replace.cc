@@ -189,7 +189,7 @@ void Server::replace_copy(const address& manager_addr, HashSpace& hs)
 
 		uint64_t clocktime = DBFormat(meta_val, meta_vallen).clocktime();
 
-		shared_zone z(new mp::zone());
+		shared_zone z(new msgpack::zone());
 		kv.release_key(*z);
 		if(meta_vallen > 512) {   // FIXME
 			for(addrs_it it(newbies.begin()); it != newbies.end(); ++it) {

@@ -85,8 +85,8 @@ void do_daemonize(bool close_stdio, const char* pidfile)
 rpc_server_args::rpc_server_args() :
 	keepalive_interval(2.0),
 	clock_interval(0.5),
-	connect_timeout_steps(3),
-	reconnect_interval(1.0),
+	connect_timeout_sec(1.0),
+	connect_retry_limit(4),
 	wthreads(2),
 	rthreads(4),
 	cthreads(2)
@@ -97,7 +97,6 @@ rpc_server_args::rpc_server_args() :
 rpc_server_args::~rpc_server_args() { }
 
 rpc_cluster_args::rpc_cluster_args() :
-	connect_retry_limit(4),
 	cluster_lsock(-1) { }
 
 rpc_cluster_args::~rpc_cluster_args()
@@ -117,10 +116,10 @@ void rpc_server_args::set_basic_args()
 			type::string(&pidfile));
 	on("-Ci", "--clock-interval",
 			type::numeric(&clock_interval, clock_interval));
-	on("-Ys", "--connect-timeout-steps",
-			type::numeric(&connect_timeout_steps, connect_timeout_steps));
-	on("-Ri", "--reconnect-interval",
-			type::numeric(&reconnect_interval, reconnect_interval));
+	on("-Ys", "--connect-timeout",
+			type::numeric(&connect_timeout_sec, connect_timeout_sec));
+	on("-Yn", "--connect-retry-limit",
+			type::numeric(&connect_retry_limit, connect_retry_limit));
 	on("-TW", "--write-threads",
 			type::numeric(&wthreads, wthreads));
 	on("-TR", "--read-threads",
@@ -132,9 +131,9 @@ void rpc_server_args::set_basic_args()
 void rpc_server_args::show_usage()
 {
 std::cout <<
-"  -Ys <number="<<connect_timeout_steps<<">    ""--connect-timeout-steps  connect timeout sptes\n"
+"  -Ys <number="<<connect_timeout_sec<<">    "  "--connect-timeout        connect timeout time in seconds\n"
+"  -Yn <number="<<connect_retry_limit<<">    "  "--connect-retry-limit    connect retry limit\n"
 "  -Ci <number="<<clock_interval<<">  "         "--clock-interval         clock interval in seconds\n"
-//"  -Ri <number="<<reconnect_interval<<">    "   "--reconnect-interval     reconnect inverval in seconds (not implemented)\n"
 "  -TW <number="<<wthreads<<">    "             "--write-threads          number of threads for asynchronous writing\n"
 "  -TR <number="<<rthreads<<">    "             "--read-threads           number of threads for asynchronous reading\n"
 "  -TC <number="<<cthreads<<">    "             "--connect-threads        number of threads for asynchronous connecting\n"
@@ -149,8 +148,6 @@ void rpc_cluster_args::set_basic_args()
 	using namespace kazuhiki;
 	on("-k", "--keepalive-interval",
 			type::numeric(&keepalive_interval, keepalive_interval));
-	on("-Yn", "--connect-retry-limit",
-			type::numeric(&connect_retry_limit, connect_retry_limit));
 	rpc_server_args::set_basic_args();
 }
 
@@ -158,7 +155,6 @@ void rpc_cluster_args::show_usage()
 {
 std::cout <<
 "  -k  <number="<<keepalive_interval<<">    "   "--keepalive-interval     keepalive interval in seconds\n"
-"  -Yn <number="<<connect_retry_limit<<">    "  "--connect-retry-limit    connect retry limit\n"
 ;
 rpc_server_args::show_usage();
 }
@@ -181,7 +177,7 @@ try {
 void rpc_server_args::convert()
 {
 	clock_interval_usec = clock_interval * 1000 * 1000;
-	reconnect_timeout_msec = reconnect_interval * 1000;
+	connect_timeout_sec = connect_timeout_msec * 1000;
 }
 
 void rpc_cluster_args::convert()

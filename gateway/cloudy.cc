@@ -281,7 +281,7 @@ private:
 Cloudy::Connection::Connection(int fd, Gateway* gw) :
 	mp::iothreads::handler(fd),
 	m_gw(gw),
-	m_zone(new mp::zone()),
+	m_zone(new msgpack::zone()),
 	m_queue(new Queue())
 {
 	void (*cmd_getx)(void*, memproto_header*,
@@ -359,7 +359,7 @@ try {
 			LOG_WARN("unknown command ",(-ret));
 			throw std::runtime_error("unknown command");
 		}
-		m_zone.reset(new mp::zone());
+		m_zone.reset(new msgpack::zone());
 	}
 
 	if(ret < 0) { throw std::runtime_error("parse error"); }

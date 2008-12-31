@@ -159,8 +159,8 @@ Server::Server(Config& cfg) :
 	rpc::cluster(
 			protocol::SERVER,
 			cfg.cluster_addr,
+			cfg.connect_timeout_msec,
 			cfg.connect_retry_limit,
-			cfg.connect_timeout_steps,
 			cfg.reconnect_timeout_msec),
 	m_db(*cfg.db),
 	m_manager1(cfg.manager1),

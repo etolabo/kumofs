@@ -139,8 +139,8 @@ Manager::Manager(Config& cfg) :
 	rpc::cluster(
 			protocol::MANAGER,
 			cfg.cluster_addr,
+			cfg.connect_timeout_msec,
 			cfg.connect_retry_limit,
-			cfg.connect_timeout_steps,
 			cfg.reconnect_timeout_msec),
 	m_partner(cfg.partner),
 	m_cfg_auto_replace(cfg.auto_replace),

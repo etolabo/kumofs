@@ -59,10 +59,10 @@ struct rpc_server_args {
 	double clock_interval;  // sec
 	unsigned long clock_interval_usec;  // convert
 
-	unsigned short connect_timeout_steps;
+	double connect_timeout_sec;
+	unsigned int connect_timeout_msec;  // convert
 
-	double reconnect_interval;  // sec
-	unsigned int reconnect_timeout_msec; // convert
+	unsigned short connect_retry_limit;
 
 	unsigned short wthreads;
 	unsigned short rthreads;
@@ -82,8 +82,6 @@ protected:
 struct rpc_cluster_args : rpc_server_args {
 	rpc_cluster_args();
 	~rpc_cluster_args();
-
-	unsigned short connect_retry_limit;
 
 	virtual void set_basic_args();
 	virtual void show_usage();
