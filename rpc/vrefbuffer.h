@@ -9,7 +9,8 @@
 namespace rpc {
 
 // FIXME 72?
-static const size_t VREFBUFFER_INITIAL_ALLOCATION_SIZE = 1024;
+// FIXME 1024?
+static const size_t VREFBUFFER_INITIAL_ALLOCATION_SIZE = 4096;
 
 class vrefbuffer {
 public:

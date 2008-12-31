@@ -273,10 +273,10 @@ void Server::replace_copy(const address& manager_addr, HashSpace& hs)
 					it != POOL.end(); ++it) { \
 				FUNC(it->addr, it->request, LIFE, replace_time); \
 			} \
-			propose_pool.clear();
+			POOL.clear();
 
 		// FIXME pool_num limit
-		if(pool_num > 10240 || pool_size/1024/1024 > m_cfg_replace_pool_size) {
+		if(pool_num > 1024 || pool_size/1024/1024 > m_cfg_replace_pool_size) {
 			FLUSH_POOL(send_replace_propose, propose_pool_t, propose_pool, propose_life);
 			FLUSH_POOL(send_replace_push, push_pool_t, push_pool, push_life);
 			propose_life.reset(new msgpack::zone());
