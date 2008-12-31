@@ -22,6 +22,8 @@ struct arg_t : rpc_cluster_args {
 	unsigned short replace_propose_retry_num;
 	unsigned short replace_push_retry_num;
 
+	unsigned short replace_pool_size;
+
 	virtual void convert()
 	{
 		cluster_addr = rpc::address(cluster_addr_in);
@@ -36,7 +38,8 @@ struct arg_t : rpc_cluster_args {
 		replicate_set_retry_num(20),
 		replicate_delete_retry_num(20),
 		replace_propose_retry_num(20),
-		replace_push_retry_num(20)
+		replace_push_retry_num(20),
+		replace_pool_size(64)
 	{
 		using namespace kazuhiki;
 		set_basic_args();
@@ -52,6 +55,8 @@ struct arg_t : rpc_cluster_args {
 				type::numeric(&replicate_set_retry_num, replicate_set_retry_num));
 		on("-G", "--replicate-delete-retry",
 				type::numeric(&replicate_delete_retry_num, replicate_delete_retry_num));
+		on("-L", "--replace-pool",
+				type::numeric(&replace_pool_size, replace_pool_size));
 		parse(argc, argv);
 	}
 
@@ -66,6 +71,7 @@ std::cout <<
 "  -p  <addr[:port="<<MANAGER_DEFAULT_PORT<<"]>   "       "--manager2       address of manager 2\n"
 "  -S  <number="<<replicate_set_retry_num<<">   "         "--replicate-set-retry    replicate set retry limit\n"
 "  -D  <number="<<replicate_delete_retry_num<<">   "      "--replicate-delete-retry replicate delete retry limit\n"
+"  -L  <number="<<replace_pool_size<<">   "               "--replace-pool           gather replace requests up to N mega bytes\n"
 ;
 rpc_cluster_args::show_usage();
 	}

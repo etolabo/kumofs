@@ -272,9 +272,9 @@ namespace type {
 		// ignored: false
 	};
 
-	struct ReplacePropose : define< tuple<raw_ref, uint64_t> > {
-		ReplacePropose() {}
-		ReplacePropose(
+	struct ReplaceProposeElement : define< tuple<raw_ref, uint64_t> > {
+		ReplaceProposeElement() {}
+		ReplaceProposeElement(
 				const char* raw_key, size_t raw_keylen,
 				uint64_t clocktime) :
 			define_type(msgpack_type(
@@ -282,13 +282,11 @@ namespace type {
 		DBKey dbkey() const
 			{ return DBKey(get<0>().ptr, get<0>().size); }
 		uint64_t clocktime() const		{ return get<1>(); }
-		// needed: not nil
-		// not needed: nil
 	};
 
-	struct ReplacePush : define< tuple<raw_ref, raw_ref> > {
-		ReplacePush() {}
-		ReplacePush(
+	struct ReplacePushElement : define< tuple<raw_ref, raw_ref> > {
+		ReplacePushElement() {}
+		ReplacePushElement(
 				const char* raw_key, size_t raw_keylen,
 				const char* raw_val, size_t raw_vallen) :
 			define_type(msgpack_type(
@@ -298,8 +296,15 @@ namespace type {
 			{ return DBKey(get<0>().ptr, get<0>().size); }
 		DBValue dbval() const
 			{ return DBValue(get<1>().ptr, get<1>().size); }
-		// success: true
-		// obsolete: nil
+	};
+
+	struct ReplacePropose : define< std::vector<ReplaceProposeElement> > {
+		typedef std::vector<uint32_t> request;
+		// requiest: std::vector<uint32_t>  #=> request Nth value
+	};
+
+	struct ReplacePush : define< std::vector<ReplacePushElement> > {
+		// acknowledge: true
 	};
 
 	struct ReplaceElection : define< tuple<HSSeed, uint32_t> > {

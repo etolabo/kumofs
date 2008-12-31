@@ -79,15 +79,43 @@ private:
 	void replace_delete(shared_node& manager, HashSpace& hs);
 	RPC_REPLY_DECL(ResReplaceDeleteEnd, from, res, err, life);
 
-	void propose_replace_push(const address& node,
-			const char* raw_key, uint32_t raw_keylen,
-			uint64_t metaval_clocktime, shared_zone& life,
-			ClockTime replace_time);
 
-	void replace_push(const address& node,
-			const char* raw_key, uint32_t raw_keylen,
-			const char* raw_val, size_t raw_vallen,
+	struct ProposePool {
+		typedef protocol::type::ReplacePropose type;
+		ProposePool(address a) : addr(a) { }
+		address addr;
+		type pool;
+	};
+
+	struct PushPool {
+		typedef protocol::type::ReplacePush type;
+		PushPool(address a) : addr(a) { }
+		address addr;
+		type pool;
+	};
+
+	typedef std::vector<ProposePool> propose_pool_t;
+	typedef std::vector<PushPool> push_pool_t;
+	propose_pool_t propose_pool;
+	push_pool_t push_pool;
+
+	void propose_replace_push(const address& node,
+			const protocol::type::ReplacePropose& req,
 			shared_zone& life, ClockTime replace_time);
+
+	void push_replace_push(const address& node,
+			const protocol::type::ReplacePush& req,
+			shared_zone& life, ClockTime replace_time);
+
+	template <typename Iterator, typename pool_t, typename ReplaceElement>
+	static void replace_pool_impl(pool_t& pool,
+			Iterator begin, Iterator end,
+			ReplaceElement e);
+
+	void replace_flush_pool_impl(
+			propose_pool_t& propose_pool, shared_zone& propose_life,
+			push_pool_t& push_pool, shared_zone& push_life,
+			ClockTime replace_time);
 
 #define REQUIRE_RELK const pthread_scoped_lock& relk
 	void replace_copy(const address& manager_addr, HashSpace& hs);
@@ -151,6 +179,7 @@ private:
 	const unsigned short m_cfg_replicate_delete_retry_num;
 	const unsigned short m_cfg_replace_propose_retry_num;
 	const unsigned short m_cfg_replace_push_retry_num;
+	const unsigned short m_cfg_replace_pool_size;
 
 private:
 	Server();
@@ -173,7 +202,8 @@ Server::Server(Config& cfg) :
 	m_cfg_replicate_set_retry_num(cfg.replicate_set_retry_num),
 	m_cfg_replicate_delete_retry_num(cfg.replicate_delete_retry_num),
 	m_cfg_replace_propose_retry_num(cfg.replace_propose_retry_num),
-	m_cfg_replace_push_retry_num(cfg.replace_push_retry_num)
+	m_cfg_replace_push_retry_num(cfg.replace_push_retry_num),
+	m_cfg_replace_pool_size(cfg.replace_pool_size)
 {
 	LOG_INFO("start server ",addr());
 	listen_cluster(cfg.cluster_lsock);

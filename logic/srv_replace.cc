@@ -88,6 +88,44 @@ RPC_CATCH(ReplaceDeleteStart, response)
 
 
 
+template <typename Iterator, typename pool_t, typename ReplaceElement>
+void Server::replace_pool_impl(pool_t& pool,
+		Iterator begin, Iterator end,
+		ReplaceElement e)
+{
+	for(; begin != end; ++begin) {
+		for(typename pool_t::iterator p(pool.begin()); p != pool.end(); ++p) {
+			if(p->addr == *begin) {
+				p->pool.push_back(e);
+				goto pool_next;
+			}
+		}
+		pool.push_back( typename pool_t::value_type(*begin) );
+		pool.back().pool.push_back(e);
+		pool_next: { }
+	}
+}
+
+void Server::replace_flush_pool_impl(
+		propose_pool_t& propose_pool, shared_zone& propose_life,
+		push_pool_t& push_pool, shared_zone& push_life,
+		ClockTime replace_time)
+{
+	for(propose_pool_t::iterator it(propose_pool.begin());
+			it != propose_pool.end(); ++it) {
+		propose_replace_push(it->addr, it->pool, propose_life, replace_time);
+	}
+	propose_pool.clear();
+	propose_life.reset(new msgpack::zone());
+
+	for(push_pool_t::iterator it(push_pool.begin());
+			it != push_pool.end(); ++it) {
+		push_replace_push(it->addr, it->pool, push_life, replace_time);
+	}
+	push_pool.clear();
+	push_life.reset(new msgpack::zone());
+}
+
 void Server::replace_copy(const address& manager_addr, HashSpace& hs)
 {
 	ClockTime replace_time = hs.clocktime();
@@ -159,7 +197,16 @@ void Server::replace_copy(const address& manager_addr, HashSpace& hs)
 	current_owners.reserve(NUM_REPLICATION+1);
 	newbies.reserve(NUM_REPLICATION+1);
 
-	// only one thread can use iterator
+	shared_zone propose_life(new msgpack::zone());
+	shared_zone push_life(new msgpack::zone());
+	size_t pool_size = 0;
+
+	// FIXME
+	//// only one thread can use iterator
+	//pthread_scoped_lock itlk(m_db.iter_mutex());
+	//// read-lock database
+	//pthread_scoped_rdlock dblk(m_db.mutex());
+
 	pthread_scoped_wrlock dblk(m_db.mutex());
 
 	Storage::iterator kv;
@@ -199,23 +246,37 @@ void Server::replace_copy(const address& manager_addr, HashSpace& hs)
 			}
 		}
 
-		shared_zone life(new msgpack::zone());
-		kv.release_key(*life);
 		if(raw_vallen > 512) {   // FIXME
 			// propose -> push
 			uint64_t clocktime = DBFormat::clocktime(raw_val);
-			for(addrs_it it(newbies.begin()); it != newbies.end(); ++it) {
-				propose_replace_push(*it, raw_key, raw_keylen, clocktime, life, replace_time);
-			}
+			kv.release_key(*propose_life);
+			replace_pool_impl(propose_pool,
+					newbies.begin(), newbies.end(),
+					protocol::type::ReplaceProposeElement(
+						raw_key, raw_keylen, clocktime));
+			pool_size += (raw_keylen + 64) * newbies.size();  // FIXME 64
 
 		} else {
 			// push directly
-			kv.release_val(*life);
-			for(addrs_it it(newbies.begin()); it != newbies.end(); ++it) {
-				replace_push(*it, raw_key, raw_keylen, raw_val, raw_vallen, life, replace_time);
-			}
+			kv.release_key(*push_life);
+			kv.release_val(*push_life);
+			replace_pool_impl(push_pool,
+					newbies.begin(), newbies.end(),
+					protocol::type::ReplacePushElement(
+						raw_key, raw_keylen, raw_val, raw_vallen));
+			pool_size += (raw_keylen + raw_vallen + 64) * newbies.size();  // FIXME 64
 		}
+
+		if(pool_size/1024/1024 > m_cfg_replace_pool_size) {
+			replace_flush_pool_impl(propose_pool, propose_life,
+					push_pool, push_life, replace_time);
+			pool_size = 0;
+		}
+
 	}
+
+	replace_flush_pool_impl(propose_pool, propose_life,
+			push_pool, push_life, replace_time);
 }
 
 skip_replace:
@@ -225,15 +286,11 @@ skip_replace:
 	}
 }
 
-
-inline void Server::propose_replace_push(const address& node,
-		const char* raw_key, uint32_t raw_keylen,
-		uint64_t metaval_clocktime, shared_zone& life,
-		ClockTime replace_time)
-{
-	RetryReplacePropose* retry = life->allocate<RetryReplacePropose>(
-			protocol::type::ReplacePropose(raw_key, raw_keylen, metaval_clocktime)
-			);
+void Server::propose_replace_push(const address& node,
+		const protocol::type::ReplacePropose& req,
+		shared_zone& life, ClockTime replace_time)
+try {
+	RetryReplacePropose* retry = life->allocate<RetryReplacePropose>(req);
 
 	retry->set_callback( BIND_RESPONSE(ResReplacePropose, retry, replace_time) );
 
@@ -241,18 +298,16 @@ inline void Server::propose_replace_push(const address& node,
 
 	pthread_scoped_lock relk(m_replacing_mutex);
 	m_replacing.proposed(replace_time);
+
+} catch (std::exception& e) {
+	LOG_WARN("replace propose failed: ",e.what());
 }
 
-inline void Server::replace_push(const address& node,
-		const char* raw_key, uint32_t raw_keylen,
-		const char* raw_val, size_t raw_vallen,
+void Server::push_replace_push(const address& node,
+		const protocol::type::ReplacePush& req,
 		shared_zone& life, ClockTime replace_time)
-{
-	if(!raw_val || raw_vallen < DBFormat::VALUE_META_SIZE) { return; }
-
-	RetryReplacePush* retry = life->allocate<RetryReplacePush>(
-			protocol::type::ReplacePush(raw_key, raw_keylen, raw_val, raw_vallen)
-			);
+try {
+	RetryReplacePush* retry = life->allocate<RetryReplacePush>(req);
 
 	retry->set_callback( BIND_RESPONSE(ResReplacePush, retry, replace_time) );
 
@@ -260,8 +315,10 @@ inline void Server::replace_push(const address& node,
 
 	pthread_scoped_lock relk(m_replacing_mutex);
 	m_replacing.pushed(replace_time);
-}
 
+} catch (std::exception& e) {
+	LOG_WARN("replace push failed: ",e.what());
+}
 
 
 CLUSTER_FUNC(ReplacePropose, from, response, z, param)
@@ -276,8 +333,6 @@ try {
 		return;
 	}
 
-	protocol::type::DBKey key(param.dbkey());
-
 // FIXME ReplacePropose may go ahead of ReplaceCopyStart
 //       This node may have old hash space while proposer have new one
 //	if(!test_replicator_assign(m_whs, key.hash(), addr())) {
@@ -288,21 +343,30 @@ try {
 
 	whlk.unlock();
 
+	protocol::type::ReplacePropose::request request;
 	pthread_scoped_rdlock dblk(m_db.mutex());
-	uint64_t clocktime;
-	bool stored = DBFormat::get_clocktime(m_db,
-			key.raw_data(), key.raw_size(), &clocktime);
+
+	for(uint32_t i=0; i < param.size(); ++i) {
+		protocol::type::ReplacePropose::value_type& val(param[i]);
+		protocol::type::DBKey key(val.dbkey());
+
+		uint64_t clocktime;
+		bool stored = DBFormat::get_clocktime(m_db,
+				key.raw_data(), key.raw_size(), &clocktime);
+
+		if(!stored || ClockTime(clocktime) < ClockTime(val.clocktime())) {
+			// key is not stored OR stored key is old
+			// require replication
+			request.push_back(i);
+	
+		} else {
+			// key is already deleted while replacing
+		}
+	}
+
 	dblk.unlock();
 
-	if(!stored || ClockTime(clocktime) < ClockTime(param.clocktime())) {
-		// key is not stored OR stored key is old
-		// require replication
-		response.result(true);
-
-	} else {
-		// key is already deleted while replacing
-		response.null();
-	}
+	response.result(request, z);
 }
 RPC_CATCH(ReplacePropose, response)
 
@@ -313,43 +377,47 @@ try {
 
 	if(m_whs.empty()) {
 		//throw std::runtime_error("server not ready");
-		// don't send response if server not ready.
+		// don't send response if server is not ready.
 		// this makes sender timeout and it will retry
-		// after several seconds.
+		// after several seconds. see Server::ResReplacePropose.
 		return;
 	}
 
-	protocol::type::DBKey key(param.dbkey());
-	protocol::type::DBValue val(param.dbval());
-
-// FIXME ReplacePush may go ahead of ReplaceCopyStart
-//       This node may have old hash space while proposer have new one
-//	if(!test_replicator_assign(m_whs, key.hash(), addr())) {
-//		// ignore obsolete hash space error
-//		response.null();
-//		return;
-//	}
+	// Note: ReplacePush may go ahead of ReplaceCopyStart
+	//       This node may have old hash space while proposer have new one
+	//if(!test_replicator_assign(m_whs, key.hash(), addr())) {
+	//	// ignore obsolete hash space error
+	//	response.null();
+	//	return;
+	//}
 
 	whlk.unlock();
 
 	pthread_scoped_wrlock dblk(m_db.mutex());
-	uint64_t clocktime;
-	bool stored = DBFormat::get_clocktime(m_db,
-			key.raw_data(), key.raw_size(), &clocktime);
 
-	if(!stored || ClockTime(clocktime) < ClockTime(val.clocktime())) {
-		// key is not stored OR stored key is old
-		m_db.set(key.raw_data(), key.raw_size(),
-				 val.raw_data(), val.raw_size());
-		dblk.unlock();
-		response.result(true);
+	for(protocol::type::ReplacePush::iterator it(param.begin());
+			it != param.end(); ++it) {
+		protocol::type::DBKey key(it->dbkey());
+		protocol::type::DBValue val(it->dbval());
 
-	} else {
-		// key is already deleted while replacing
-		// do nothing
-		LOG_TRACE("obsolete or same replace push");
-		response.null();
+		uint64_t clocktime;
+		bool stored = DBFormat::get_clocktime(m_db,
+				key.raw_data(), key.raw_size(), &clocktime);
+	
+		if(!stored || ClockTime(clocktime) < ClockTime(val.clocktime())) {
+			// key is not stored OR stored key is old
+			m_db.set(key.raw_data(), key.raw_size(),
+					 val.raw_data(), val.raw_size());
+	
+		} else {
+			// key is already deleted while replacing
+			// do nothing
+		}
 	}
+
+	dblk.unlock();
+
+	response.result(true);
 }
 RPC_CATCH(ReplacePush, response)
 
@@ -370,23 +438,60 @@ RPC_REPLY(ResReplacePropose, from, res, err, life,
 		LOG_ERROR("ReplacePropose failed: ",err);
 	}
 
-	if(!res.is_nil() && SESSION_IS_ACTIVE(from)) {
-		protocol::type::DBKey key(retry->param().dbkey());
-		uint32_t raw_vallen;
+	if(!res.is_nil() && SESSION_IS_ACTIVE(from)) { goto skip_push; }
+
+	try {
+		typedef protocol::type::ReplacePropose::request request_t;
+		request_t st(res.as<request_t>());
+
+		if(st.empty()) { goto skip_push; }
+
+		address addr = mp::static_pointer_cast<rpc::node>(from)->addr();
+
+		// life is shared by multiple threads but msgpack::zone::allocate
+		// is not thread-safe.
+		shared_zone nlife(new msgpack::zone());
+		protocol::type::ReplacePush pool;
+		size_t pool_size = 0;
 
 		pthread_scoped_rdlock dblk(m_db.mutex());
-		const char* raw_val = m_db.get(key.raw_data(), key.raw_size(),
-				&raw_vallen, *life);
-		dblk.unlock();
 
-		replace_push(
-				mp::static_pointer_cast<rpc::node>(from)->addr(),  // FIXME
-				key.raw_data(), key.raw_size(), raw_val, raw_vallen,
-				life, replace_time);
+		for(request_t::iterator it(st.begin()); it != st.end(); ++it) {
+
+			if(retry->param().size() < *it) { continue; }
+			protocol::type::DBKey key(retry->param()[*it].dbkey());
+
+			uint32_t raw_vallen;
+			const char* raw_val = m_db.get(key.raw_data(), key.raw_size(),
+					&raw_vallen, *nlife);
+
+			if(!raw_val || raw_vallen < DBFormat::VALUE_META_SIZE) {
+				continue;
+			}
+
+			char* nraw_key = (char*)nlife->malloc(key.raw_size());
+			memcpy(nraw_key, key.raw_data(), key.raw_size());
+
+			pool.push_back( protocol::type::ReplacePushElement(
+						nraw_key, key.raw_size(),
+						raw_val, raw_vallen) );
+
+			if(pool_size/1024/1024 > m_cfg_replace_pool_size) {
+				push_replace_push(addr, pool, nlife, replace_time);
+				nlife.reset(new msgpack::zone());
+				pool_size = 0;
+			}
+		}
+		push_replace_push(addr, pool, nlife, replace_time);
+		nlife.reset(new msgpack::zone());
+		pool_size = 0;
+
+	} catch (...) {
+		// FIXME
 	}
 
+skip_push:
 	pthread_scoped_lock relk(m_replacing_mutex);
-
 	m_replacing.propose_returned(replace_time);
 
 	if(m_replacing.is_finished(replace_time)) {
