@@ -38,26 +38,6 @@ namespace kumo {
 	}
 
 
-#define EACH_ACTIVE_NEW_COMERS_BEGIN(NODE) \
-	for(newcomer_servers_t::iterator _it_(m_newcomer_servers.begin()), it_end(m_newcomer_servers.end()); \
-			_it_ != it_end; ++_it_) { \
-		shared_node NODE(_it_->lock()); \
-		if(SESSION_IS_ACTIVE(NODE)) {
-			// FIXME m_newcomer_servers.erase(it) ?
-
-#define EACH_ACTIVE_NEW_COMERS_END \
-		} \
-	}
-
-#define EACH_CLIENTS_BEGIN(NODE) \
-	for(clients_t::iterator _it_(m_clients.begin()), it_end(m_clients.end()); \
-			_it_ != it_end; ++_it_) { \
-		shared_node NODE(get_node((*_it_)->addr(), protocol::::CLIENT));
-
-#define EACH_CLIENTS_END \
-	}
-
-
 }  // namespace kumo
 
 #endif /* logic/mgr_impl.h */

@@ -1,6 +1,8 @@
 #ifndef RPC_RESPONDER_IMPL_H__
 #define RPC_RESPONDER_IMPL_H__
 
+#include <mp/object_callback.h>
+
 namespace rpc {
 
 

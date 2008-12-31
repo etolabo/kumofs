@@ -72,7 +72,8 @@ void Manager::new_node(address addr, role_type id, shared_node n)
 			return;
 		}
 		LOG_INFO("partner connected ",addr);
-		sync_hash_space_partner();
+		pthread_scoped_lock hslk(m_hs_mutex);
+		sync_hash_space_partner(hslk);
 		return;
 
 	} else if(id == protocol::SERVER) {

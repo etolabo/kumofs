@@ -7,30 +7,39 @@ namespace kumo {
 CONTROL_IMPL(GetStatus, param, response)
 try {
 	control::type::Status res;
+
+	pthread_scoped_lock hslk(m_hs_mutex);
 	res.hsseed() = HashSpace::Seed(m_whs);
-	for(newcomer_servers_t::iterator it(m_newcomer_servers.begin()), it_end(m_newcomer_servers.end());
+	hslk.unlock();
+
+	pthread_scoped_lock nslk(m_new_servers_mutex);
+	for(new_servers_t::iterator it(m_new_servers.begin()), it_end(m_new_servers.end());
 			it != it_end; ++it) {
 		shared_node n(it->lock());
 		if(n) {
 			res.newcomers().push_back(n->addr());
 		}
 	}
+	nslk.unlock();
+
 	response.result(res);
 }
 CONTROL_CATCH(GetStatus, response);
 
 CONTROL_IMPL(AttachNewServers, param, response)
 try {
-	attach_new_servers();
-	start_replace();
+	pthread_scoped_lock hslk(m_hs_mutex);
+	attach_new_servers(hslk);
+	start_replace(hslk);
 	response.null();
 }
 CONTROL_CATCH(AttachNewServers, response);
 
 CONTROL_IMPL(DetachFaultServers, param, response)
 try {
-	detach_fault_servers();
-	start_replace();
+	pthread_scoped_lock hslk(m_hs_mutex);
+	detach_fault_servers(hslk);
+	start_replace(hslk);
 	response.null();
 }
 CONTROL_CATCH(DetachFaultServers, response);
@@ -45,9 +54,13 @@ try {
 	protocol::type::CreateBackup arg(param.suffix());
 	rpc::callback_t callback( BIND_RESPONSE(ResCreateBackup) );
 	shared_zone nullz;
+
+	pthread_scoped_lock slk(m_servers_mutex);
 	EACH_ACTIVE_SERVERS_BEGIN(node)
 		node->call(protocol::CreateBackup, arg, nullz, callback, 10);
 	EACH_ACTIVE_SERVERS_END
+	slk.unlock();
+
 	response.null();
 }
 CONTROL_CATCH(CreateBackup, response);
@@ -62,8 +75,12 @@ try {
 		response.result(false);
 	} else if(!m_cfg_auto_replace && param.enable()) {
 		m_cfg_auto_replace = true;
-		attach_new_servers();
-		detach_fault_servers();
+
+		pthread_scoped_lock hslk(m_hs_mutex);
+		attach_new_servers(hslk);
+		detach_fault_servers(hslk);
+		hslk.unlock();
+
 		response.result(true);
 	}
 	response.null();
@@ -72,7 +89,10 @@ CONTROL_CATCH(SetAutoReplace, response);
 
 CONTROL_IMPL(StartReplace, param, response)
 try {
-	start_replace();
+	pthread_scoped_lock hslk(m_hs_mutex);
+	start_replace(hslk);
+	hslk.unlock();
+
 	response.null();
 }
 CONTROL_CATCH(StartReplace, response);

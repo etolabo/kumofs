@@ -9,8 +9,9 @@ void Manager::add_server(const address& addr, shared_node& s)
 	LOG_INFO("server connected ",s->addr());
 
 	//if(!m_whs.server_is_fault(addr)) {
-		m_newcomer_servers.push_back( weak_node(s) );
-	//}
+	pthread_scoped_lock nslk(m_new_servers_mutex);
+	m_new_servers.push_back( weak_node(s) );
+	nslk.unlock();
 
 	if(m_cfg_auto_replace) {
 		// delayed replace
@@ -23,32 +24,40 @@ void Manager::remove_server(const address& addr)
 	LOG_INFO("server lost ",addr);
 
 	ClockTime ct = m_clock.now_incr();
+
+	pthread_scoped_lock hslk(m_hs_mutex);
+	pthread_scoped_lock slk(m_servers_mutex);
+	pthread_scoped_lock nslk(m_new_servers_mutex);
+
 	bool wfault = m_whs.fault_server(ct, addr);
 	bool rfault = m_rhs.fault_server(ct, addr);
-	if(wfault || rfault) {
-		if(!m_cfg_auto_replace) {
-			sync_hash_space_partner();
-			sync_hash_space_servers();
-			push_hash_space_clients();
-		}
+
+	if((wfault || rfault) && !m_cfg_auto_replace) {
+		sync_hash_space_partner(hslk);
+		sync_hash_space_servers(hslk);
+		push_hash_space_clients(hslk);
 	}
+	hslk.unlock();
 
 	m_servers.erase(addr);
+	slk.unlock();
 
-	for(newcomer_servers_t::iterator it(m_newcomer_servers.begin());
-			it != m_newcomer_servers.end(); ) {
+	for(new_servers_t::iterator it(m_new_servers.begin());
+			it != m_new_servers.end(); ) {
 		shared_node n(it->lock());
 		if(!n || n->addr() == addr) {
-			it = m_newcomer_servers.erase(it);
+			it = m_new_servers.erase(it);
 		} else {
 			++it;
 		}
 	}
+	nslk.unlock();
 
 	if(m_cfg_auto_replace) {
 		// delayed replace
 		delayed_replace_election();
 	} else {
+		pthread_scoped_lock relk(m_replace_mutex);
 		m_copying.invalidate();  // prevent replace delete
 	}
 }
@@ -68,27 +77,26 @@ void Manager::replace_election()
 {
 	// XXX
 	// election: smaller address has priority
-	attach_new_servers();
-	detach_fault_servers();
+	pthread_scoped_lock hslk(m_hs_mutex);
+	attach_new_servers(hslk);
+	detach_fault_servers(hslk);
+
 	if(m_partner.connectable() && m_partner < addr()) {
 		LOG_INFO("replace delegate to ",m_partner);
-		try {
-			// delegate replace
-			shared_zone life(new msgpack::zone());
-			// FIXME protocol::type::HashSpace has HashSpace::Seed:
-			//       not so good efficiency
-			HashSpace::Seed* seed = life->allocate<HashSpace::Seed>(m_whs);
-			protocol::type::ReplaceElection arg(*seed, m_clock.get_incr());
-			get_node(m_partner)->call(
-					protocol::ReplaceElection, arg, life,
-					BIND_RESPONSE(ResReplaceElection), 10);
-		} catch (...) {
-			LOG_ERROR("replace delegate procedure failed");
-			start_replace();
-		}
+	
+		// delegate replace
+		shared_zone life(new msgpack::zone());
+
+		HashSpace::Seed* seed = life->allocate<HashSpace::Seed>(m_whs);
+		hslk.unlock();
+
+		protocol::type::ReplaceElection arg(*seed, m_clock.get_incr());
+		get_node(m_partner)->call(  // FIXME exception
+				protocol::ReplaceElection, arg, life,
+				BIND_RESPONSE(ResReplaceElection), 10);
 	} else {
 		LOG_INFO("replace self elected");
-		start_replace();
+		start_replace(hslk);
 	}
 }
 
@@ -96,7 +104,8 @@ RPC_REPLY(ResReplaceElection, from, res, err, life)
 {
 	if(!err.is_nil() || res.is_nil()) {
 		LOG_INFO("replace delegate failed, elected");
-		start_replace();
+		pthread_scoped_lock hslk(m_hs_mutex);
+		start_replace(hslk);
 	} else {
 		// do nothing
 	}
@@ -104,12 +113,16 @@ RPC_REPLY(ResReplaceElection, from, res, err, life)
 
 
 
-void Manager::attach_new_servers()
+void Manager::attach_new_servers(const pthread_scoped_lock& hslk)
 {
 	// update hash space
 	ClockTime ct = m_clock.now_incr();
 	LOG_INFO("update hash space at time(",ct.get(),")");
-	for(newcomer_servers_t::iterator it(m_newcomer_servers.begin()), it_end(m_newcomer_servers.end());
+
+	pthread_scoped_lock nslk(m_new_servers_mutex);
+	pthread_scoped_lock slk(m_servers_mutex);
+
+	for(new_servers_t::iterator it(m_new_servers.begin()), it_end(m_new_servers.end());
 			it != it_end; ++it) {
 		shared_node srv(it->lock());
 		if(srv) {
@@ -123,17 +136,23 @@ void Manager::attach_new_servers()
 			m_servers[srv->addr()] = *it;
 		}
 	}
-	m_newcomer_servers.clear();
-	sync_hash_space_partner();
+	m_new_servers.clear();
+
+	slk.unlock();
+	nslk.unlock();
+
+	sync_hash_space_partner(hslk);
 	//sync_hash_space_servers();
 	//push_hash_space_clients();
 }
 
-void Manager::detach_fault_servers()
+void Manager::detach_fault_servers(const pthread_scoped_lock& hslk)
 {
 	ClockTime ct = m_clock.now_incr();
+
 	m_whs.remove_fault_servers(ct);
-	sync_hash_space_partner();
+
+	sync_hash_space_partner(hslk);
 	//sync_hash_space_servers();
 	//push_hash_space_clients();
 }
@@ -170,31 +189,36 @@ void Manager::ReplaceContext::invalidate()
 }
 
 
-void Manager::start_replace()
+void Manager::start_replace(const pthread_scoped_lock& hslk)
 {
 	LOG_INFO("start replace copy");
+	pthread_scoped_lock relk(m_replace_mutex);
 
 	shared_zone life(new msgpack::zone());
+
 	HashSpace::Seed* seed = life->allocate<HashSpace::Seed>(m_whs);
-	// FIXME protocol::type::ReplaceCopyStart has HashSpace::Seed:
-	//       not so good efficiency
+	ClockTime ct(m_whs.clocktime());
+
 	protocol::type::ReplaceCopyStart arg(*seed, m_clock.get_incr());
 
 	using namespace mp::placeholders;
 	rpc::callback_t callback( BIND_RESPONSE(ResReplaceCopyStart) );
 
 	unsigned int num_active = 0;
+
+	pthread_scoped_lock slk(m_servers_mutex);
 	EACH_ACTIVE_SERVERS_BEGIN(n)
 		n->call(protocol::ReplaceCopyStart, arg, life, callback, 10);
 		++num_active;
 	EACH_ACTIVE_SERVERS_END
+	slk.unlock();
 
-	m_copying.reset(m_whs.clocktime(), num_active);
+	m_copying.reset(ct, num_active);
 	m_deleting.reset(0, 0);
 
 	// push hashspace to the clients
 	try {
-		push_hash_space_clients();
+		push_hash_space_clients(hslk);
 	} catch (std::runtime_error& e) {
 		LOG_ERROR("HashSpacePush failed: ",e.what());
 	} catch (...) {
@@ -218,6 +242,9 @@ try {
 
 	m_clock.update(param.clock());
 
+	pthread_scoped_lock hslk(m_hs_mutex);
+	ClockTime ct(m_whs.clocktime());
+
 	if(param.hsseed().empty() ||
 			ClockTime(param.hsseed().clocktime()) < m_whs.clocktime()) {
 		LOG_DEBUG("obsolete hashspace");
@@ -227,6 +254,7 @@ try {
 
 	if(m_whs.clocktime() < param.hsseed().clocktime()) {
 		LOG_INFO("double replace guard ",m_partner);
+
 	} else {
 		// election: smaller address has priority
 		if(m_partner < addr()) {
@@ -234,9 +262,10 @@ try {
 			response.null();
 		} else {
 			LOG_INFO("replace delegated from ",m_partner);
-			attach_new_servers();
-			detach_fault_servers();
-			start_replace();
+			attach_new_servers(hslk);
+			detach_fault_servers(hslk);
+			start_replace(hslk);
+			hslk.unlock();
 			response.result(true);
 		}
 	}
@@ -247,6 +276,8 @@ RPC_CATCH(ReplaceElection, response)
 
 CLUSTER_FUNC(ReplaceCopyEnd, from, response, life, param)
 try {
+	pthread_scoped_lock relk(m_replace_mutex);
+
 	m_clock.update(param.clock());
 
 	ClockTime ct(param.clocktime());
@@ -261,6 +292,8 @@ RPC_CATCH(ReplaceCopyEnd, response)
 
 CLUSTER_FUNC(ReplaceDeleteEnd, from, response, life, param)
 try {
+	pthread_scoped_lock relk(m_replace_mutex);
+
 	m_clock.update(param.clock());
 
 	ClockTime ct(param.clocktime());
@@ -275,6 +308,8 @@ RPC_CATCH(ReplaceDeleteEnd, response)
 
 void Manager::finish_replace_copy()
 {
+	// called from ReplaceDeleteEnd
+
 	// FIXME
 	ClockTime clocktime = m_copying.clocktime();
 	LOG_INFO("start replace delete time(",clocktime.get(),")");
@@ -290,14 +325,19 @@ void Manager::finish_replace_copy()
 	rpc::callback_t callback( BIND_RESPONSE(ResReplaceDeleteStart) );
 
 	unsigned int num_active = 0;
+
+	pthread_scoped_lock slk(m_servers_mutex);
 	EACH_ACTIVE_SERVERS_BEGIN(node)
 		node->call(protocol::ReplaceDeleteStart, arg, life, callback, 10);
 		++num_active;
 	EACH_ACTIVE_SERVERS_END
+	slk.unlock();
 
 	m_deleting.reset(clocktime, num_active);
 
+	pthread_scoped_lock hslk(m_hs_mutex);
 	m_rhs = m_whs;
+	hslk.unlock();
 }
 
 RPC_REPLY(ResReplaceDeleteStart, from, res, err, life)
@@ -308,6 +348,8 @@ RPC_REPLY(ResReplaceDeleteStart, from, res, err, life)
 
 inline void Manager::finish_replace()
 {
+	// called from ReplaceDeleteEnd
+
 	// FIXME
 	LOG_INFO("replace finished time(",m_deleting.clocktime().get(),")");
 	m_deleting.reset(0, 0);

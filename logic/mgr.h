@@ -49,11 +49,12 @@ private:
 	// mgr_rpc.cc
 	RPC_REPLY_DECL(ResKeepAlive, from, res, err, life);
 
-	void sync_hash_space_servers();
-	void sync_hash_space_partner();
-	RPC_REPLY_DECL(ResHashSpaceSync, from, res, err, life);
+#define REQUIRE_HSLK const pthread_scoped_lock& hslk
+	void sync_hash_space_servers(REQUIRE_HSLK);
+	void sync_hash_space_partner(REQUIRE_HSLK);
+	void push_hash_space_clients(REQUIRE_HSLK);
 
-	void push_hash_space_clients();
+	RPC_REPLY_DECL(ResHashSpaceSync, from, res, err, life);
 	RPC_REPLY_DECL(ResHashSpacePush, from, res, err, life);
 
 	// mgr_replace.cc
@@ -64,10 +65,10 @@ private:
 
 	RPC_REPLY_DECL(ResReplaceElection, from, res, err, life);
 
-	void attach_new_servers();
-	void detach_fault_servers();
+	void attach_new_servers(REQUIRE_HSLK);
+	void detach_fault_servers(REQUIRE_HSLK);
 
-	void start_replace();
+	void start_replace(REQUIRE_HSLK);
 	RPC_REPLY_DECL(ResReplaceCopyStart, from, res, err, life);
 	RPC_REPLY_DECL(ResReplaceDeleteStart, from, res, err, life);
 	void finish_replace_copy();
@@ -91,21 +92,22 @@ public:
 
 private:
 	Clock m_clock;
+
+	mp::pthread_mutex m_hs_mutex;
 	HashSpace m_rhs;
 	HashSpace m_whs;
 
-	typedef std::vector<weak_session> clients_t;
-	clients_t m_clients;
-
 	// 'joined servers' including both active and fault servers
+	mp::pthread_mutex m_servers_mutex;
 	typedef std::map<address, weak_node> servers_t;
 	servers_t m_servers;
 
 	// added but 'not joined servers'
-	typedef std::vector<weak_node> newcomer_servers_t;
-	newcomer_servers_t m_newcomer_servers;
+	mp::pthread_mutex m_new_servers_mutex;
+	typedef std::vector<weak_node> new_servers_t;
+	new_servers_t m_new_servers;
 
-	address m_partner;
+	const address m_partner;
 
 	class ReplaceContext {
 	public:
@@ -121,14 +123,15 @@ private:
 		ClockTime m_clocktime;
 	};
 
+	mp::pthread_mutex m_replace_mutex;
 	ReplaceContext m_copying;
 	ReplaceContext m_deleting;
 
 	bool m_cfg_auto_replace;
 
-	const uint32_t m_cfg_replace_delay_clocks;
+	const short m_cfg_replace_delay_clocks;
 
-	uint64_t m_delayed_replace_clock;
+	short m_delayed_replace_clock;
 	void delayed_replace_election();
 };
 
