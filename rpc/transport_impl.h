@@ -68,7 +68,7 @@ inline void basic_transport::send_data(
 		const char* buf, size_t buflen,
 		void (*finalize)(void*), void* data)
 {
-	wavy::request req = {finalize, data};
+	wavy::request req(finalize, data);
 	wavy::write(m_fd, buf, buflen, req);
 }
 
@@ -81,7 +81,7 @@ inline void basic_transport::send_datav(
 	struct iovec vec[sz];
 	buf->get_vector(vec);
 
-	wavy::request req = {finalize, data};
+	wavy::request req(finalize, data);
 	wavy::writev(m_fd, vec, sz, req);
 }
 

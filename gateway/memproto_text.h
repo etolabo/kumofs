@@ -11,7 +11,7 @@ public:
 	MemprotoText(int lsock);
 	~MemprotoText();
 
-	static void accepted(void* data, int fd);
+	static void accepted(Gateway* gw, int fd, int err);
 	void listen(Gateway* gw);
 
 private:

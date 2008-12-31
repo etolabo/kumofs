@@ -22,27 +22,25 @@ MemprotoText::MemprotoText(int lsock) :
 MemprotoText::~MemprotoText() {}
 
 
-void MemprotoText::accepted(void* data, int fd)
+void MemprotoText::accepted(Gateway* gw, int fd, int err)
 {
-	Gateway* gw = reinterpret_cast<Gateway*>(data);
 	if(fd < 0) {
-		LOG_FATAL("accept failed: ",strerror(-fd));
+		LOG_FATAL("accept failed: ",strerror(err));
 		gw->signal_end(SIGTERM);
 		return;
 	}
-	mp::set_nonblock(fd);
-	mp::iothreads::add<Connection>(fd, gw);
+	wavy::add<Connection>(fd, gw);
 }
 
 void MemprotoText::listen(Gateway* gw)
 {
-	mp::iothreads::listen(m_lsock,
-			&MemprotoText::accepted,
-			reinterpret_cast<void*>(gw));
+	using namespace mp::placeholders;
+	wavy::listen(m_lsock,
+			mp::bind(&MemprotoText::accepted, gw, _1, _2));
 }
 
 
-class MemprotoText::Connection : public iothreads::handler {
+class MemprotoText::Connection : public wavy::handler {
 public:
 	Connection(int fd, Gateway* gw);
 	~Connection();
@@ -86,15 +84,6 @@ private:
 	typedef rpc::shared_zone shared_zone;
 
 
-	struct LifeKeeper {
-		LifeKeeper(shared_zone& z) : m(z) { }
-		~LifeKeeper() { }
-	private:
-		shared_zone m;
-		LifeKeeper();
-	};
-
-
 	struct Responder {
 		Responder(int fd, SharedValid& valid) :
 			m_fd(fd), m_valid(valid) { }
@@ -105,8 +94,8 @@ private:
 		int fd() const { return m_fd; }
 
 	protected:
-		void send_data(const char* buf, size_t buflen);
-		void send_datav(struct iovec* vb, size_t count, shared_zone& life);
+		inline void send_data(const char* buf, size_t buflen);
+		inline void send_datav(struct iovec* vb, size_t count, shared_zone& life);
 
 	private:
 		int m_fd;
@@ -160,7 +149,7 @@ private:
 
 
 MemprotoText::Connection::Connection(int fd, Gateway* gw) :
-	mp::iothreads::handler(fd),
+	mp::wavy::handler(fd),
 	m_buffer(NULL),
 	m_free(0),
 	m_used(0),
@@ -285,20 +274,24 @@ char* MemprotoText::Connection::alloc_responder_buf(shared_zone& z, size_t size,
 void MemprotoText::Connection::Responder::send_data(
 		const char* buf, size_t buflen)
 {
-	mp::iothreads::send_data(m_fd, buf, buflen);
+	wavy::write(m_fd, buf, buflen);
 }
+
+namespace {
+	struct LifeKeeper {
+		LifeKeeper(shared_zone& z) : m(z) { }
+		~LifeKeeper() { }
+	private:
+		shared_zone m;
+		LifeKeeper();
+	};
+}  // noname namespace
 
 void MemprotoText::Connection::Responder::send_datav(
 		struct iovec* vb, size_t count, shared_zone& life)
 {
-	mp::iothreads::writer::reqvec vr[count];
-	for(size_t i=0; i < count-1; ++i) {
-		vr[i] = mp::iothreads::writer::reqvec();
-	}
-	vr[count-1] = mp::iothreads::writer::reqvec(
-			&mp::iothreads::writer::finalize_delete<LifeKeeper>,
-			new LifeKeeper(life), true);
-	mp::iothreads::send_datav(m_fd, vb, vr, count);
+	wavy::request req(&mp::object_delete<LifeKeeper>, new LifeKeeper(life));
+	wavy::writev(m_fd, vb, count, req);
 }
 
 
@@ -366,7 +359,7 @@ int MemprotoText::Connection::memproto_set(
 	LOG_TRACE("set");
 
 	if(flags || exptime) {
-		send_data(NOT_SUPPORTED_REPLY, strlen(NOT_SUPPORTED_REPLY));
+		wavy::write(fd(), NOT_SUPPORTED_REPLY, strlen(NOT_SUPPORTED_REPLY));
 		return 0;
 	}
 
@@ -402,7 +395,7 @@ int MemprotoText::Connection::memproto_delete(
 	LOG_TRACE("delete");
 
 	if(time) {
-		send_data(NOT_SUPPORTED_REPLY, strlen(NOT_SUPPORTED_REPLY));
+		wavy::write(fd(), NOT_SUPPORTED_REPLY, strlen(NOT_SUPPORTED_REPLY));
 		return 0;
 	}
 

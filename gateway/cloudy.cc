@@ -21,27 +21,25 @@ Cloudy::Cloudy(int lsock) :
 Cloudy::~Cloudy() {}
 
 
-void Cloudy::accepted(void* data, int fd)
+void Cloudy::accepted(Gateway* gw, int fd, int err)
 {
-	Gateway* gw = reinterpret_cast<Gateway*>(data);
 	if(fd < 0) {
-		LOG_FATAL("accept failed: ",strerror(-fd));
+		LOG_FATAL("accept failed: ",strerror(err));
 		gw->signal_end(SIGTERM);
 		return;
 	}
-	mp::set_nonblock(fd);
-	mp::iothreads::add<Connection>(fd, gw);
+	wavy::add<Connection>(fd, gw);
 }
 
 void Cloudy::listen(Gateway* gw)
 {
-	mp::iothreads::listen(m_lsock,
-			&Cloudy::accepted,
-			reinterpret_cast<void*>(gw));
+	using namespace mp::placeholders;
+	wavy::listen(m_lsock,
+			mp::bind(&Cloudy::accepted, gw, _1, _2));
 }
 
 
-class Cloudy::Connection : public iothreads::handler {
+class Cloudy::Connection : public wavy::handler {
 public:
 	Connection(int fd, Gateway* gw);
 	~Connection();
@@ -199,15 +197,6 @@ private:
 	SharedQueue m_queue;
 
 
-	struct LifeKeeper {
-		LifeKeeper(shared_zone& z) : m(z) { }
-		~LifeKeeper() { }
-	private:
-		shared_zone m;
-		LifeKeeper();
-	};
-
-
 	struct Responder {
 		Responder(memproto_header* h, int fd, SharedQueue& queue) :
 			m_fd(fd), m_h(h), m_queue(queue) { }
@@ -231,8 +220,8 @@ private:
 				uint64_t cas);
 
 	private:
-		void send_data(const char* buf, size_t buflen);
-		void send_datav(struct iovec* vb, size_t count, shared_zone& life);
+		inline void send_data(const char* buf, size_t buflen);
+		inline void send_datav(struct iovec* vb, size_t count, shared_zone& life);
 
 		static void pack_header(char* hbuf, uint16_t status, uint8_t op,
 				uint16_t keylen, uint32_t vallen, uint8_t extralen,
@@ -279,7 +268,7 @@ private:
 };
 
 Cloudy::Connection::Connection(int fd, Gateway* gw) :
-	mp::iothreads::handler(fd),
+	mp::wavy::handler(fd),
 	m_gw(gw),
 	m_zone(new msgpack::zone()),
 	m_queue(new Queue())
@@ -581,20 +570,24 @@ inline void Cloudy::Connection::Responder::send_response(
 void Cloudy::Connection::Responder::send_data(
 		const char* buf, size_t buflen)
 {
-	mp::iothreads::send_data(m_fd, buf, buflen);
+	wavy::write(m_fd, buf, buflen);
 }
+
+namespace {
+	struct LifeKeeper {
+		LifeKeeper(shared_zone& z) : m(z) { }
+		~LifeKeeper() { }
+	private:
+		shared_zone m;
+		LifeKeeper();
+	};
+}  // noname namespace
 
 void Cloudy::Connection::Responder::send_datav(
 		struct iovec* vb, size_t count, shared_zone& life)
 {
-	mp::iothreads::writer::reqvec vr[count];
-	for(size_t i=0; i < count-1; ++i) {
-		vr[i] = mp::iothreads::writer::reqvec();
-	}
-	vr[count-1] = mp::iothreads::writer::reqvec(
-			&mp::iothreads::writer::finalize_delete<LifeKeeper>,
-			new LifeKeeper(life), true);
-	mp::iothreads::send_datav(m_fd, vb, vr, count);
+	wavy::request req(&mp::object_delete<LifeKeeper>, new LifeKeeper(life));
+	wavy::writev(m_fd, vb, count, req);
 }
 
 

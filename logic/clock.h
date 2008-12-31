@@ -21,19 +21,28 @@ public:
 
 	uint32_t get_incr()
 	{
-		return m++;
+		//return m++;
+		return __sync_fetch_and_add(&m, 1);
 	}
 
 	void update(uint32_t o)
 	{
-		if(clock_less(m, o)) {
-			m = o;
+		while(true) {
+			uint32_t x = m;
+			if(!clock_less(x, o)) { return; }
+			if(__sync_bool_compare_and_swap(&m, &x, &o)) {
+					return;
+			}
 		}
+		//if(clock_less(m, o)) {
+		//	m = o;
+		//}
 	}
 
 	void increment()
 	{
-		++m;
+		//++m;
+		__sync_add_and_fetch(&m, 1);
 	}
 
 	bool operator< (const Clock& o) const
@@ -55,7 +64,7 @@ private:
 	friend class ClockTime;
 
 private:
-	uint32_t m;
+	volatile uint32_t m;
 };
 
 
@@ -114,7 +123,7 @@ private:
 
 inline ClockTime Clock::now_incr()
 {
-	return ClockTime(m++, time(NULL));
+	return ClockTime(get_incr(), time(NULL));
 }
 
 
