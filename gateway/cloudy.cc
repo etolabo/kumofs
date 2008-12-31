@@ -1,5 +1,7 @@
 #include "gateway/cloudy.h"
 #include "memproto/memproto.h"
+#include <mp/object_callback.h>
+#include <mp/message_buffer.h>
 #include <stdexcept>
 #include <string.h>
 #include <errno.h>
@@ -53,7 +55,7 @@ private:
 
 	// set
 	inline void memproto_set(memproto_header* h, const char* key, uint16_t keylen,
-			const char* val, uint16_t vallen,
+			const char* val, uint32_t vallen,
 			uint32_t flags, uint32_t expiration);
 
 	// delete
@@ -62,6 +64,8 @@ private:
 
 private:
 	memproto_parser m_memproto;
+	mp::message_buffer m_buffer;
+
 	Gateway* m_gw;
 
 	typedef Gateway::get_request get_request;
@@ -75,114 +79,6 @@ private:
 	typedef rpc::shared_zone shared_zone;
 
 	shared_zone m_zone;
-
-	struct buffer_t {
-		struct counter {
-			counter(size_t sz)
-			{
-				ptr = (char*)::malloc(sz);
-				if(!ptr) { throw std::bad_alloc(); }
-			}
-			counter(char* p) : ptr(p) { }
-			~counter()
-			{
-				::free(ptr);
-			}
-			void realloc(size_t sz)
-			{
-				void* tmp = ::realloc(ptr, sz);
-				if(!tmp) { throw std::bad_alloc(); }
-				ptr = (char*)tmp;
-			}
-			char* ptr;
-		};
-		typedef mp::shared_ptr<counter> shared_counter;
-
-		struct counter_keeper {
-			counter_keeper(shared_counter c) : m(c) { }
-			counter_keeper() { }
-			~counter_keeper() { }
-		private:
-			shared_counter m;
-		};
-
-		buffer_t() :
-			m_counter(new counter(CLOUDY_INITIAL_ALLOCATION_SIZE)),
-			m_used(0),
-			m_free(CLOUDY_INITIAL_ALLOCATION_SIZE),
-			m_off(0),
-			m_lot(0) { }
-
-		~buffer_t() { }
-
-		void reserve()
-		{
-			if(m_free >= CLOUDY_RESERVE_SIZE) { return; }
-			if(m_lot == 0) {
-				size_t nsize = (m_used + m_free)*2;
-				while(nsize < CLOUDY_RESERVE_SIZE) { nsize *= 2; }
-				m_counter->realloc(nsize);
-				m_free = nsize - m_used;
-
-			} else {
-				size_t nused = m_used - m_off;
-				size_t nsize = std::max(CLOUDY_INITIAL_ALLOCATION_SIZE, nused);
-				void* p = malloc(nsize);
-				if(!p) { throw std::bad_alloc(); }
-				memcpy(p, m_counter->ptr + m_off, nused);
-				m_counter.reset(new counter(CLOUDY_INITIAL_ALLOCATION_SIZE));
-				m_lot = 0;
-				m_off = 0;
-				m_used = nused;
-				m_free = nsize - nused;
-			}
-		}
-
-		void consumed(size_t len)
-		{
-			m_used += len;
-			m_free -= len;
-		}
-
-		char* used_last()
-		{
-			return m_counter->ptr + m_used;
-		}
-
-		char* offset_first()
-		{
-			return m_counter->ptr;
-		}
-
-		size_t* offset_ptr()
-		{
-			return &m_off;
-		}
-
-		shared_counter incr_lot()
-		{
-			++m_lot;
-			return m_counter;
-		}
-
-		size_t unused_size() const
-		{
-			return m_free;
-		}
-
-		size_t used_size() const
-		{
-			return m_used;
-		}
-
-	private:
-		shared_counter m_counter;
-		size_t m_used;
-		size_t m_free;
-		size_t m_off;
-		size_t m_lot;
-	};
-	buffer_t m_buffer;
 
 	struct Queue {
 		Queue() : m_valid(true) { }
@@ -199,7 +95,7 @@ private:
 
 	struct Responder {
 		Responder(memproto_header* h, int fd, SharedQueue& queue) :
-			m_fd(fd), m_h(h), m_queue(queue) { }
+			m_fd(fd), m_h(*h), m_queue(queue) { }
 		~Responder() { }
 
 		bool is_valid() const { return m_queue->is_valid(); }
@@ -208,7 +104,6 @@ private:
 
 	protected:
 		void send_response_nodata(
-				shared_zone& life,
 				uint8_t status, uint64_t cas);
 
 		void send_response(
@@ -220,16 +115,14 @@ private:
 				uint64_t cas);
 
 	private:
-		inline void send_data(const char* buf, size_t buflen);
-		inline void send_datav(struct iovec* vb, size_t count, shared_zone& life);
-
-		static void pack_header(char* hbuf, uint16_t status, uint8_t op,
+		static inline void pack_header(
+				char* hbuf, uint16_t status, uint8_t op,
 				uint16_t keylen, uint32_t vallen, uint8_t extralen,
 				uint32_t opaque, uint64_t cas);
 
 	private:
 		int m_fd;
-		memproto_header* m_h;
+		memproto_header m_h;
 		SharedQueue m_queue;
 	};
 
@@ -269,6 +162,7 @@ private:
 
 Cloudy::Connection::Connection(int fd, Gateway* gw) :
 	mp::wavy::handler(fd),
+	m_buffer(CLOUDY_INITIAL_ALLOCATION_SIZE),
 	m_gw(gw),
 	m_zone(new msgpack::zone()),
 	m_queue(new Queue())
@@ -280,10 +174,10 @@ Cloudy::Connection::Connection(int fd, Gateway* gw) :
 
 	void (*cmd_set)(void*, memproto_header*,
 			const char*, uint16_t,
-			const char*, uint16_t,
+			const char*, uint32_t,
 			uint32_t, uint32_t) = &mp::object_callback<void (memproto_header*,
 				const char*, uint16_t,
-				const char*, uint16_t,
+				const char*, uint32_t,
 				uint32_t, uint32_t)>
 				::mem_fun<Connection, &Connection::memproto_set>;
 
@@ -293,10 +187,6 @@ Cloudy::Connection::Connection(int fd, Gateway* gw) :
 				const char*, uint16_t,
 				uint32_t)>
 				::mem_fun<Connection, &Connection::memproto_delete>;
-
-	//void (*cmd_noop)(void*, memproto_header*) =
-	//		&mp::object_callback<void (memproto_header*)>
-	//			::mem_fun<Connection, &Connection::memproto_noop>;
 
 	memproto_callback cb = {
 		cmd_getx,    // get
@@ -309,7 +199,7 @@ Cloudy::Connection::Connection(int fd, Gateway* gw) :
 		NULL,        // quit
 		NULL,        // flush
 		cmd_getx,    // getq
-		NULL,//cmd_noop,    // noop
+		NULL,        // noop
 		NULL,        // version
 		cmd_getx,    // getk
 		cmd_getx,    // getkq
@@ -328,9 +218,9 @@ Cloudy::Connection::~Connection()
 
 void Cloudy::Connection::read_event()
 try {
-	m_buffer.reserve();
+	m_buffer.reserve_buffer(CLOUDY_RESERVE_SIZE);
 
-	ssize_t rl = ::read(fd(), m_buffer.used_last(), m_buffer.unused_size());
+	size_t rl = ::read(fd(), m_buffer.buffer(), m_buffer.buffer_capacity());
 	if(rl < 0) {
 		if(errno == EAGAIN || errno == EINTR) {
 			return;
@@ -338,22 +228,34 @@ try {
 			throw std::runtime_error("read error");
 		}
 	} else if(rl == 0) {
+		LOG_DEBUG("connection closed: ",strerror(errno));
 		throw std::runtime_error("connection closed");
 	}
 
-	int ret;
-	while( (ret = memproto_parser_execute(&m_memproto, m_buffer.offset_first(), m_buffer.used_size(), m_buffer.offset_ptr())) > 0) {
-		m_zone->allocate<buffer_t::counter_keeper>(m_buffer.incr_lot());
-		if( (ret = memproto_dispatch(&m_memproto)) <= 0) {
-			LOG_WARN("unknown command ",(-ret));
+	m_buffer.buffer_consumed(rl);
+
+	do {
+		size_t off = 0;
+		int ret = memproto_parser_execute(&m_memproto,
+				(char*)m_buffer.data(), m_buffer.data_size(), &off);
+		if(ret == 0) { break; }
+		if(ret < 0) {
+			//std::cout << "parse error " << ret << std::endl;
+			throw std::runtime_error("parse error");
+		}
+		m_buffer.data_used(off);
+
+		m_zone->push_finalizer(&mp::object_delete<mp::message_buffer::reference>,
+				m_buffer.release());
+		ret = memproto_dispatch(&m_memproto);
+		if(ret <= 0) {
+			LOG_DEBUG("unknown command ",(uint16_t)-ret);
 			throw std::runtime_error("unknown command");
 		}
 		m_zone.reset(new msgpack::zone());
-	}
+	} while(m_buffer.data_size() > 0);
 
-	if(ret < 0) { throw std::runtime_error("parse error"); }
-
-} catch (std::runtime_error& e) {
+} catch (std::exception& e) {
 	LOG_DEBUG("memcached binary protocol error: ",e.what());
 	throw;
 } catch (...) {
@@ -386,7 +288,7 @@ void Cloudy::Connection::memproto_getx(memproto_header* h, const char* key, uint
 }
 
 void Cloudy::Connection::memproto_set(memproto_header* h, const char* key, uint16_t keylen,
-		const char* val, uint16_t vallen,
+		const char* val, uint32_t vallen,
 		uint32_t flags, uint32_t expiration)
 {
 	LOG_TRACE("set");
@@ -448,16 +350,14 @@ void Cloudy::Connection::ResGet::response(get_response& res)
 		// error
 		if(m_req_quiet) { return; }
 		LOG_TRACE("getx res err");
-		send_response_nodata(res.life,
-				MEMPROTO_RES_INVALID_ARGUMENTS, 0);
+		send_response_nodata(MEMPROTO_RES_INVALID_ARGUMENTS, 0);
 		return;
 	}
 
 	if(!res.val) {
 		// not found
 		if(m_req_quiet) { return; }
-		send_response_nodata(res.life,
-				MEMPROTO_RES_KEY_NOT_FOUND, 0);
+		send_response_nodata(MEMPROTO_RES_KEY_NOT_FOUND, 0);
 		return;
 	}
 
@@ -476,12 +376,12 @@ void Cloudy::Connection::ResSet::response(set_response& res)
 
 	if(res.error) {
 		// error
-		send_response_nodata(res.life, MEMPROTO_RES_OUT_OF_MEMORY, 0);
+		send_response_nodata(MEMPROTO_RES_OUT_OF_MEMORY, 0);
 		return;
 	}
 
 	// stored
-	send_response_nodata(res.life, MEMPROTO_RES_NO_ERROR, 0);
+	send_response_nodata(MEMPROTO_RES_NO_ERROR, 0);
 }
 
 void Cloudy::Connection::ResDelete::response(delete_response& res)
@@ -491,19 +391,20 @@ void Cloudy::Connection::ResDelete::response(delete_response& res)
 
 	if(res.error) {
 		// error
-		send_response_nodata(res.life, MEMPROTO_RES_INVALID_ARGUMENTS, 0);
+		send_response_nodata(MEMPROTO_RES_INVALID_ARGUMENTS, 0);
 		return;
 	}
 
 	if(res.deleted) {
-		send_response_nodata(res.life, MEMPROTO_RES_NO_ERROR, 0);
+		send_response_nodata(MEMPROTO_RES_NO_ERROR, 0);
 	} else {
-		send_response_nodata(res.life, MEMPROTO_RES_OUT_OF_MEMORY, 0);
+		send_response_nodata(MEMPROTO_RES_OUT_OF_MEMORY, 0);
 	}
 }
 
 
-void Cloudy::Connection::Responder::pack_header(char* hbuf, uint16_t status, uint8_t op,
+void Cloudy::Connection::Responder::pack_header(
+		char* hbuf, uint16_t status, uint8_t op,
 		uint16_t keylen, uint32_t vallen, uint8_t extralen,
 		uint32_t opaque, uint64_t cas)
 {
@@ -520,14 +421,15 @@ void Cloudy::Connection::Responder::pack_header(char* hbuf, uint16_t status, uin
 }
 
 void Cloudy::Connection::Responder::send_response_nodata(
-		shared_zone& life,
 		uint8_t status, uint64_t cas)
 {
-	char header[24];
-	pack_header(header, status, m_h->opcode,
+	char* header = (char*)::malloc(MEMPROTO_HEADER_SIZE);
+	if(!header) { throw std::bad_alloc(); }
+	pack_header(header, status, m_h.opcode,
 			0, 0, 0,
-			m_h->opaque, cas);
-	send_data(header, 24);
+			m_h.opaque, cas);
+	wavy::request req(&::free, header);
+	wavy::write(m_fd, header, MEMPROTO_HEADER_SIZE, req);
 }
 
 inline void Cloudy::Connection::Responder::send_response(
@@ -539,9 +441,9 @@ inline void Cloudy::Connection::Responder::send_response(
 		uint64_t cas)
 {
 	char* header = (char*)life->malloc(24);
-	pack_header(header, status, m_h->opcode,
+	pack_header(header, status, m_h.opcode,
 			keylen, vallen, extralen,
-			m_h->opaque, cas);
+			m_h.opaque, cas);
 
 	struct iovec vb[4];
 
@@ -567,33 +469,10 @@ inline void Cloudy::Connection::Responder::send_response(
 		++cnt;
 	}
 
-	send_datav(vb, cnt, life);
-}
-
-void Cloudy::Connection::Responder::send_data(
-		const char* buf, size_t buflen)
-{
-	wavy::write(m_fd, buf, buflen);
-}
-
-namespace {
-	struct LifeKeeper {
-		LifeKeeper(shared_zone& z) : m(z) { }
-		~LifeKeeper() { }
-	private:
-		shared_zone m;
-		LifeKeeper();
-	};
-}  // noname namespace
-
-void Cloudy::Connection::Responder::send_datav(
-		struct iovec* vb, size_t count, shared_zone& life)
-{
-	wavy::request req(&mp::object_delete<LifeKeeper>, new LifeKeeper(life));
-	wavy::writev(m_fd, vb, count, req);
+	wavy::request req(&mp::object_delete<shared_zone>, new shared_zone(life));
+	wavy::writev(m_fd, vb, cnt, req);
 }
 
 
 }  // namespace kumo
-
 

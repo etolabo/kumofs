@@ -36,11 +36,14 @@ struct arg_t : rpc_server_args {
 		manager1 = rpc::address(manager1_in);
 		manager2 = rpc::address(manager2_in);
 		//if(!memproto_text_set && !cloudy_set) {
-			//throw std::runtime_error("memproto text or cloudy must be set");
+		//	throw std::runtime_error("memproto text or cloudy must be set");
 		//}
 		//if(memproto_text_set) {
-			memproto_text_lsock = scoped_listen_tcp::listen(memproto_text_addr_in);
+		//	memproto_text_lsock = scoped_listen_tcp::listen(memproto_text_addr_in);
 		//}
+		if(!cloudy_set) {
+			memproto_text_lsock = scoped_listen_tcp::listen(memproto_text_addr_in);
+		}
 		if(cloudy_set) {
 			cloudy_lsock = scoped_listen_tcp::listen(cloudy_addr_in);
 		}
@@ -111,16 +114,16 @@ int main(int argc, char* argv[])
 		mlogger::reset(new mlogger_tty(loglevel, std::cout));
 	}
 
-	// initialize memcache text protocol gateway
+	// initialize memcache gateway
 	std::auto_ptr<MemprotoText> mpt;
-	//if(arg.memproto_text_set) {
-		mpt.reset(new MemprotoText(arg.memproto_text_lsock));
-	//}
-
-	// initialize cloudy gateway
 	std::auto_ptr<Cloudy> cl;
+	//if(arg.memproto_text_set) {
+	//	mpt.reset(new MemprotoText(arg.memproto_text_lsock));
+	//}
 	if(arg.cloudy_set) {
 		cl.reset(new Cloudy(arg.cloudy_lsock));
+	} else {
+		mpt.reset(new MemprotoText(arg.memproto_text_lsock));
 	}
 
 	// daemonize
@@ -131,10 +134,12 @@ int main(int argc, char* argv[])
 	// run server
 	Gateway::initialize(arg);
 	//if(arg.memproto_text_set) {
-		Gateway::instance().add_gateway(mpt.get());
+	//	Gateway::instance().add_gateway(mpt.get());
 	//}
 	if(arg.cloudy_set) {
 		Gateway::instance().add_gateway(cl.get());
+	} else {
+		Gateway::instance().add_gateway(mpt.get());
 	}
 	Gateway::instance().run();
 	Gateway::instance().join();

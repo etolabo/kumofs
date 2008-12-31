@@ -79,23 +79,26 @@ typedef struct memproto_header_ {
 } memproto_header;
 
 
+#define MEMPROTO_HEADER_SIZE 24
+
+
 typedef struct memproto_callback_ {
 	void (*cb_get      )(void* user, memproto_header* h,
 			const char* key, uint16_t keylen);
 
 	void (*cb_set      )(void* user, memproto_header* h,
 			const char* key, uint16_t keylen,
-			const char* val, uint16_t vallen,
+			const char* val, uint32_t vallen,
 			uint32_t flags, uint32_t expiration);
 
 	void (*cb_add      )(void* user, memproto_header* h,
 			const char* key, uint16_t keylen,
-			const char* val, uint16_t vallen,
+			const char* val, uint32_t vallen,
 			uint32_t flags, uint32_t expiration);
 
 	void (*cb_replace  )(void* user, memproto_header* h,
 			const char* key, uint16_t keylen,
-			const char* val, uint16_t vallen,
+			const char* val, uint32_t vallen,
 			uint32_t flags, uint32_t expiration);
 
 	void (*cb_delete   )(void* user, memproto_header* h,

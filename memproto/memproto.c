@@ -71,8 +71,6 @@ static inline uint64_t memproto_be64h(uint64_t x) {
 #define MEMPROTO_EXTRA_20_INITIAL(extra)     memproto_be64h(*((uint64_t*)&extra[8]))
 #define MEMPROTO_EXTRA_20_EXPIRATION(extra)  memproto_be64h(*((uint32_t*)&extra[16]))
 
-#define MEMPROTO_HEADER_SIZE 24
-
 
 void memproto_parser_init(memproto_parser* ctx, memproto_callback* cb, void* user)
 {
@@ -195,7 +193,7 @@ int memproto_dispatch(memproto_parser* ctx)
 		/*if(vallen   == 0) { return MEMPROTO_INVALID_ARGUMENT; }*/
 		MEMPROTO_CALLBACK(cb, void*, memproto_header*,
 				const char*, uint16_t,
-				const char*, uint16_t,
+				const char*, uint32_t,
 				uint32_t, uint32_t)(ctx->user, &h,
 					key, keylen,
 					val, vallen,
@@ -233,7 +231,7 @@ int memproto_dispatch(memproto_parser* ctx)
 		/*if(vallen   == 0) { return MEMPROTO_INVALID_ARGUMENT; }*/
 		MEMPROTO_CALLBACK(cb, void*, memproto_header*,
 				const char*, uint16_t,
-				const char*, uint16_t)(ctx->user, &h,
+				const char*, uint32_t)(ctx->user, &h,
 					key, keylen,
 					val, vallen);
 		return 1;

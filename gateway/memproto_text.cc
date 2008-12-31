@@ -240,7 +240,7 @@ try {
 		m_off = 0;
 	}
 
-} catch (std::runtime_error& e) {
+} catch (std::exception& e) {
 	LOG_DEBUG("memcached text protocol error: ",e.what());
 	throw;
 } catch (...) {

@@ -120,14 +120,16 @@ try {
 	for(unsigned short i=0; i < *copy_required; ++i) {
 		retry->call(repto[i], life, 10);
 	}
+
 #ifdef KUMO_SET_ASYNC
 	*copy_required = 0;
-#endif
-
+	response.result( msgpack::type::tuple<uint64_t>(ct.get()) );
+#else
 	LOG_DEBUG("set copy required: ", *copy_required);
 	if(*copy_required == 0) {
 		response.result( msgpack::type::tuple<uint64_t>(ct.get()) );
 	}
+#endif
 }
 RPC_CATCH(Set, response)
 
@@ -182,13 +184,16 @@ try {
 	for(unsigned short i=0; i < *copy_required; ++i) {
 		retry->call(repto[i], life, 10);
 	}
+
 #ifdef KUMO_DELETE_ASYNC
 	*copy_required = 0;
-#endif
-
+	response.result(true);
+#else
+	LOG_DEBUG("delete copy required: ", *copy_required);
 	if(*copy_required == 0) {
 		response.result(true);
 	}
+#endif
 }
 RPC_CATCH(Delete, response)
 
