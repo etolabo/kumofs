@@ -134,9 +134,12 @@ private:
 
 private:
 	Clock m_clock;
+
+	mp::pthread_rwlock m_hs_rwlock;
 	HashSpace m_hs;
-	address m_manager1;
-	address m_manager2;
+
+	const address m_manager1;
+	const address m_manager2;
 
 	unsigned short m_error_count;
 	void incr_error_count();

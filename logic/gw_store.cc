@@ -15,6 +15,8 @@ Gateway::shared_session Gateway::server_for(const char* key, uint32_t keylen, un
 #endif
 	assert(offset == 0 || offset == 1 || offset == 2);
 
+	pthread_scoped_rdlock lk(m_hs_rwlock);
+
 	if(m_hs.empty()) {
 		renew_hash_space();  // FIXME may burst
 		throw std::runtime_error("No server");
@@ -26,26 +28,26 @@ Gateway::shared_session Gateway::server_for(const char* key, uint32_t keylen, un
 		if(offset == 0) {
 			if(it->is_active()) { goto node_found; }
 		} else { --offset; }
-
+	
 		HashSpace::iterator origin(it);
 		++it;
 		for(; it != origin; ++it) {
 			if(*it == *origin) { continue; }
-
+	
 			if(offset == 0) {
 				if(it->is_active()) { goto node_found; }
 			} else { --offset; }
-
+	
 			HashSpace::node rep1 = *it;
 			++it;
 			for(; it != origin; ++it) {
 				if(*it == *origin || *it == rep1) { continue; }
 				HashSpace::node _rep2_ = *it;
-
+	
 				if(offset == 0) {
 					if(it->is_active()) { goto node_found; }
 				} else { --offset; }
-
+	
 				break;
 			}
 			break;
@@ -53,7 +55,9 @@ Gateway::shared_session Gateway::server_for(const char* key, uint32_t keylen, un
 	}
 
 node_found:
-	return get_server(it->addr());
+	address addr = it->addr();
+	lk.unlock();
+	return get_server(addr);
 }
 
 

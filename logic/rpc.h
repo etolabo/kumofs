@@ -20,6 +20,10 @@ using rpc::weak_responder;
 using rpc::basic_shared_session;
 using rpc::shared_peer;
 
+using mp::pthread_scoped_lock;
+using mp::pthread_scoped_rdlock;
+using mp::pthread_scoped_wrlock;
+
 namespace iothreads {
 	using namespace mp::iothreads;
 }

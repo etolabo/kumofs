@@ -45,7 +45,7 @@ void cluster_transport::send_init()
 			get_server()->m_self_id);
 	msgpack::pack(buf, param);
 
-	wavy::request req = {&::free, buf.data()};
+	wavy::request req(&::free, buf.data());
 	wavy::write(fd(), (char*)buf.data(), buf.size(), req);
 	buf.release();
 	LOG_TRACE("sent init message");
