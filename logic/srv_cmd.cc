@@ -39,7 +39,7 @@ struct arg_t : rpc_cluster_args {
 		replicate_delete_retry_num(20),
 		replace_propose_retry_num(20),
 		replace_push_retry_num(20),
-		replace_pool_size(64)
+		replace_pool_size(8)
 	{
 		using namespace kazuhiki;
 		set_basic_args();
@@ -71,7 +71,7 @@ std::cout <<
 "  -p  <addr[:port="<<MANAGER_DEFAULT_PORT<<"]>   "       "--manager2       address of manager 2\n"
 "  -S  <number="<<replicate_set_retry_num<<">   "         "--replicate-set-retry    replicate set retry limit\n"
 "  -D  <number="<<replicate_delete_retry_num<<">   "      "--replicate-delete-retry replicate delete retry limit\n"
-"  -L  <number="<<replace_pool_size<<">   "               "--replace-pool           gather replace requests up to N mega bytes\n"
+"  -L  <number="<<replace_pool_size<<">    "              "--replace-pool           gather replace requests up to N mega bytes\n"
 ;
 rpc_cluster_args::show_usage();
 	}

@@ -213,6 +213,7 @@ void Manager::start_replace(REQUIRE_HSLK)
 	EACH_ACTIVE_SERVERS_END
 	sslk.unlock();
 
+	LOG_INFO("active node: ",num_active);
 	m_copying.reset(ct, num_active);
 	m_deleting.reset(0, 0);
 	relk.unlock();

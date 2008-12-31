@@ -110,6 +110,7 @@ void Server::replace_copy(const address& manager_addr, HashSpace& hs)
 	{
 		pthread_scoped_lock relk(m_replacing_mutex);
 		m_replacing.reset(manager_addr, replace_time);
+		m_replacing.pushed(replace_time);  // replace_copy
 	}
 
 	LOG_INFO("start replace copy for time(",replace_time.get(),")");
@@ -257,12 +258,22 @@ void Server::replace_copy(const address& manager_addr, HashSpace& hs)
 
 		} else {
 			// push directly
+#if 0
+			char* nbuf = (char*)push_life->malloc(raw_keylen + raw_vallen);
+			memcpy(nbuf, raw_key, raw_keylen);
+			memcpy(nbuf+raw_keylen, raw_val, raw_vallen);
+
+			protocol::type::ReplacePushElement e(
+					nbuf, raw_keylen,
+					nbuf+raw_keylen, raw_vallen);
+#else
 			kv.release_key(*push_life);
 			kv.release_val(*push_life);
 
 			protocol::type::ReplacePushElement e(
 					raw_key, raw_keylen,
 					raw_val, raw_vallen);
+#endif
 			POOL_REQUEST(push_pool_t, push_pool, e);
 			pool_size += (raw_keylen + raw_vallen + 64) * newbies.size();  // FIXME 64
 			pool_num  += newbies.size() * 2;
@@ -293,6 +304,7 @@ void Server::replace_copy(const address& manager_addr, HashSpace& hs)
 
 skip_replace:
 	pthread_scoped_lock relk(m_replacing_mutex);
+	m_replacing.push_returned(replace_time);  // replace_copy
 	if(m_replacing.is_finished(replace_time)) {
 		finish_replace_copy(replace_time, relk);
 	}
@@ -306,10 +318,10 @@ try {
 
 	retry->set_callback( BIND_RESPONSE(ResReplacePropose, retry, replace_time) );
 
-	retry->call(get_node(node), life, 10);
-
 	pthread_scoped_lock relk(m_replacing_mutex);
 	m_replacing.proposed(replace_time);
+
+	retry->call(get_node(node), life, 10);
 
 } catch (std::exception& e) {
 	LOG_WARN("replace propose failed: ",e.what());
@@ -323,10 +335,10 @@ try {
 
 	retry->set_callback( BIND_RESPONSE(ResReplacePush, retry, replace_time) );
 
-	retry->call(get_node(node), life, 10);
-
 	pthread_scoped_lock relk(m_replacing_mutex);
 	m_replacing.pushed(replace_time);
+
+	retry->call(get_node(node), life, 10);
 
 } catch (std::exception& e) {
 	LOG_WARN("replace push failed: ",e.what());
@@ -335,25 +347,25 @@ try {
 
 CLUSTER_FUNC(ReplacePropose, from, response, z, param)
 try {
-	pthread_scoped_rdlock whlk(m_whs_mutex);
-
-	if(m_whs.empty()) {
-		//throw std::runtime_error("server not ready");
-		// don't send response if server not ready.
-		// this makes sender be timeout and it will retry
-		// after several seconds.
-		return;
-	}
-
-// FIXME ReplacePropose may go ahead of ReplaceCopyStart
-//       This node may have old hash space while proposer have new one
-//	if(!test_replicator_assign(m_whs, key.hash(), addr())) {
-//		// ignore obsolete hash space error
-//		response.null();
+//	pthread_scoped_rdlock whlk(m_whs_mutex);
+//
+//	if(m_whs.empty()) {
+//		//throw std::runtime_error("server not ready");
+//		// don't send response if server not ready.
+//		// this makes sender be timeout and it will retry
+//		// after several seconds.
 //		return;
 //	}
-
-	whlk.unlock();
+//
+//	// FIXME ReplacePropose may go ahead of ReplaceCopyStart
+//	//       This node may have old hash space while proposer have new one
+//	//if(!test_replicator_assign(m_whs, key.hash(), addr())) {
+//	//	// ignore obsolete hash space error
+//	//	response.null();
+//	//	return;
+//	//}
+//
+//	whlk.unlock();
 
 	protocol::type::ReplacePropose::request request;
 	pthread_scoped_rdlock dblk(m_db.mutex());
@@ -385,25 +397,27 @@ RPC_CATCH(ReplacePropose, response)
 
 CLUSTER_FUNC(ReplacePush, from, response, z, param)
 try {
-	pthread_scoped_rdlock whlk(m_whs_mutex);
+//	pthread_scoped_rdlock whlk(m_whs_mutex);
+//
+//	if(m_whs.empty()) {
+//		//throw std::runtime_error("server not ready");
+//		// don't send response if server is not ready.
+//		// this makes sender timeout and it will retry
+//		// after several seconds. see Server::ResReplacePropose.
+//		return;
+//	}
+//
+//	// Note: ReplacePush may go ahead of ReplaceCopyStart
+//	//       This node may have old hash space while proposer have new one
+//	//if(!test_replicator_assign(m_whs, key.hash(), addr())) {
+//	//	// ignore obsolete hash space error
+//	//	response.null();
+//	//	return;
+//	//}
+//
+//	whlk.unlock();
 
-	if(m_whs.empty()) {
-		//throw std::runtime_error("server not ready");
-		// don't send response if server is not ready.
-		// this makes sender timeout and it will retry
-		// after several seconds. see Server::ResReplacePropose.
-		return;
-	}
-
-	// Note: ReplacePush may go ahead of ReplaceCopyStart
-	//       This node may have old hash space while proposer have new one
-	//if(!test_replicator_assign(m_whs, key.hash(), addr())) {
-	//	// ignore obsolete hash space error
-	//	response.null();
-	//	return;
-	//}
-
-	whlk.unlock();
+	response.result(true);  // FIXME
 
 	pthread_scoped_wrlock dblk(m_db.mutex());
 
@@ -428,8 +442,6 @@ try {
 	}
 
 	dblk.unlock();
-
-	response.result(true);
 }
 RPC_CATCH(ReplacePush, response)
 
@@ -508,7 +520,6 @@ RPC_REPLY(ResReplacePropose, from, res, err, life,
 skip_push:
 	pthread_scoped_lock relk(m_replacing_mutex);
 	m_replacing.propose_returned(replace_time);
-
 	if(m_replacing.is_finished(replace_time)) {
 		finish_replace_copy(replace_time, relk);
 	}
@@ -531,19 +542,17 @@ RPC_REPLY(ResReplacePush, from, res, err, life,
 	}
 
 	pthread_scoped_lock relk(m_replacing_mutex);
-
 	m_replacing.push_returned(replace_time);
-
 	if(m_replacing.is_finished(replace_time)) {
 		finish_replace_copy(replace_time, relk);
 	}
 }
 
 
-
-
 void Server::finish_replace_copy(ClockTime replace_time, REQUIRE_RELK)
 {
+	LOG_INFO("finish replace copy for time(",replace_time.get(),")");
+
 	shared_zone nullz;
 	protocol::type::ReplaceCopyEnd arg(replace_time.get(), m_clock.get_incr());
 
@@ -551,7 +560,7 @@ void Server::finish_replace_copy(ClockTime replace_time, REQUIRE_RELK)
 	//{
 	//	pthread_scoped_lock relk(m_replacing_mutex);
 		addr = m_replacing.mgr_addr();
-	//	m_replacing.invalidate();
+		m_replacing.invalidate();
 	//}
 
 	using namespace mp::placeholders;

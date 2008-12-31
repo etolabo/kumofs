@@ -110,8 +110,8 @@ void basic_session::call(
 	} else {
 		lk.unlock();
 		// ad-hoc load balancing
-		m_binds[m_msgid_rr % m_binds.size()]->send_datav(
-				buf.get(), &mp::object_delete<vrefbuffer>, buf.get());
+		m_binds[m_msgid_rr % m_binds.size()]->send_datav(buf.get(),
+				&mp::object_delete<vrefbuffer>, buf.get());
 		buf.release();
 	}
 }
@@ -145,8 +145,8 @@ void session::call(
 	} else {
 		lk.unlock();
 		// ad-hoc load balancing
-		m_binds[m_msgid_rr % m_binds.size()]->send_datav(
-				buf.get(), &mp::object_delete<vrefbuffer>, buf.get());
+		m_binds[m_msgid_rr % m_binds.size()]->send_datav(buf.get(),
+				&mp::object_delete<vrefbuffer>, buf.get());
 		buf.release();
 	}
 }
