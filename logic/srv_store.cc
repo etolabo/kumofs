@@ -41,7 +41,9 @@ void Server::check_coordinator_assign(HashSpace& hs, uint64_t h)
 RPC_FUNC(Get, from, response, z, param)
 try {
 	protocol::type::DBKey key(param.dbkey());
-	LOG_DEBUG("Get '",std::string(key.data(),key.size()),"'");
+	LOG_DEBUG("Get '",
+			std::string(key.data(),key.size()),"' with hash ",
+			key.hash());
 
 	{
 		pthread_scoped_rdlock rhlk(m_rhs_mutex);
@@ -76,7 +78,7 @@ try {
 	LOG_DEBUG("Set '",
 			std::string(key.data(),key.size()),"' => '",
 			std::string(val.data(),val.size()),"' with hash ",
-			key().hash(),", with meta ",val.meta());
+			key.hash(),", with meta ",val.meta());
 
 	pthread_scoped_rdlock whlk(m_whs_mutex);
 	check_coordinator_assign(m_whs, key.hash());
@@ -135,7 +137,7 @@ try {
 	protocol::type::DBKey key(param.dbkey());
 	LOG_DEBUG("Delete '",
 			std::string(key.data(),key.size()),"' with hash",
-			key().hash());
+			key.hash());
 
 	pthread_scoped_rdlock whlk(m_whs_mutex);
 	check_coordinator_assign(m_whs, key.hash());

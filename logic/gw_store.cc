@@ -105,7 +105,6 @@ void Gateway::Set(void (*callback)(void*, set_response&), void* user,
 		const char* key, uint32_t keylen, uint64_t hash,
 		const char* val, uint32_t vallen)
 try {
-	uint64_t hash = HashSpace::hash(key, keylen);
 	uint64_t meta = 0;
 	RetrySet* retry = life->allocate<RetrySet>(
 			protocol::type::Set(

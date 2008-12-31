@@ -316,8 +316,8 @@ int MemprotoText::Connection::memproto_get(
 		get_request req;
 		req.keylen = keylen;
 		req.key = alloc_responder_buf(req.life, keylen, &ctx);
-		req.hash = Gateway::stdhash(req.key, req.keylen);
 		memcpy((void*)req.key, key, keylen);
+		req.hash = Gateway::stdhash(req.key, req.keylen);
 		req.callback = &mp::object_callback<void (get_response&)>
 			::mem_fun<ResGet, &ResGet::response>;
 		req.user = (void*)ctx;
@@ -370,8 +370,8 @@ int MemprotoText::Connection::memproto_set(
 	char* zp = alloc_responder_buf(req.life, key_len + data_len, &ctx);
 	req.keylen = key_len;
 	req.key = zp;
-	req.hash = Gateway::stdhash(req.key, req.keylen);
 	memcpy((void*)req.key, key, key_len);
+	req.hash = Gateway::stdhash(req.key, req.keylen);
 	req.vallen = data_len;
 	req.val = zp + key_len;
 	memcpy((void*)req.val, data, data_len);
@@ -406,8 +406,8 @@ int MemprotoText::Connection::memproto_delete(
 	delete_request req;
 	req.keylen = key_len;
 	req.key = alloc_responder_buf(req.life, key_len, &ctx);
-	req.hash = Gateway::stdhash(req.key, req.keylen);
 	memcpy((void*)req.key, key, key_len);
+	req.hash = Gateway::stdhash(req.key, req.keylen);
 
 	if(noreply) {
 		req.callback = &mp::object_callback<void (delete_response&)>
