@@ -89,17 +89,12 @@ bool session::bind_transport(basic_transport* t)
 		pendings.swap(m_pending_queue);
 	}
 
-	try {
-		for(pending_queue_t::iterator it(pendings.begin()),
-				it_end(pendings.end()); it != it_end; ++it) {
-			t->send_datav(*it, NULL, NULL);
-		}
-
-	} catch (...) {
-		clear_pending_queue(pendings);
-		throw;
+	for(pending_queue_t::iterator it(pendings.begin()),
+			it_end(pendings.end()); it != it_end; ++it) {
+		t->send_datav(*it,
+			&mp::object_delete<vrefbuffer>, *it);
 	}
-	clear_pending_queue(pendings);
+	pendings.clear();
 
 	return ret;
 }
