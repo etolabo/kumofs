@@ -103,10 +103,11 @@ protected:
 	template <typename Config>
 	void init_wavy(Config& cfg)
 	{
-		// initialize wavy
-		m_core_threads = cfg.rthreads;
-		m_output_threads = cfg.wthreads;
-		wavy::initialize(0,0,2,2);  // FIXME
+		// ignore SIGPIPE
+		if( signal(SIGPIPE, SIG_IGN) == SIG_ERR ) {
+			perror("signal");
+			throw mp::system_error(errno, "signal");
+		}
 	
 		// initialize signal handler before starting threads
 		sigset_t ss;
@@ -118,12 +119,12 @@ protected:
 		s_pth.reset( new mp::pthread_signal(ss,
 					get_signal_end(),
 					reinterpret_cast<void*>(this)) );
+
+		// initialize wavy
+		m_core_threads = cfg.rthreads;
+		m_output_threads = cfg.wthreads;
+		wavy::initialize(0,0,2,2);  // FIXME
 	
-		// ignore SIGPIPE
-		if( signal(SIGPIPE, SIG_IGN) == SIG_ERR ) {
-			perror("signal");
-			throw mp::system_error(errno, "signal");
-		}
 	}
 
 	virtual void end_preprocess() { }

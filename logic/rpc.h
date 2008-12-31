@@ -48,7 +48,7 @@ public:
 protected:
 	void start_timeout_step(unsigned long interval)
 	{
-		struct timespec ts = {interval / 1000, interval % 1000 * 1000};
+		struct timespec ts = {interval / 1000000, interval % 1000000 * 1000};
 		wavy::timer(&ts, mp::bind(&Logic::step_timeout,
 					static_cast<Logic*>(this)));
 		LOG_TRACE("start timeout stepping interval = ",interval," usec");
@@ -56,7 +56,7 @@ protected:
 
 	void start_keepalive(unsigned long interval)
 	{
-		struct timespec ts = {interval / 1000, interval % 1000 * 1000};
+		struct timespec ts = {interval / 1000000, interval % 1000000 * 1000};
 		wavy::timer(&ts, mp::bind(&Logic::keep_alive,
 					static_cast<Logic*>(this)));
 		LOG_TRACE("start keepalive interval = ",interval," usec");
