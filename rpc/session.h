@@ -111,9 +111,11 @@ private:
 	public:
 		void callback(basic_shared_session& s, msgobj res, msgobj err, auto_zone& z);
 		void callback(basic_shared_session& s, msgobj res, msgobj err);
-		inline void callback_submit(basic_shared_session& s,
-				msgobj res, msgobj err);
+		inline void callback_submit(basic_shared_session& s, msgobj res, msgobj err);
 		inline bool step_timeout();  // Note: NOT thread-safe
+	private:
+		inline void callback_real(basic_shared_session& s,
+				msgobj res, msgobj err, shared_zone z);
 	private:
 		unsigned short m_timeout_steps;
 		callback_t m_callback;

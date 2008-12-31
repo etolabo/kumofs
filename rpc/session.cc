@@ -151,28 +151,43 @@ basic_session::callback_entry::callback_entry(
 	m_callback(callback),
 	m_life(life) { }
 
+namespace {
+struct shared_zone_keeper {
+	shared_zone_keeper(shared_zone& z) : m(z) {}
+	shared_zone m;
+};
+}  // noname namespace
+
 void basic_session::callback_entry::callback(basic_shared_session& s,
 		msgobj res, msgobj err, auto_zone& z)
 {
-	m_life->push_finalizer(&mp::object_delete<msgpack::zone>, z.get());
-	z.release();
-	callback(s, res, err);
+	// msgpack::zone::push_finalizer is not thread-safe
+	//m_life->push_finalizer(&mp::object_delete<msgpack::zone>, z.release());
+	shared_zone life(z.release());
+	if(m_life) { life->allocate<shared_zone_keeper>(m_life); }
+	callback_real(s, res, err, life);
 }
 
 void basic_session::callback_entry::callback(basic_shared_session& s,
 		msgobj res, msgobj err)
-try {
-	m_callback(s, res, err, m_life);
-} catch (std::exception& e) {
-	LOG_ERROR("response callback error: ",e.what());
-} catch (...) {
-	LOG_ERROR("response callback error: unknown error");
+{
+	callback_real(s, res, err, m_life);
 }
 
 void basic_session::callback_entry::callback_submit(
 		basic_shared_session& s, msgobj res, msgobj err)
 {
 	wavy::submit(m_callback, s, res, err, m_life);
+}
+
+void basic_session::callback_entry::callback_real(basic_shared_session& s,
+		msgobj res, msgobj err, shared_zone life)
+try {
+	m_callback(s, res, err, life);
+} catch (std::exception& e) {
+	LOG_ERROR("response callback error: ",e.what());
+} catch (...) {
+	LOG_ERROR("response callback error: unknown error");
 }
 
 void basic_session::step_timeout(basic_shared_session self)
