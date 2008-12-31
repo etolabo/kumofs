@@ -38,7 +38,7 @@ int scoped_listen_tcp::listen(const rpc::address& addr)
 		throw std::runtime_error("bind failed");
 	}
 
-	if( ::listen(lsock, 8) < 0 ) {
+	if( ::listen(lsock, 1024) < 0 ) {
 		::close(lsock);
 		throw std::runtime_error("listen failed");
 	}

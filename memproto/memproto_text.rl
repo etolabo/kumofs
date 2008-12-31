@@ -232,6 +232,7 @@ enum {
 	storage = storage_command ' ' key
 				' ' flags ' ' exptime ' ' bytes
 				(' ' noreply)?
+				' '*  # XXX workaraound for apr_memcache
 				'\r\n'
 				@data_start
 				'\r\n'

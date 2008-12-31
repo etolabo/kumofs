@@ -62,6 +62,7 @@ void weak_responder::error(Error err, shared_zone& life)
 
 inline void weak_responder::null()
 {
+	LOG_TRACE("send response data with null id=",m_msgid);
 	msgpack::type::nil res;
 	msgpack::type::nil err;
 	call(res, err);

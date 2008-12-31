@@ -1,5 +1,8 @@
 #include "gateway/memproto_text.h"
 #include "memproto/memproto_text.h"
+#include <mp/pthread.h>
+#include <mp/message_buffer.h>
+#include <mp/object_callback.h>
 #include <stdexcept>
 #include <string.h>
 #include <errno.h>
@@ -12,7 +15,7 @@
 namespace kumo {
 
 
-static const size_t MEMPROTO_TEXT_INITIAL_ALLOCATION_SIZE = 2048;
+static const size_t MEMPROTO_TEXT_INITIAL_ALLOCATION_SIZE = 16*1024;
 static const size_t MEMPROTO_TEXT_RESERVE_SIZE = 1024;
 
 
@@ -64,10 +67,7 @@ private:
 
 private:
 	memproto_text m_memproto;
-	char* m_buffer;
-	size_t m_free;
-	size_t m_used;
-	size_t m_off;
+	mp::message_buffer m_buffer;
 	Gateway* m_gw;
 
 	typedef mp::shared_ptr<bool> SharedValid;
@@ -110,12 +110,12 @@ private:
 	};
 
 	struct ResMultiGet : Responder {
-		ResMultiGet(int fd, SharedValid& valid) :
-			Responder(fd, valid) { }
+		ResMultiGet(int fd, SharedValid& valid, size_t count) :
+			Responder(fd, valid), m_count(count) { }
 		~ResMultiGet() { }
-		void set_count(size_t c) { m_count = c; }
 		void response(get_response& res);
 	private:
+		mp::pthread_mutex m_mutex;
 		size_t m_count;
 	};
 
@@ -150,10 +150,7 @@ private:
 
 MemprotoText::Connection::Connection(int fd, Gateway* gw) :
 	mp::wavy::handler(fd),
-	m_buffer(NULL),
-	m_free(0),
-	m_used(0),
-	m_off(0),
+	m_buffer(MEMPROTO_TEXT_INITIAL_ALLOCATION_SIZE),
 	m_gw(gw),
 	m_valid(new bool(true))
 {
@@ -192,23 +189,14 @@ MemprotoText::Connection::Connection(int fd, Gateway* gw) :
 MemprotoText::Connection::~Connection()
 {
 	*m_valid = false;
-	::free(m_buffer);
 }
 
 
 void MemprotoText::Connection::read_event()
 try {
-	if(m_free < MEMPROTO_TEXT_RESERVE_SIZE) {
-		size_t nsize;
-		if(m_buffer == NULL) { nsize = MEMPROTO_TEXT_INITIAL_ALLOCATION_SIZE; }
-		else { nsize = (m_free + m_used) * 2; }
-		char* tmp = (char*)::realloc(m_buffer, nsize);
-		if(!tmp) { throw std::bad_alloc(); }
-		m_buffer = tmp;
-		m_free = nsize - m_used;
-	}
+	m_buffer.reserve_buffer(MEMPROTO_TEXT_RESERVE_SIZE);
 
-	ssize_t rl = ::read(fd(), m_buffer+m_used, m_free);
+	ssize_t rl = ::read(fd(), m_buffer.buffer(), m_buffer.buffer_capacity());
 	if(rl < 0) {
 		if(errno == EAGAIN || errno == EINTR) {
 			return;
@@ -219,26 +207,20 @@ try {
 		throw std::runtime_error("connection closed");
 	}
 
-	m_used += rl;
-	m_free -= rl;
+	m_buffer.buffer_consumed(rl);
 
-	int ret = memproto_text_execute(&m_memproto, m_buffer, m_used, &m_off);
-
-	if(ret < 0) {  // parse failed
-		throw std::runtime_error("parse error");
-
-	} else if(ret == 0) {  // continue
-		return;
-
-	} else {  // parse finished
-		if(m_off == m_used) {
-			m_free += m_used;
-			m_used = 0;
-		} else {
-			::memmove(m_buffer, m_buffer+m_off, m_used-m_off);
+	do {
+		size_t off = 0;
+		int ret = memproto_text_execute(&m_memproto,
+				(char*)m_buffer.data(), m_buffer.data_size(), &off);
+		if(ret < 0) {
+			throw std::runtime_error("parse error");
 		}
-		m_off = 0;
-	}
+
+		m_buffer.data_used(off);
+
+		if(ret == 0) { return; }
+	} while(m_buffer.data_size() > 0);
 
 } catch (std::exception& e) {
 	LOG_DEBUG("memcached text protocol error: ",e.what());
@@ -277,20 +259,10 @@ void MemprotoText::Connection::Responder::send_data(
 	wavy::write(m_fd, buf, buflen);
 }
 
-namespace {
-	struct LifeKeeper {
-		LifeKeeper(shared_zone& z) : m(z) { }
-		~LifeKeeper() { }
-	private:
-		shared_zone m;
-		LifeKeeper();
-	};
-}  // noname namespace
-
 void MemprotoText::Connection::Responder::send_datav(
 		struct iovec* vb, size_t count, shared_zone& life)
 {
-	wavy::request req(&mp::object_delete<LifeKeeper>, new LifeKeeper(life));
+	wavy::request req(&mp::object_delete<shared_zone>, new shared_zone(life));
 	wavy::writev(m_fd, vb, count, req);
 }
 
@@ -302,25 +274,30 @@ static const char* const STORE_FAILED_REPLY  = "SERVER_ERROR store failed\r\n";
 static const char* const DELETE_FAILED_REPLY = "SERVER_ERROR delete failed\r\n";
 }  // noname namespace
 
+#define RELEASE_REFERENCE(life) \
+	shared_zone life(new msgpack::zone()); \
+	life->push_finalizer(&mp::object_delete<mp::message_buffer::reference>, \
+				m_buffer.release());
 
 int MemprotoText::Connection::memproto_get(
 		const char** keys, unsigned* key_lens, unsigned key_num)
 {
 	LOG_TRACE("get");
+	RELEASE_REFERENCE(life);
 
 	if(key_num == 1) {
 		const char* key = keys[0];
 		unsigned keylen = key_lens[0];
 
-		ResGet* ctx;
+		ResGet* ctx = life->allocate<ResGet>(fd(), m_valid);
 		get_request req;
+		req.key = key;
 		req.keylen = keylen;
-		req.key = alloc_responder_buf(req.life, keylen, &ctx);
-		memcpy((void*)req.key, key, keylen);
 		req.hash = Gateway::stdhash(req.key, req.keylen);
 		req.callback = &mp::object_callback<void (get_response&)>
 			::mem_fun<ResGet, &ResGet::response>;
 		req.user = (void*)ctx;
+		req.life = life;
 
 		m_gw->submit(req);
 
@@ -330,21 +307,19 @@ int MemprotoText::Connection::memproto_get(
 			keylen_sum += key_lens[i];
 		}
 
-		ResMultiGet* ctx;
+		ResMultiGet* ctx = life->allocate<ResMultiGet>(fd(), m_valid, key_num);
 		get_request req;
-		char* zp = alloc_responder_buf(req.life, keylen_sum, &ctx);
 		req.callback = &mp::object_callback<void (get_response&)>
 			::mem_fun<ResMultiGet, &ResMultiGet::response>;
 		req.user = (void*)ctx;
+		req.life = life;
 
-		ctx->set_count(key_num);
 		for(unsigned i=0; i < key_num; ++i) {
-			memcpy(zp, keys[i], key_lens[i]);
-			req.key = zp;
+			req.key = keys[i];
 			req.keylen = key_lens[i];
 			req.hash = Gateway::stdhash(req.key, req.keylen);
+			// FIXME shared zone. msgpack::allocate is not thread-safe.
 			m_gw->submit(req);
-			zp += key_lens[i];
 		}
 	}
 
@@ -359,22 +334,21 @@ int MemprotoText::Connection::memproto_set(
 		bool noreply)
 {
 	LOG_TRACE("set");
+	RELEASE_REFERENCE(life);
 
 	if(flags || exptime) {
 		wavy::write(fd(), NOT_SUPPORTED_REPLY, strlen(NOT_SUPPORTED_REPLY));
 		return 0;
 	}
 
-	ResSet* ctx;
+	ResSet* ctx = life->allocate<ResSet>(fd(), m_valid);
 	set_request req;
-	char* zp = alloc_responder_buf(req.life, key_len + data_len, &ctx);
+	req.key = key;
 	req.keylen = key_len;
-	req.key = zp;
-	memcpy((void*)req.key, key, key_len);
 	req.hash = Gateway::stdhash(req.key, req.keylen);
+	req.val = data;
 	req.vallen = data_len;
-	req.val = zp + key_len;
-	memcpy((void*)req.val, data, data_len);
+	req.life = life;
 
 	if(noreply) {
 		req.callback = &mp::object_callback<void (set_response&)>
@@ -396,18 +370,19 @@ int MemprotoText::Connection::memproto_delete(
 		uint64_t time, bool noreply)
 {
 	LOG_TRACE("delete");
+	RELEASE_REFERENCE(life);
 
 	if(time) {
 		wavy::write(fd(), NOT_SUPPORTED_REPLY, strlen(NOT_SUPPORTED_REPLY));
 		return 0;
 	}
 
-	ResDelete* ctx;
+	ResDelete* ctx = life->allocate<ResDelete>(fd(), m_valid);
 	delete_request req;
+	req.key = key;
 	req.keylen = key_len;
-	req.key = alloc_responder_buf(req.life, key_len, &ctx);
-	memcpy((void*)req.key, key, key_len);
 	req.hash = Gateway::stdhash(req.key, req.keylen);
+	req.life = life;
 
 	if(noreply) {
 		req.callback = &mp::object_callback<void (delete_response&)>
@@ -463,6 +438,7 @@ void MemprotoText::Connection::ResMultiGet::response(get_response& res)
 	if(!is_valid()) { return; }
 	LOG_TRACE("get multi response ",m_count);
 
+	mp::pthread_scoped_lock lk(m_mutex);
 	--m_count;
 
 	if(res.error || !res.val) {

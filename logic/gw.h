@@ -37,7 +37,6 @@ public:
 	};
 
 	struct basic_request {
-		basic_request() : life(new msgpack::zone()) { }
 		shared_zone life;
 	};
 

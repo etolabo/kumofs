@@ -159,7 +159,7 @@ void client<Transport, Session>::dispatch_request(
 template <typename Transport, typename Session>
 void client<Transport, Session>::step_timeout()
 {
-	LOG_TRACE("step timeout ");
+	LOG_TRACE("step timeout ...");
 
 	pthread_scoped_lock lk(m_sessions_mutex);
 	for(typename sessions_t::iterator it(m_sessions.begin()),
@@ -174,6 +174,8 @@ void client<Transport, Session>::step_timeout()
 			m_sessions.erase(it++);
 		}
 	}
+
+	LOG_TRACE("step timeout done");
 }
 
 

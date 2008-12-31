@@ -31,7 +31,7 @@ void basic_session::process_response(
 	pthread_scoped_lock lk(m_callbacks_mutex);
 
 	callbacks_t::iterator it(m_callbacks.find(msgid));
-	LOG_DEBUG("process callback this=",(void*)this," id=",msgid," found:",(it != m_callbacks.end())," result:",result," error:",error);
+	LOG_DEBUG("process callback ",m_callbacks.size()," this=",(void*)this," id=",msgid," found:",(it != m_callbacks.end())," result:",result," error:",error);
 	if(it == m_callbacks.end()) { return; }
 
 	callback_entry e = it->second;

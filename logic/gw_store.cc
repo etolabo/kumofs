@@ -87,6 +87,7 @@ void Gateway::Get(void (*callback)(void*, get_response&), void* user,
 		shared_zone life,
 		const char* key, uint32_t keylen, uint64_t hash)
 try {
+	if(!life) { life.reset(new msgpack::zone()); }
 	RetryGet* retry = life->allocate<RetryGet>(
 			protocol::type::Get(
 				protocol::type::DBKey(key, keylen, hash)
@@ -104,6 +105,7 @@ void Gateway::Set(void (*callback)(void*, set_response&), void* user,
 		const char* val, uint32_t vallen)
 try {
 	uint64_t meta = 0;
+	if(!life) { life.reset(new msgpack::zone()); }
 	RetrySet* retry = life->allocate<RetrySet>(
 			protocol::type::Set(
 				protocol::type::DBKey(key, keylen, hash),
@@ -120,6 +122,7 @@ void Gateway::Delete(void (*callback)(void*, delete_response&), void* user,
 		shared_zone life,
 		const char* key, uint32_t keylen, uint64_t hash)
 try {
+	if(!life) { life.reset(new msgpack::zone()); }
 	RetryDelete* retry = life->allocate<RetryDelete>(
 			protocol::type::Delete(
 				protocol::type::DBKey(key, keylen, hash)
