@@ -287,7 +287,7 @@ void Server::replace_copy(const address& manager_addr, HashSpace& hs)
 			POOL.clear();
 
 		// FIXME pool_num limit
-		if(pool_num > 1024 || pool_size/1024/1024 > m_cfg_replace_pool_size) {
+		if(pool_num > 10240 || pool_size/1024/1024 > m_cfg_replace_pool_size) {
 			FLUSH_POOL(send_replace_propose, propose_pool_t, propose_pool, propose_life);
 			FLUSH_POOL(send_replace_push, push_pool_t, push_pool, push_life);
 			propose_life.reset(new msgpack::zone());
@@ -426,12 +426,17 @@ try {
 		protocol::type::DBKey key(it->dbkey());
 		protocol::type::DBValue val(it->dbval());
 
-		uint64_t clocktime;
+		bool success = m_db.setkeep(
+				key.raw_data(), key.raw_size(),
+				val.raw_data(), val.raw_size());
+		if(success) { continue; }  // key is not stored
+
+		uint64_t clocktime = 0;
 		bool stored = DBFormat::get_clocktime(m_db,
 				key.raw_data(), key.raw_size(), &clocktime);
 	
 		if(!stored || ClockTime(clocktime) < ClockTime(val.clocktime())) {
-			// key is not stored OR stored key is old
+			// stored key is old
 			m_db.set(key.raw_data(), key.raw_size(),
 					 val.raw_data(), val.raw_size());
 	

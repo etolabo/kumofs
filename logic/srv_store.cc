@@ -267,12 +267,22 @@ try {
 	m_clock.update(param.clock());
 
 	pthread_scoped_wrlock dblk(m_db.mutex());
-	uint64_t clocktime;
+
+	bool success = m_db.setkeep(
+			key.raw_data(), key.raw_size(),
+			val.raw_data(), val.raw_size());
+	if(success) {
+		// key is not stored
+		response.result(true);
+		return;
+	}
+
+	uint64_t clocktime = 0;
 	bool stored = DBFormat::get_clocktime(m_db,
 			key.raw_data(), key.raw_size(), &clocktime);
 
 	if(!stored || ClockTime(clocktime) <= ClockTime(val.clocktime())) {
-		// key is not stored OR stored key is old
+		// stored key is old
 		m_db.set(key.raw_data(), key.raw_size(),
 				 val.raw_data(), val.raw_size());
 		dblk.unlock();

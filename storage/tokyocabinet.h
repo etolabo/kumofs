@@ -74,6 +74,12 @@ public:
 		}
 	}
 
+	bool setkeep(const char* key, uint32_t keylen,
+			const char* val, uint32_t vallen)
+	{
+		return tchdbputkeep(m_db, key, keylen, val, vallen);
+	}
+
 	// return true if deleted
 	bool del(const char* key, uint32_t keylen)
 	{
