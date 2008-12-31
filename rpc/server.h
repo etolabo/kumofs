@@ -23,15 +23,6 @@ typedef mp::weak_ptr<peer> weak_peer;
 
 class server : public session_manager, public transport_manager {
 public:
-	typedef std::auto_ptr<msgpack::zone> auto_zone;
-	typedef rpc::msgobj      msgobj;
-	typedef rpc::method_id   method_id;
-	typedef rpc::msgid_t     msgid_t;
-	typedef rpc::shared_zone shared_zone;
-	typedef rpc::shared_peer shared_peer;
-	typedef rpc::weak_peer   weak_peer;
-	typedef rpc::role_type   role_type;
-
 	typedef shared_peer shared_session;
 	typedef weak_peer weak_session;
 
@@ -40,7 +31,7 @@ public:
 	virtual ~server();
 
 	virtual void dispatch(
-			shared_peer& from, weak_responder response,
+			shared_peer from, weak_responder response,
 			method_id method, msgobj param, auto_zone z) = 0;
 
 public:

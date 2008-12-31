@@ -21,6 +21,7 @@ public:
 public:
 	client(unsigned int connect_timeout_msec,
 			unsigned short connect_retry_limit);
+
 	virtual ~client();
 
 	virtual void transport_lost(shared_session& s);
@@ -31,7 +32,7 @@ public:
 	}
 
 	virtual void dispatch(
-			shared_session& from, weak_responder response,
+			shared_session from, weak_responder response,
 			method_id method, msgobj param, auto_zone z) = 0;
 
 public:
@@ -70,21 +71,6 @@ private:
 	};
 
 	void connect_callback(address addr, shared_session s, int fd, int err);
-//	void connect_success(const address& addr, int fd);
-//	void connect_failed(const address& addr, int error);
-
-//	mp::pthread_mutex m_unbounds_mutex;
-//	typedef std::map<address, unbound_entry> unbounds_t;
-//	unbounds_t m_unbounds;
-
-private:
-	//struct connect_pack {
-		//connect_pack(client* srv, const address& addr);
-		//static void callback(void* data, int fd);
-	//private:
-		//client* m_srv;
-		//address m_addr;
-	//};
 
 protected:
 	unsigned int m_connect_timeout_msec;

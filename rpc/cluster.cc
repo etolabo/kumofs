@@ -60,8 +60,7 @@ cluster* cluster_transport::get_server(transport_manager* srv)
 
 
 node::node(session_manager* mgr) :
-	session(mgr),
-	m_role(-1) { }
+	session(mgr) { }
 
 node::~node() { }
 
@@ -88,7 +87,6 @@ void cluster_transport::init_state(msgobj msg, auto_zone z)
 	// cluster node
 	LOG_TRACE("receive init message: ",(uint16_t)init.role_id()," ",init.addr());
 
-	m_role = init.role_id();
 	if(!m_session) {
 		if(!init.addr().connectable()) {
 			throw std::runtime_error("invalid address");
@@ -100,8 +98,8 @@ void cluster_transport::init_state(msgobj msg, auto_zone z)
 
 	node* n = static_cast<node*>(m_session.get());
 	if(!n->is_role_set()) {
-		n->set_role(m_role);
-		get_server()->new_node(init.addr(), m_role,
+		n->set_role(init.role_id());
+		get_server()->new_node(init.addr(), init.role_id(),
 				mp::static_pointer_cast<node>(m_session));
 	}
 
@@ -115,8 +113,11 @@ void cluster_transport::subsys_state(msgobj msg, auto_zone z)
 
 	if(rpc.is_request()) {
 		rpc_request<msgobj> msgreq(rpc);
-		get_server()->subsystem_dispatch_request(m_session,
-				msgreq.method(), msgreq.param(), msgreq.msgid(), z);
+		weak_responder response(m_session, msgreq.msgid());
+		get_server()->subsystem_dispatch(
+				mp::static_pointer_cast<peer>(m_session),
+				response, msgreq.method(), msgreq.param(), z);
+
 	} else {
 		rpc_response<msgobj, msgobj> msgres(rpc);
 		basic_transport::process_response(
@@ -131,9 +132,10 @@ void cluster_transport::cluster_state(msgobj msg, auto_zone z)
 
 	if(rpc.is_request()) {
 		rpc_request<msgobj> msgreq(rpc);
-		get_server()->cluster_dispatch_request(
-				m_session, m_role,
-				msgreq.method(), msgreq.param(), msgreq.msgid(), z);
+		weak_responder response(m_session, msgreq.msgid());
+		get_server()->cluster_dispatch(
+				mp::static_pointer_cast<node>(m_session),
+				response, msgreq.method(), msgreq.param(), z);
 
 	} else {
 		rpc_response<msgobj, msgobj> msgres(rpc);
@@ -186,29 +188,6 @@ void cluster::transport_lost(shared_node& n)
 
 
 
-inline void cluster::cluster_dispatch_request(
-		basic_shared_session& s, role_type role,
-		method_id method, msgobj param,
-		msgid_t msgid, auto_zone& z)
-{
-	shared_zone life(z.release());
-	weak_responder response(s, msgid);
-	shared_node from = mp::static_pointer_cast<node>(s);
-	cluster_dispatch(from, role, response, method, param, life);
-}
-
-inline void cluster::subsystem_dispatch_request(
-		basic_shared_session& s,
-		method_id method, msgobj param,
-		msgid_t msgid, auto_zone& z)
-{
-	shared_zone life(z.release());
-	weak_responder response(s, msgid);
-	shared_peer from = mp::static_pointer_cast<peer>(s);
-	subsystem_dispatch(from, response, method, param, life);
-}
-
-
 cluster::subsys::subsys(cluster* srv) :
 	m_srv(srv) { }
 
@@ -230,14 +209,14 @@ basic_shared_session cluster::subsys::add_session()
 // transport<IMPL>::process_request won't be called.
 
 void cluster::dispatch(
-		shared_node& from, weak_responder response,
+		shared_node from, weak_responder response,
 		method_id method, msgobj param, auto_zone z)
 {
 	throw std::logic_error("cluster::dispatch called");
 }
 
 void cluster::subsys::dispatch(
-		shared_peer& from, weak_responder response,
+		shared_peer from, weak_responder response,
 		method_id method, msgobj param, auto_zone z)
 {
 	throw std::logic_error("cluster::subsys::dispatch called");

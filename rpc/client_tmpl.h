@@ -41,12 +41,14 @@ client<Transport, Session>::get_session_impl(const address& addr)
 	m_sessions.insert( typename sessions_t::value_type(
 				addr, weak_session(s)) );
 
+	lk.unlock();
+
 	if(!CONNECT) {
 		return s;
 	}
 
-	lk.unlock();
 	async_connect(addr, s);
+	return s;
 }
 
 
@@ -109,6 +111,7 @@ void client<Transport, Session>::connect_callback(
 		address addr, shared_session s, int fd, int err)
 {
 	if(fd >= 0) {
+		LOG_INFO("connect success ",addr," fd(",fd,")");
 		try {
 			wavy::add<Transport>(fd, s, this);
 		} catch (...) {
@@ -117,16 +120,14 @@ void client<Transport, Session>::connect_callback(
 		}
 	}
 
+	LOG_INFO("connect failed ",addr,": ",strerror(err));
 	if(s->connect_retried_count() > m_connect_retry_limit) {
 		connect_failed(s, addr, err);
 		return;
 	}
 
 	// retry connect
-	// FIXME: retry only when timed out?
-	char addrbuf[addr.addrlen()];
-	addr.getaddr((sockaddr*)&addrbuf);
-
+	// FIXME: retry only when err == ETIMEDOUT?
 	async_connect(addr, s);
 }
 
@@ -149,8 +150,8 @@ void client<Transport, Session>::dispatch_request(
 		basic_shared_session& s, weak_responder response,
 		method_id method, msgobj param, auto_zone z)
 {
-	shared_session from = mp::static_pointer_cast<Session>(s);
-	dispatch(from, response, method, param, z);
+	dispatch(mp::static_pointer_cast<Session>(s),
+			response, method, param, z);
 }
 
 

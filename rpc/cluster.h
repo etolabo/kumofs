@@ -85,19 +85,8 @@ class cluster : protected client<cluster_transport, node> {
 public:
 	typedef client<cluster_transport, node> client_t;
 
-	typedef rpc::msgobj      msgobj;
-	typedef rpc::method_id   method_id;
-	typedef rpc::msgid_t     msgid_t;
-	typedef rpc::shared_zone shared_zone;
-	typedef rpc::shared_node shared_node;
-	typedef rpc::weak_node   weak_node;
-	typedef rpc::role_type   role_type;
-
-	typedef rpc::shared_peer shared_peer;
-	typedef rpc::weak_peer   weak_peer;
-
-	typedef shared_peer shared_session;
-	typedef weak_peer weak_session;
+	typedef rpc::shared_peer shared_session;
+	typedef rpc::weak_peer   weak_session;
 
 	cluster(role_type self_id,
 			const address& self_addr,
@@ -114,12 +103,12 @@ public:
 
 
 	virtual void cluster_dispatch(
-			shared_node& from, role_type role, weak_responder response,
-			method_id method, msgobj param, shared_zone& life) = 0;
+			shared_node from, weak_responder response,
+			method_id method, msgobj param, auto_zone z) = 0;
 
 	virtual void subsystem_dispatch(
-			shared_peer& from, weak_responder response,
-			method_id method, msgobj param, shared_zone& life)
+			shared_peer from, weak_responder response,
+			method_id method, msgobj param, auto_zone z)
 	{
 		throw msgpack::type_error();
 	}
@@ -133,16 +122,6 @@ public:
 
 	// get/create RPC stub instance for the address.
 	shared_node get_node(const address& addr);
-
-	// apply function to all nodes whose id is role_id.
-	// F is required to implement
-	// void operator() (std::pair<address, shared_node>&);
-	template <typename F>
-	void for_each_node(role_type role_id, F f);
-
-	// add unmanaged connection
-	//template <typename Connection>
-	//Connection* add(int fd);
 
 	// return self address;
 	const address& addr() const;
@@ -161,18 +140,8 @@ private:
 
 private:
 	virtual void dispatch(
-			shared_node& from, weak_responder response,
+			shared_node from, weak_responder response,
 			method_id method, msgobj param, auto_zone z);
-
-	void cluster_dispatch_request(
-			basic_shared_session& s, role_type role,
-			method_id method, msgobj param,
-			msgid_t msgid, auto_zone& z);
-
-	void subsystem_dispatch_request(
-			basic_shared_session& s,
-			method_id method, msgobj param,
-			msgid_t msgid, auto_zone& z);
 
 private:
 	class subsys : public server {
@@ -182,7 +151,7 @@ private:
 
 	public:
 		void dispatch(
-				shared_peer& from, weak_responder response,
+				shared_peer from, weak_responder response,
 				method_id method, msgobj param, auto_zone z);
 
 		basic_shared_session add_session();

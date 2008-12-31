@@ -9,7 +9,7 @@ server::server() { }
 server::~server() { }
 
 
-server::shared_peer server::accepted(int fd)
+shared_peer server::accepted(int fd)
 {
 	basic_shared_session s(new peer(this));
 	wavy::add<transport>(fd, s, this);
@@ -25,8 +25,8 @@ void server::dispatch_request(
 		basic_shared_session& s, weak_responder response,
 		method_id method, msgobj param, auto_zone z)
 {
-	shared_peer from = mp::static_pointer_cast<peer>(s);
-	dispatch(from, response, method, param, z);
+	dispatch(mp::static_pointer_cast<peer>(s),
+			response, method, param, z);
 }
 
 
