@@ -50,26 +50,8 @@
 #define SET_MARK_LEN(DST, M, FPC) \
 		ctx->DST = MARK_LEN(M, FPC);
 
-/* this macro is magical. be careful. */
-#define CALLBACK(INDEX, TYPE) \
-	(((TYPE*)(&ctx->callback))[ctx->INDEX] == NULL) ? \
-	-1 : \
-	((TYPE*)(&ctx->callback))[ctx->INDEX]
-
-
-enum {
-	CMD_GET,
-
-	CMD_SET,
-	CMD_REPLACE,
-	CMD_APPEND,
-	CMD_PREPEND,
-
-	CMD_CAS,
-
-	CMD_DELETE,
-};
-
+#define CALLBACK(NAME, TYPE) \
+	TYPE NAME = ((TYPE*)(&ctx->callback))[ctx->command]
 
 %%{
 	machine memtext;
@@ -141,16 +123,16 @@ enum {
 	}
 
 
-	action cmd_get     { ctx->command = CMD_GET;     }
-
-	action cmd_set     { ctx->command = CMD_SET;     }
-	action cmd_replace { ctx->command = CMD_REPLACE; }
-	action cmd_append  { ctx->command = CMD_APPEND;  }
-	action cmd_prepend { ctx->command = CMD_PREPEND; }
-
-	action cmd_cas     { ctx->command = CMD_CAS;     }
-
-	action cmd_delete  { ctx->command = CMD_DELETE;  }
+	action cmd_get     { ctx->command = MEMTEXT_CMD_GET;     }
+	action cmd_set     { ctx->command = MEMTEXT_CMD_SET;     }
+	action cmd_add     { ctx->command = MEMTEXT_CMD_ADD;     }
+	action cmd_replace { ctx->command = MEMTEXT_CMD_REPLACE; }
+	action cmd_append  { ctx->command = MEMTEXT_CMD_APPEND;  }
+	action cmd_prepend { ctx->command = MEMTEXT_CMD_PREPEND; }
+	action cmd_cas     { ctx->command = MEMTEXT_CMD_CAS;     }
+	action cmd_delete  { ctx->command = MEMTEXT_CMD_DELETE;  }
+	action cmd_incr    { ctx->command = MEMTEXT_CMD_INCR;    }
+	action cmd_decr    { ctx->command = MEMTEXT_CMD_DECR;    }
 
 
 	action do_retrieval {
@@ -159,41 +141,76 @@ enum {
 		for(i=0; i < ctx->keys; ++i) {
 			ctx->key_pos[i] = (size_t)MARK_PTR(key_pos[i]);
 		}
-		if( CALLBACK(command, memtext_callback_retrieval)(
-				ctx->user,
-				(const char**)ctx->key_pos, ctx->key_len, ctx->keys
-				) < -1 ) { goto convert_error; }
+		CALLBACK(cb, memtext_callback_retrieval);
+		if(cb) {
+			memtext_request_retrieval req = {
+				(const char**)ctx->key_pos,
+				ctx->key_len,
+				ctx->keys
+			};
+			if((*cb)(ctx->user, ctx->command, &req) < 0) {
+				goto convert_error;
+			}
+		} else { goto convert_error; }
 	}
 
 	action do_storage {
-		if( CALLBACK(command, memtext_callback_storage)(
-				ctx->user,
+		CALLBACK(cb, memtext_callback_storage);
+		if(cb) {
+			memtext_request_storage req = {
 				MARK_PTR(key_pos[0]), ctx->key_len[0],
+				MARK_PTR(data_pos), ctx->data_len,
 				ctx->flags,
 				ctx->exptime,
-				MARK_PTR(data_pos), ctx->data_len,
 				ctx->noreply
-				) < -1 ) { goto convert_error; }
+			};
+			if((*cb)(ctx->user, ctx->command, &req) < 0) {
+				goto convert_error;
+			}
+		} else { goto convert_error; }
 	}
 
 	action do_cas {
-		if( CALLBACK(command, memtext_callback_cas)(
-				ctx->user,
+		CALLBACK(cb, memtext_callback_cas);
+		if(cb) {
+			memtext_request_cas req = {
 				MARK_PTR(key_pos[0]), ctx->key_len[0],
+				MARK_PTR(data_pos), ctx->data_len,
 				ctx->flags,
 				ctx->exptime,
-				MARK_PTR(data_pos), ctx->data_len,
 				ctx->cas_unique,
 				ctx->noreply
-				) < -1 ) { goto convert_error; }
+			};
+			if((*cb)(ctx->user, ctx->command, &req) < 0) {
+				goto convert_error;
+			}
+		} else { goto convert_error; }
 	}
 
 	action do_delete {
-		if( CALLBACK(command, memtext_callback_delete)(
-				ctx->user,
+		CALLBACK(cb, memtext_callback_delete);
+		if(cb) {
+			memtext_request_delete req = {
 				MARK_PTR(key_pos[0]), ctx->key_len[0],
 				ctx->exptime, ctx->noreply
-				) < -1 ) { goto convert_error; }
+			};
+			if((*cb)(ctx->user, ctx->command, &req) < 0) {
+				goto convert_error;
+			}
+		} else { goto convert_error; }
+	}
+
+	action do_numeric {
+		CALLBACK(cb, memtext_callback_numeric);
+		if(cb) {
+			memtext_request_numeric req = {
+				MARK_PTR(key_pos[0]), ctx->key_len[0],
+				ctx->cas_unique, ctx->noreply
+			};
+			if((*cb)(ctx->user, ctx->command, &req) < 0) {
+				goto convert_error;
+			}
+		} else { goto convert_error; }
 	}
 
 	key        = ([\!-\~]+)          >mark_key        %key;
@@ -207,6 +224,7 @@ enum {
 	retrieval_command = ('get' 's'?) @cmd_get;
 
 	storage_command = ('set'     ) @cmd_set
+					| ('add'     ) @cmd_add
 					| ('replace' ) @cmd_replace
 					| ('append'  ) @cmd_append
 					| ('prepend' ) @cmd_prepend
@@ -216,15 +234,18 @@ enum {
 
 	delete_command = ('delete') @cmd_delete;
 
+	numeric_command = ('incr') @cmd_incr
+					| ('decr') @cmd_decr
+					;
 
 	retrieval = retrieval_command ' ' key (' ' key >incr_key)*
-				' '?   # XXX workaraound for libmemcached
+				' '?   # workaraound for libmemcached
 				'\r\n';
 
 	storage = storage_command ' ' key
 				' ' flags ' ' exptime ' ' bytes
 				(' ' noreply)?
-				' '?   # XXX workaraound for apr_memcache
+				' '?   # workaraound for apr_memcache
 				'\r\n'
 				@data_start
 				'\r\n'
@@ -244,10 +265,17 @@ enum {
 				'\r\n'
 				;
 
+	numeric = numeric_command ' ' key
+				' ' cas_unique  # cas_unique => value
+				(' ' noreply)?
+				'\r\n'
+				;
+
 	command = retrieval @do_retrieval
 			| storage   @do_storage
 			| cas       @do_cas
 			| delete    @do_delete
+			| numeric   @do_numeric
 			;
 
 main := (command >reset)+;
@@ -294,7 +322,6 @@ int memtext_execute(memtext_parser* ctx, const char* data, size_t len, size_t* o
 	%% write exec;
 
 ret:
-
 	ctx->cs = cs;
 	ctx->top = top;
 	*off = p - data;
@@ -311,5 +338,4 @@ convert_error:
 	cs = memtext_error;
 	goto ret;
 }
-
 

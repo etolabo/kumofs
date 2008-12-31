@@ -54,17 +54,16 @@ public:
 
 private:
 	inline int memproto_get(
-			const char** keys, unsigned* key_lens, unsigned key_num);
+			memtext_command cmd,
+			memtext_request_retrieval* r);
 
 	inline int memproto_set(
-			const char* key, unsigned key_len,
-			unsigned short flags, uint32_t exptime,
-			const char* data, unsigned data_len,
-			bool noreply);
+			memtext_command cmd,
+			memtext_request_storage* r);
 
 	inline int memproto_delete(
-			const char* key, unsigned key_len,
-			uint32_t exptime, bool noreply);
+			memtext_command cmd,
+			memtext_request_delete* r);
 
 private:
 	memtext_parser m_memproto;
@@ -150,33 +149,29 @@ MemprotoText::Connection::Connection(int fd, Gateway* gw) :
 	m_gw(gw),
 	m_valid(new bool(true))
 {
-	int (*cmd_get)(void*, const char**, unsigned*, unsigned) =
-		&mp::object_callback<int (const char**, unsigned*, unsigned)>::
+	int (*cmd_get)(void*, memtext_command, memtext_request_retrieval*) =
+		&mp::object_callback<int (memtext_command, memtext_request_retrieval*)>::
 				mem_fun<Connection, &Connection::memproto_get>;
 
-	int (*cmd_set)(void*, const char*, unsigned,
-			unsigned short, uint32_t,
-			const char*, unsigned, bool) =
-		&mp::object_callback<int (const char*, unsigned,
-				unsigned short, uint32_t,
-				const char*, unsigned,
-				bool)>::
+	int (*cmd_set)(void*, memtext_command, memtext_request_storage*) =
+		&mp::object_callback<int (memtext_command, memtext_request_storage*)>::
 				mem_fun<Connection, &Connection::memproto_set>;
 
-	int (*cmd_delete)(void*, const char*, unsigned,
-			uint32_t, bool) =
-		&mp::object_callback<int (const char*, unsigned,
-				uint32_t, bool)>::
+	int (*cmd_delete)(void*, memtext_command, memtext_request_delete*) =
+		&mp::object_callback<int (memtext_command, memtext_request_delete*)>::
 				mem_fun<Connection, &Connection::memproto_delete>;
 
 	memtext_callback cb = {
-		cmd_get,     // get
-		cmd_set,     // set
-		NULL,        // replace
-		NULL,        // append
-		NULL,        // prepend
-		NULL,        // cas
-		cmd_delete,  // delete
+		cmd_get,      // get
+		cmd_set,      // set
+		NULL,         // add
+		NULL,         // replace
+		NULL,         // append
+		NULL,         // prepend
+		NULL,         // cas
+		cmd_delete,   // delete
+		NULL,         // incr
+		NULL,         // decr
 	};
 
 	memtext_init(&m_memproto, &cb, this);
@@ -252,14 +247,15 @@ static const char* const DELETE_FAILED_REPLY = "SERVER_ERROR delete failed\r\n";
 				m_buffer.release());
 
 int MemprotoText::Connection::memproto_get(
-		const char** keys, unsigned* key_lens, unsigned key_num)
+		memtext_command cmd,
+		memtext_request_retrieval* r)
 {
 	LOG_TRACE("get");
 	RELEASE_REFERENCE(life);
 
-	if(key_num == 1) {
-		const char* key = keys[0];
-		unsigned keylen = key_lens[0];
+	if(r->key_num == 1) {
+		const char* key = r->key[0];
+		unsigned keylen = r->key_len[0];
 
 		ResGet* ctx = life->allocate<ResGet>(fd(), m_valid);
 		get_request req;
@@ -274,21 +270,16 @@ int MemprotoText::Connection::memproto_get(
 		m_gw->submit(req);
 
 	} else {
-		size_t keylen_sum = 0;
-		for(unsigned i=0; i < key_num; ++i) {
-			keylen_sum += key_lens[i];
-		}
-
-		ResMultiGet* ctx = life->allocate<ResMultiGet>(fd(), m_valid, key_num);
+		ResMultiGet* ctx = life->allocate<ResMultiGet>(fd(), m_valid, r->key_num);
 		get_request req;
 		req.callback = &mp::object_callback<void (get_response&)>
 			::mem_fun<ResMultiGet, &ResMultiGet::response>;
 		req.user = (void*)ctx;
 		req.life = life;
 
-		for(unsigned i=0; i < key_num; ++i) {
-			req.key = keys[i];
-			req.keylen = key_lens[i];
+		for(unsigned i=0; i < r->key_num; ++i) {
+			req.key = r->key[i];
+			req.keylen = r->key_len[i];
 			req.hash = Gateway::stdhash(req.key, req.keylen);
 			// FIXME shared zone. msgpack::allocate is not thread-safe.
 			m_gw->submit(req);
@@ -300,29 +291,27 @@ int MemprotoText::Connection::memproto_get(
 
 
 int MemprotoText::Connection::memproto_set(
-		const char* key, unsigned key_len,
-		unsigned short flags, uint32_t exptime,
-		const char* data, unsigned data_len,
-		bool noreply)
+		memtext_command cmd,
+		memtext_request_storage* r)
 {
 	LOG_TRACE("set");
 	RELEASE_REFERENCE(life);
 
-	if(flags || exptime) {
+	if(r->flags || r->exptime) {
 		wavy::write(fd(), NOT_SUPPORTED_REPLY, strlen(NOT_SUPPORTED_REPLY));
 		return 0;
 	}
 
 	ResSet* ctx = life->allocate<ResSet>(fd(), m_valid);
 	set_request req;
-	req.key = key;
-	req.keylen = key_len;
+	req.key = r->key;
+	req.keylen = r->key_len;
 	req.hash = Gateway::stdhash(req.key, req.keylen);
-	req.val = data;
-	req.vallen = data_len;
+	req.val = r->data;
+	req.vallen = r->data_len;
 	req.life = life;
 
-	if(noreply) {
+	if(r->noreply) {
 		req.callback = &mp::object_callback<void (set_response&)>
 			::mem_fun<ResSet, &ResSet::no_response>;
 	} else {
@@ -338,25 +327,25 @@ int MemprotoText::Connection::memproto_set(
 
 
 int MemprotoText::Connection::memproto_delete(
-		const char* key, unsigned key_len,
-		uint32_t exptime, bool noreply)
+		memtext_command cmd,
+		memtext_request_delete* r)
 {
 	LOG_TRACE("delete");
 	RELEASE_REFERENCE(life);
 
-	if(exptime) {
+	if(r->exptime) {
 		wavy::write(fd(), NOT_SUPPORTED_REPLY, strlen(NOT_SUPPORTED_REPLY));
 		return 0;
 	}
 
 	ResDelete* ctx = life->allocate<ResDelete>(fd(), m_valid);
 	delete_request req;
-	req.key = key;
-	req.keylen = key_len;
+	req.key = r->key;
+	req.keylen = r->key_len;
 	req.hash = Gateway::stdhash(req.key, req.keylen);
 	req.life = life;
 
-	if(noreply) {
+	if(r->noreply) {
 		req.callback = &mp::object_callback<void (delete_response&)>
 			::mem_fun<ResDelete, &ResDelete::no_response>;
 	} else {
@@ -414,6 +403,9 @@ void MemprotoText::Connection::ResMultiGet::response(get_response& res)
 	--m_count;
 
 	if(res.error || !res.val) {
+		if(m_count == 0) {
+			send_data("END\r\n", 5);
+		}
 		return;
 	}
 
@@ -429,12 +421,12 @@ void MemprotoText::Connection::ResMultiGet::response(get_response& res)
 	vb[3].iov_len  = sprintf(numbuf, "%u\r\n", res.vallen);
 	vb[4].iov_base = const_cast<char*>(res.val);
 	vb[4].iov_len  = res.vallen;
-	if(m_count > 0) {
-		vb[5].iov_base = const_cast<char*>("\r\n");
-		vb[5].iov_len  = 2;
-	} else {
+	if(m_count == 0) {
 		vb[5].iov_base = const_cast<char*>("\r\nEND\r\n");
 		vb[5].iov_len  = 7;
+	} else {
+		vb[5].iov_base = const_cast<char*>("\r\n");
+		vb[5].iov_len  = 2;
 	}
 	send_datav(vb, 6, res.life);
 }

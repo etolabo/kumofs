@@ -69,7 +69,6 @@ struct rpc_server_args {
 
 	unsigned short wthreads;
 	unsigned short rthreads;
-	unsigned short cthreads;
 
 public:
 	virtual void set_basic_args();
@@ -123,7 +122,7 @@ protected:
 		// initialize wavy
 		m_core_threads = cfg.rthreads;
 		m_output_threads = cfg.wthreads;
-		wavy::initialize(0,0,2,1);  // FIXME
+		wavy::initialize(0,0);
 	}
 
 	virtual void end_preprocess() { }

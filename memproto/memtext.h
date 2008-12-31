@@ -29,38 +29,104 @@
 extern "C" {
 #endif
 
+typedef enum {
+	/* retrieval */
+	MEMTEXT_CMD_GET,
+
+	/* storage */
+	MEMTEXT_CMD_SET,
+	MEMTEXT_CMD_ADD,
+	MEMTEXT_CMD_REPLACE,
+	MEMTEXT_CMD_APPEND,
+	MEMTEXT_CMD_PREPEND,
+
+	/* cas */
+	MEMTEXT_CMD_CAS,
+
+	/* numeric */
+	MEMTEXT_CMD_NUMERIC,
+
+	/* delete */
+	MEMTEXT_CMD_DELETE,
+
+	/* numeric */
+	MEMTEXT_CMD_INCR,
+	MEMTEXT_CMD_DECR,
+} memtext_command;
+
+
+typedef struct {
+	const char** key;
+	unsigned* key_len;
+	unsigned key_num;
+} memtext_request_retrieval;
+
+typedef struct {
+	const char* key;
+	unsigned key_len;
+	const char* data;
+	unsigned data_len;
+	unsigned short flags;
+	uint32_t exptime;
+	bool noreply;
+} memtext_request_storage;
+
+typedef struct {
+	const char* key;
+	unsigned key_len;
+	const char* data;
+	unsigned data_len;
+	unsigned short flags;
+	uint32_t exptime;
+	bool noreply;
+	uint64_t cas_unique;
+} memtext_request_cas;
+
+typedef struct {
+	const char* key;
+	unsigned key_len;
+	uint32_t exptime;
+	bool noreply;
+} memtext_request_delete;
+
+typedef struct {
+	const char* key;
+	unsigned key_len;
+	uint64_t value;
+	bool noreply;
+} memtext_request_numeric;
+
 typedef int (*memtext_callback_retrieval)(
-		void* user,
-		const char** key, unsigned* key_len, unsigned keys);
+		void* user, memtext_command cmd,
+		memtext_request_retrieval* req);
 
 typedef int (*memtext_callback_storage)(
-		void* user,
-		const char* key, unsigned key_len,
-		unsigned short flags, uint32_t exptime,
-		const char* data, unsigned data_len,
-		bool noreply);
+		void* user, memtext_command cmd,
+		memtext_request_storage* req);
 
 typedef int (*memtext_callback_cas)(
-		void* user,
-		const char* key, unsigned key_len,
-		unsigned short flags, uint32_t exptime,
-		const char* data, unsigned data_len,
-		uint64_t cas_unique,
-		bool noreply);
+		void* user, memtext_command cmd,
+		memtext_request_cas* req);
 
 typedef int (*memtext_callback_delete)(
-		void* user,
-		const char* key, unsigned key_len,
-		uint32_t exptime, bool noreply);
+		void* user, memtext_command cmd,
+		memtext_request_delete* req);
+
+typedef int (*memtext_callback_numeric)(
+		void* user, memtext_command cmd,
+		memtext_request_numeric* req);
 
 typedef struct {
 	memtext_callback_retrieval cmd_get;
 	memtext_callback_storage   cmd_set;
+	memtext_callback_storage   cmd_add;
 	memtext_callback_storage   cmd_replace;
 	memtext_callback_storage   cmd_append;
 	memtext_callback_storage   cmd_prepend;
 	memtext_callback_cas       cmd_cas;
 	memtext_callback_delete    cmd_delete;
+	memtext_callback_numeric   cmd_incr;
+	memtext_callback_numeric   cmd_decr;
 } memtext_callback;
 
 typedef struct {
@@ -70,7 +136,7 @@ typedef struct {
 	int top;
 	int stack[1];
 
-	int command;
+	memtext_command command;
 
 	size_t key_pos[MEMTEXT_MAX_MULTI_GET];
 	unsigned int key_len[MEMTEXT_MAX_MULTI_GET];
