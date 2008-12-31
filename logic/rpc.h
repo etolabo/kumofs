@@ -121,7 +121,7 @@ private:
 	(SESSION && !SESSION->is_lost())
 
 
-#define SHARED_ZONE(life, z) shared_zone(z.release())
+#define SHARED_ZONE(life, z) shared_zone life(z.release())
 
 
 #define RPC_RETRY(NAME) \
@@ -155,13 +155,13 @@ private:
 			protocol::type::NAME param, auto_zone z)
 
 
-#define RPC_REPLY_DECL(NAME, from, res, err, z, ...) \
+#define RPC_REPLY_DECL(NAME, from, res, err, life, ...) \
 	void NAME(basic_shared_session from, msgobj res, msgobj err, \
-			shared_zone z, ##__VA_ARGS__);
+			shared_zone life, ##__VA_ARGS__);
 
-#define RPC_REPLY_IMPL(CLASS, NAME, from, res, err, z, ...) \
+#define RPC_REPLY_IMPL(CLASS, NAME, from, res, err, life, ...) \
 	void CLASS::NAME(basic_shared_session from, msgobj res, msgobj err, \
-			shared_zone z, ##__VA_ARGS__)
+			shared_zone life, ##__VA_ARGS__)
 
 
 #define RPC_CATCH(NAME, response) \

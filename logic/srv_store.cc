@@ -40,7 +40,7 @@ void Server::check_coordinator_assign(HashSpace& hs, const char* key, uint32_t k
 }
 
 
-RPC_FUNC(Get, from, response, life, param)
+RPC_FUNC(Get, from, response, z, param)
 try {
 	LOG_DEBUG("Get '",std::string(param.key(),param.keylen()),"'");
 
@@ -48,7 +48,7 @@ try {
 
 	uint32_t meta_vallen;
 	const char* meta_val = m_db.get(param.key(), param.keylen(),
-			&meta_vallen, *life);
+			&meta_vallen, *z);
 
 	if(meta_val && meta_vallen >= DBFormat::LEADING_METADATA_SIZE) {
 		LOG_DEBUG("key found");
@@ -57,7 +57,7 @@ try {
 		msgpack::type::tuple<msgpack::type::raw_ref, uint64_t> res(
 				form.raw_ref(), form.clocktime()
 				);
-		response.result(res, life);
+		response.result(res, z);
 
 	} else {
 		LOG_DEBUG("key not found");
@@ -67,7 +67,7 @@ try {
 RPC_CATCH(Get, response)
 
 
-RPC_FUNC(Set, from, response, life, param)
+RPC_FUNC(Set, from, response, z, param)
 try {
 	LOG_DEBUG("Set '",std::string(param.key(),param.keylen()),"' => '",
 			std::string(param.meta_val()+DBFormat::LEADING_METADATA_SIZE,
@@ -87,9 +87,9 @@ try {
 
 
 	// Replication
-	unsigned short* copy_required = life->allocate<unsigned short>(0);
+	unsigned short* copy_required = z->allocate<unsigned short>(0);
 
-	RetryReplicateSet* retry = life->allocate<RetryReplicateSet>(
+	RetryReplicateSet* retry = z->allocate<RetryReplicateSet>(
 			protocol::type::ReplicateSet(
 				param.key(), param.keylen(),
 				param.meta_val(), param.meta_vallen(),
@@ -102,6 +102,7 @@ try {
 			copy_required,
 			response, ct.get()) );
 
+	SHARED_ZONE(life, z);
 	uint64_t x = HashSpace::hash(param.key(), param.keylen());
 	EACH_ASSIGNED_ACTIVE_NODE_EXCLUDE(addr(),
 			m_whs, x, n, {
@@ -120,7 +121,7 @@ try {
 RPC_CATCH(Set, response)
 
 
-RPC_FUNC(Delete, from, response, life, param)
+RPC_FUNC(Delete, from, response, z, param)
 try {
 	LOG_DEBUG("Delete '",std::string(param.key(),param.keylen()),"'");
 
@@ -136,9 +137,9 @@ try {
 	ClockTime ct(m_clock.now_incr());
 
 	// Replication
-	unsigned short* copy_required = life->allocate<unsigned short>(0);
+	unsigned short* copy_required = z->allocate<unsigned short>(0);
 
-	RetryReplicateDelete* retry = life->allocate<RetryReplicateDelete>(
+	RetryReplicateDelete* retry = z->allocate<RetryReplicateDelete>(
 			protocol::type::ReplicateDelete(
 				param.key(), param.keylen(),
 				ct.get(), m_clock.get_incr())
@@ -150,6 +151,7 @@ try {
 				copy_required,
 				response) );
 	
+	SHARED_ZONE(life, z);
 	uint64_t x = HashSpace::hash(param.key(), param.keylen());
 	EACH_ASSIGNED_ACTIVE_NODE_EXCLUDE(addr(),
 			m_whs, x, node, {
@@ -224,7 +226,7 @@ RPC_REPLY(ResReplicateDelete, from, res, err, life,
 }
 
 
-CLUSTER_FUNC(ReplicateSet, from, response, life, param)
+CLUSTER_FUNC(ReplicateSet, from, response, z, param)
 try {
 	LOG_TRACE("ReplicateSet");
 	m_clock.update(param.clock());
@@ -250,7 +252,7 @@ try {
 }
 RPC_CATCH(ReplicateSet, response)
 
-CLUSTER_FUNC(ReplicateDelete, from, response, life, param)
+CLUSTER_FUNC(ReplicateDelete, from, response, z, param)
 try {
 	LOG_TRACE("ReplicateDelete");
 	m_clock.update(param.clock());

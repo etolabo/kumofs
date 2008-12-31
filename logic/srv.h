@@ -16,12 +16,12 @@ public:
 	~Server();
 
 	void cluster_dispatch(
-			shared_node& from, role_type role, rpc::weak_responder response,
-			method_id method, msgobj param, shared_zone& life);
+			shared_node from, weak_responder response,
+			method_id method, msgobj param, auto_zone z);
 
 	void subsystem_dispatch(
-			shared_peer& from, rpc::weak_responder response,
-			method_id method, msgobj param, shared_zone& life);
+			shared_peer from, weak_responder response,
+			method_id method, msgobj param, auto_zone z);
 
 	void new_node(address addr, role_type id, shared_node n);
 	void lost_node(address addr, role_type id);
@@ -109,8 +109,8 @@ private:
 
 	Storage& m_db;
 
-	address m_manager1;
-	address m_manager2;
+	const address m_manager1;
+	const address m_manager2;
 
 	class ReplaceContext {
 	public:
@@ -142,10 +142,10 @@ private:
 
 	std::string m_cfg_db_backup_basename;
 
-	unsigned short m_cfg_replicate_set_retry_num;
-	unsigned short m_cfg_replicate_delete_retry_num;
-	unsigned short m_cfg_replace_propose_retry_num;
-	unsigned short m_cfg_replace_push_retry_num;
+	const unsigned short m_cfg_replicate_set_retry_num;
+	const unsigned short m_cfg_replicate_delete_retry_num;
+	const unsigned short m_cfg_replace_propose_retry_num;
+	const unsigned short m_cfg_replace_push_retry_num;
 
 private:
 	Server();

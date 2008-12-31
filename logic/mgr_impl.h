@@ -10,16 +10,12 @@ namespace kumo {
 	mp::bind(&Manager::FUNC, this, _1, _2, _3, _4, ##__VA_ARGS__)
 
 
-#define RPC_FUNC(NAME, from, response, life, param) \
-	RPC_IMPL(Manager, NAME, from, response, life, param)
+#define RPC_FUNC(NAME, from, response, z, param) \
+	RPC_IMPL(Manager, NAME, from, response, z, param)
 
 
-#define CLUSTER_FUNC(NAME, from, response, life, param) \
-	CLUSTER_IMPL(Manager, NAME, from, response, life, param)
-
-
-#define CLISRV_FUNC(NAME, from, response, life, param) \
-	CLISRV_IMPL(Manager, NAME, from, response, life, param)
+#define CLUSTER_FUNC(NAME, from, response, z, param) \
+	CLUSTER_IMPL(Manager, NAME, from, response, z, param)
 
 
 #define RPC_REPLY(NAME, from, res, err, life, ...) \

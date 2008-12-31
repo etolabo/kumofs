@@ -101,7 +101,7 @@ RPC_REPLY(ResRHashSpaceRequest, from, res, err, life)
 }
 
 
-CLUSTER_FUNC(HashSpaceSync, from, response, life, param)
+CLUSTER_FUNC(HashSpaceSync, from, response, z, param)
 try {
 	LOG_DEBUG("HashSpaceSync");
 
@@ -159,7 +159,7 @@ RPC_REPLY(ResKeepAlive, from, res, err, life)
 }
 
 
-CLUSTER_FUNC(KeepAlive, from, response, life, param)
+CLUSTER_FUNC(KeepAlive, from, response, z, param)
 try {
 	m_clock.update(param.clock());
 	response.null();

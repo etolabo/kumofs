@@ -23,22 +23,22 @@ try {
 }
 RPC_CATCH(WHashSpaceRequest, response)
 
-CLUSTER_FUNC(RHashSpaceRequest, from, response, life, param)
+CLUSTER_FUNC(RHashSpaceRequest, from, response, z, param)
 try {
 	pthread_scoped_lock hslk(m_hs_mutex);
-	HashSpace::Seed* seed = life->allocate<HashSpace::Seed>(m_rhs);
+	HashSpace::Seed* seed = z->allocate<HashSpace::Seed>(m_rhs);
 	hslk.unlock();
-	response.result(*seed, life);
+	response.result(*seed, z);
 }
 RPC_CATCH(RHashSpaceRequest, response)
 
 
-RPC_FUNC(HashSpaceRequest, from, response, life, param)
+RPC_FUNC(HashSpaceRequest, from, response, z, param)
 try {
 	pthread_scoped_lock hslk(m_hs_mutex);
-	HashSpace::Seed* seed = life->allocate<HashSpace::Seed>(m_whs);
+	HashSpace::Seed* seed = z->allocate<HashSpace::Seed>(m_whs);
 	hslk.unlock();
-	response.result(*seed, life);
+	response.result(*seed, z);
 }
 RPC_CATCH(HashSpaceRequest, response)
 
@@ -115,7 +115,7 @@ RPC_REPLY(ResHashSpaceSync, from, res, err, life)
 	// FIXME retry
 }
 
-CLUSTER_FUNC(HashSpaceSync, from, response, life, param)
+CLUSTER_FUNC(HashSpaceSync, from, response, z, param)
 try {
 	if(from->addr() != m_partner) {
 		throw std::runtime_error("unknown partner node");
@@ -189,7 +189,7 @@ RPC_REPLY(ResKeepAlive, from, res, err, life)
 }
 
 
-CLUSTER_FUNC(KeepAlive, from, response, life, param)
+CLUSTER_FUNC(KeepAlive, from, response, z, param)
 try {
 	response.null();
 }

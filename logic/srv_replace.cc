@@ -49,7 +49,7 @@ inline const address& Server::ReplaceContext::mgr_addr() const
 
 
 
-CLUSTER_FUNC(ReplaceCopyStart, from, response, life, param)
+CLUSTER_FUNC(ReplaceCopyStart, from, response, z, param)
 try {
 	m_clock.update(param.clock());
 
@@ -68,7 +68,7 @@ try {
 RPC_CATCH(ReplaceCopyStart, response)
 
 
-CLUSTER_FUNC(ReplaceDeleteStart, from, response, life, param)
+CLUSTER_FUNC(ReplaceDeleteStart, from, response, z, param)
 try {
 	m_clock.update(param.clock());
 
@@ -250,7 +250,7 @@ inline void Server::replace_push(const address& node,
 
 
 
-CLUSTER_FUNC(ReplacePropose, from, response, life, param)
+CLUSTER_FUNC(ReplacePropose, from, response, z, param)
 try {
 	if(m_whs.empty()) {
 		//throw std::runtime_error("server not ready");
@@ -283,7 +283,7 @@ try {
 RPC_CATCH(ReplacePropose, response)
 
 
-CLUSTER_FUNC(ReplacePush, from, response, life, param)
+CLUSTER_FUNC(ReplacePush, from, response, z, param)
 try {
 	if(m_whs.empty()) {
 		//throw std::runtime_error("server not ready");

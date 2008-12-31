@@ -233,7 +233,7 @@ RPC_REPLY(ResReplaceCopyStart, from, res, err, life)
 }
 
 
-CLUSTER_FUNC(ReplaceElection, from, response, life, param)
+CLUSTER_FUNC(ReplaceElection, from, response, z, param)
 try {
 	LOG_DEBUG("ReplaceElection");
 
@@ -275,7 +275,7 @@ RPC_CATCH(ReplaceElection, response)
 
 
 
-CLUSTER_FUNC(ReplaceCopyEnd, from, response, life, param)
+CLUSTER_FUNC(ReplaceCopyEnd, from, response, z, param)
 try {
 	pthread_scoped_lock relk(m_replace_mutex);
 
@@ -292,7 +292,7 @@ try {
 RPC_CATCH(ReplaceCopyEnd, response)
 
 
-CLUSTER_FUNC(ReplaceDeleteEnd, from, response, life, param)
+CLUSTER_FUNC(ReplaceDeleteEnd, from, response, z, param)
 try {
 	pthread_scoped_lock relk(m_replace_mutex);
 

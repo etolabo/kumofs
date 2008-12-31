@@ -3,7 +3,7 @@
 namespace kumo {
 
 
-CLUSTER_FUNC(CreateBackup, from, response, life, param)
+CLUSTER_FUNC(CreateBackup, from, response, z, param)
 try {
 	std::string dst = m_cfg_db_backup_basename + param.suffix();
 	LOG_INFO("create backup: ",dst);

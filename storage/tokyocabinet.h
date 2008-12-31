@@ -33,7 +33,7 @@ public:
 public:
 	const char* get(const char* key, uint32_t keylen,
 			uint32_t* result_vallen,
-			mp::zone& z)
+			msgpack::zone& z)
 	{
 		int vallen = 0;
 		char* val = (char*)tchdbget(m_db, key, keylen, &vallen);
@@ -91,12 +91,12 @@ public:
 		size_t vallen()
 			{ return TCXSTRSIZE(m_val); }
 	public:
-		void release_key(mp::zone& z)
+		void release_key(msgpack::zone& z)
 		{
 			z.push_finalizer(&Storage::finalize_xstr_del, m_key);
 			m_key = NULL;
 		}
-		void release_val(mp::zone& z)
+		void release_val(msgpack::zone& z)
 		{
 			z.push_finalizer(&Storage::finalize_xstr_del, m_val);
 			m_val = NULL;
