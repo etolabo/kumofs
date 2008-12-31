@@ -274,10 +274,13 @@ namespace type {
 
 	struct ReplacePropose : define< tuple<raw_ref, uint64_t> > {
 		ReplacePropose() {}
-		ReplacePropose(const char* key, size_t keylen, uint64_t clocktime) :
-			define_type(msgpack_type( raw_ref(key, keylen), clocktime )) {}
-		const char* key() const			{ return get<0>().ptr; }
-		size_t keylen() const			{ return get<0>().size; }
+		ReplacePropose(
+				const char* raw_key, size_t raw_keylen,
+				uint64_t clocktime) :
+			define_type(msgpack_type(
+						raw_ref(raw_key, raw_keylen), clocktime )) {}
+		DBKey dbkey() const
+			{ return DBKey(get<0>().ptr, get<0>().size); }
 		uint64_t clocktime() const		{ return get<1>(); }
 		// needed: not nil
 		// not needed: nil
@@ -286,16 +289,15 @@ namespace type {
 	struct ReplacePush : define< tuple<raw_ref, raw_ref> > {
 		ReplacePush() {}
 		ReplacePush(
-				const char* key, size_t keylen,
-				const char* meta_val, size_t meta_vallen) :
+				const char* raw_key, size_t raw_keylen,
+				const char* raw_val, size_t raw_vallen) :
 			define_type(msgpack_type(
-						raw_ref(key, keylen),
-						raw_ref(meta_val, meta_vallen)
-						)) {}
-		const char* key() const			{ return get<0>().ptr; }
-		size_t keylen() const			{ return get<0>().size; }
-		const char* meta_val() const	{ return get<1>().ptr; }
-		size_t meta_vallen() const		{ return get<1>().size; }
+						raw_ref(raw_key, raw_keylen),
+						raw_ref(raw_val, raw_vallen))) {}
+		DBKey dbkey() const
+			{ return DBKey(get<0>().ptr, get<0>().size); }
+		DBValue dbval() const
+			{ return DBValue(get<1>().ptr, get<1>().size); }
 		// success: true
 		// obsolete: nil
 	};

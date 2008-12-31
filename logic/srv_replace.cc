@@ -159,17 +159,21 @@ void Server::replace_copy(const address& manager_addr, HashSpace& hs)
 	current_owners.reserve(NUM_REPLICATION+1);
 	newbies.reserve(NUM_REPLICATION+1);
 
+	pthread_scoped_wrlock dblk(m_db.mutex());
+
 	Storage::iterator kv;
 	m_db.iterator_init(kv);
 	while(m_db.iterator_next(kv)) {
-		const char* key = kv.key();
-		size_t keylen = kv.keylen();
-		const char* meta_val = kv.val();
-		size_t meta_vallen = kv.vallen();
+		const char* raw_key = kv.key();
+		size_t raw_keylen = kv.keylen();
+		const char* raw_val = kv.val();
+		size_t raw_vallen = kv.vallen();
 
-		if(meta_vallen < DBFormat::LEADING_METADATA_SIZE) { continue; }
+		if(raw_vallen < DBFormat::LEADING_METADATA_SIZE) { continue; }
+		// FIXME
+		if(raw_keylen < 8) { continue; }
 
-		uint64_t h = HashSpace::hash(key, keylen);
+		uint64_t h = DBFormat::hash(kv.key());
 
 		Sa.clear();
 		EACH_ASSIGN(srchs, h, r, {
@@ -195,19 +199,19 @@ void Server::replace_copy(const address& manager_addr, HashSpace& hs)
 			}
 		}
 
-		uint64_t clocktime = DBFormat(meta_val, meta_vallen).clocktime();
+		uint64_t clocktime = DBFormat::clocktime(raw_val);
 
 		shared_zone z(new msgpack::zone());
 		kv.release_key(*z);
-		if(meta_vallen > 512) {   // FIXME
+		if(raw_vallen > 512) {   // FIXME
 			for(addrs_it it(newbies.begin()); it != newbies.end(); ++it) {
-				propose_replace_push(*it, key, keylen, clocktime, z, replace_time);
+				propose_replace_push(*it, raw_key, raw_keylen, clocktime, z, replace_time);
 			}
 
 		} else {
 			kv.release_val(*z);
 			for(addrs_it it(newbies.begin()); it != newbies.end(); ++it) {
-				replace_push(*it, key, keylen, meta_val, meta_vallen, z, replace_time);
+				replace_push(*it, raw_key, raw_keylen, raw_val, raw_vallen, z, replace_time);
 			}
 		}
 	}
@@ -222,12 +226,12 @@ skip_replace:
 
 
 inline void Server::propose_replace_push(const address& node,
-		const char* key, uint32_t keylen,
+		const char* raw_key, uint32_t raw_keylen,
 		uint64_t metaval_clocktime, shared_zone& life,
 		ClockTime replace_time)
 {
 	RetryReplacePropose* retry = life->allocate<RetryReplacePropose>(
-			protocol::type::ReplacePropose(key, keylen, metaval_clocktime)
+			protocol::type::ReplacePropose(raw_key, raw_keylen, metaval_clocktime)
 			);
 
 	retry->set_callback( BIND_RESPONSE(ResReplacePropose, retry, replace_time) );
@@ -239,14 +243,14 @@ inline void Server::propose_replace_push(const address& node,
 }
 
 inline void Server::replace_push(const address& node,
-		const char* key, uint32_t keylen,
-		const char* meta_val, size_t meta_vallen,
+		const char* raw_key, uint32_t raw_keylen,
+		const char* raw_val, size_t raw_vallen,
 		shared_zone& life, ClockTime replace_time)
 {
-	if(!meta_val || meta_vallen < DBFormat::LEADING_METADATA_SIZE) { return; }
+	if(!raw_val || raw_vallen < DBFormat::LEADING_METADATA_SIZE) { return; }
 
 	RetryReplacePush* retry = life->allocate<RetryReplacePush>(
-			protocol::type::ReplacePush(key, keylen, meta_val, meta_vallen)
+			protocol::type::ReplacePush(raw_key, raw_keylen, raw_val, raw_vallen)
 			);
 
 	retry->set_callback( BIND_RESPONSE(ResReplacePush, retry, replace_time) );
@@ -271,8 +275,9 @@ try {
 		return;
 	}
 
-	uint64_t x = HashSpace::hash(param.key(), param.keylen());
-	if(!test_replicator_assign(m_whs, x, addr())) {
+	protocol::type::DBKey key(param.dbkey());
+
+	if(!test_replicator_assign(m_whs, key.hash(), addr())) {
 		// ignore obsolete hash space error
 		response.null();
 		return;
@@ -280,10 +285,13 @@ try {
 
 	whlk.unlock();
 
-	char meta[DBFormat::LEADING_METADATA_SIZE];
-	int32_t ret = m_db.get_header(param.key(), param.keylen(), meta, sizeof(meta));
+	pthread_scoped_rdlock dblk(m_db.mutex());
+	uint64_t clocktime;
+	bool stored = DBFormat::get_clocktime(m_db,
+			key.raw_data(), key.raw_size(), &clocktime);
+	dblk.unlock();
 
-	if(ret < (int32_t)sizeof(meta) || clocktime_new(meta, param.clocktime())) {
+	if(!stored || ClockTime(clocktime) < ClockTime(param.clocktime())) {
 		// key is not stored OR stored key is old
 		// require replication
 		response.result(true);
@@ -308,8 +316,10 @@ try {
 		return;
 	}
 
-	uint64_t x = HashSpace::hash(param.key(), param.keylen());
-	if(!test_replicator_assign(m_whs, x, addr())) {
+	protocol::type::DBKey key(param.dbkey());
+	protocol::type::DBValue val(param.dbval());
+
+	if(!test_replicator_assign(m_whs, key.hash(), addr())) {
 		// ignore obsolete hash space error
 		response.null();
 		return;
@@ -317,16 +327,16 @@ try {
 
 	whlk.unlock();
 
-	DBFormat form(param.meta_val(), param.meta_vallen());
+	pthread_scoped_wrlock dblk(m_db.mutex());
+	uint64_t clocktime;
+	bool stored = DBFormat::get_clocktime(m_db,
+			key.raw_data(), key.raw_size(), &clocktime);
 
-	char meta[DBFormat::LEADING_METADATA_SIZE];
-	int32_t ret = m_db.get_header(param.key(), param.keylen(), meta, sizeof(meta));
-
-	if(ret < (int32_t)sizeof(meta) || clocktime_new(meta, form.clocktime())) {
+	if(!stored || ClockTime(clocktime) < ClockTime(val.clocktime())) {
 		// key is not stored OR stored key is old
-		m_db.set(param.key(), param.keylen(),
-				param.meta_val(), param.meta_vallen());
-
+		m_db.set(key.raw_data(), key.raw_size(),
+				 val.raw_data(), val.raw_size());
+		dblk.unlock();
 		response.result(true);
 
 	} else {
@@ -356,13 +366,17 @@ RPC_REPLY(ResReplacePropose, from, res, err, life,
 	}
 
 	if(!res.is_nil() && SESSION_IS_ACTIVE(from)) {
-		const char* key = retry->param().key();
-		size_t keylen = retry->param().keylen();
-		uint32_t meta_vallen;
-		const char* meta_val = m_db.get(key, keylen, &meta_vallen, *life);
+		protocol::type::DBKey key(retry->param().dbkey());
+		uint32_t raw_vallen;
+
+		pthread_scoped_rdlock dblk(m_db.mutex());
+		const char* raw_val = m_db.get(key.raw_data(), key.raw_size(),
+				&raw_vallen, *life);
+		dblk.unlock();
+
 		replace_push(
 				mp::static_pointer_cast<rpc::node>(from)->addr(),  // FIXME
-				key, keylen, meta_val, meta_vallen,
+				key.raw_data(), key.raw_size(), raw_val, raw_vallen,
 				life, replace_time);
 	}
 
@@ -440,13 +454,17 @@ void Server::replace_delete(shared_node& manager, HashSpace& hs)
 
 	if(!m_whs.empty()) {
 		Storage::iterator kv;
+		pthread_scoped_wrlock dblk(m_db.mutex());
 		m_db.iterator_init(kv);
 		while(m_db.iterator_next(kv)) {
-			uint64_t h = HashSpace::hash(kv.key(), kv.keylen());
-			if(kv.vallen() < DBFormat::LEADING_METADATA_SIZE ||   // FIXME slow?
-					!test_replicator_assign(m_whs, h, addr())) {
+			if(kv.keylen() < 8 || kv.vallen() < 16) {  // FIXME
+				LOG_TRACE("delete invalid key: ",kv.key());
+				m_db.del(kv.key(), kv.keylen());
+			}
+			uint64_t h = DBFormat::hash(kv.key());
+			if(!test_replicator_assign(m_whs, h, addr())) {
 				LOG_TRACE("replace delete key: ",kv.key());
-				m_db.erase(kv.key(), kv.keylen());
+				m_db.del(kv.key(), kv.keylen());
 			}
 		}
 	}

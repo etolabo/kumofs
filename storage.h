@@ -57,6 +57,16 @@ public:
 	static bool get_clocktime(Storage& db,
 			const char* key, size_t keylen, uint64_t* result);
 
+	static uint64_t clocktime(const char* val)
+	{
+		return kumo_be64(*(uint64_t*)val);
+	}
+
+	static uint64_t hash(const char* key)
+	{
+		return kumo_be64(*(uint64_t*)key);
+	}
+
 private:
 	const char* m_val;
 	uint32_t m_vallen;

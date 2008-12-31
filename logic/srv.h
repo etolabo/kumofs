@@ -80,13 +80,13 @@ private:
 	RPC_REPLY_DECL(ResReplaceDeleteEnd, from, res, err, life);
 
 	void propose_replace_push(const address& node,
-			const char* key, uint32_t keylen,
+			const char* raw_key, uint32_t raw_keylen,
 			uint64_t metaval_clocktime, shared_zone& life,
 			ClockTime replace_time);
 
 	void replace_push(const address& node,
-			const char* key, uint32_t keylen,
-			const char* meta_val, size_t meta_vallen,
+			const char* raw_key, uint32_t raw_keylen,
+			const char* raw_val, size_t raw_vallen,
 			shared_zone& life, ClockTime replace_time);
 
 #define REQUIRE_RELK const pthread_scoped_lock& relk
