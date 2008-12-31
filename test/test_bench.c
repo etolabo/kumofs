@@ -20,13 +20,13 @@ static unsigned short g_port = 11211;
 
 static uint32_t g_num_request;
 static uint32_t g_num_thread;
-static size_t g_vallen;
+static size_t g_keylen = 8;
+static size_t g_vallen = 1024;
 static bool g_binary = false;
 static bool g_noset = false;
 static pthread_mutex_t g_thread_lock;
 
-#define KEY_PREFIX "k"
-#define KEY_LENGTH (strlen(KEY_PREFIX)+8)
+#define KEY_FILL 'k'
 
 static struct timeval g_timer;
 
@@ -37,7 +37,7 @@ void reset_timer()
 
 void show_timer()
 {
-	size_t size_bytes = (KEY_LENGTH+g_vallen) * g_num_request * g_num_thread;
+	size_t size_bytes = (g_keylen+g_vallen) * g_num_request * g_num_thread;
 	size_t requests = g_num_request * g_num_thread;
 
 	struct timeval endtime;
@@ -54,13 +54,14 @@ void show_timer()
 
 static void usage()
 {
-	printf("Usage: %s [options] "
-		"<num threads>  <num requests per thread>  <value size>\n"
-		" -l HOST		: memcached server address\n"
-		" -p PORT		: memcached server port\n"
-		" -b			: use binary protocol\n"
-		" -x			: omit to set initial values\n"
-		" -h			: print this help message\n"
+	printf("Usage: %s [options]  <num threads>  <num requests per thread>\n"
+		" -l HOST           : memcached server address\n"
+		" -p PORT           : memcached server port\n"
+		" -k SIZE=8         : size of key >= 8\n"
+		" -v SIZE=1024      : size of value\n"
+		" -b                : use binary protocol\n"
+		" -x                : omit to set initial values\n"
+		" -h                : print this help message\n"
 		, g_progname);
 	exit(1);
 }
@@ -69,7 +70,7 @@ static void parse_argv(int argc, char* argv[])
 {
 	g_progname = argv[0];
 	int c;
-	while((c = getopt(argc, argv, "hbxl:p:")) != -1) {
+	while((c = getopt(argc, argv, "hbxl:p:k:v:")) != -1) {
 		switch(c) {
 		case 'l':
 			g_host = optarg;
@@ -77,6 +78,16 @@ static void parse_argv(int argc, char* argv[])
 
 		case 'p':
 			g_port = atoi(optarg);
+			if(g_port == 0) { usage(); }
+			break;
+
+		case 'k':
+			g_keylen = atoi(optarg);
+			if(g_keylen < 8) { usage(); }
+			break;
+
+		case 'v':
+			g_vallen  = atoi(optarg);
 			break;
 
 		case 'b':
@@ -96,15 +107,15 @@ static void parse_argv(int argc, char* argv[])
 	
 	argc -= optind;
 
-	if(argc != 3) { usage(); }
+	if(argc != 2) { usage(); }
 
 	g_num_thread  = atoi(argv[optind]);
 	g_num_request = atoi(argv[optind+1]);
-	g_vallen  = atoi(argv[optind+2]);
 
-	printf("number of threads: %u\n", g_num_thread);
-	printf("number of requests per thread: %u\n", g_num_request);
-	printf("value size: %lu\n", g_vallen);
+	printf("number of threads    : %u\n", g_num_thread);
+	printf("requests per thread  : %u\n", g_num_request);
+	printf("size of key          : %lu bytes\n", g_keylen);
+	printf("size of value        : %lu bytes\n", g_vallen);
 }
 
 
@@ -127,7 +138,7 @@ static memcached_st* initialize_user()
 inline void pack_keynum(char* keybuf, uint32_t i)
 {
 	// 0x40 - 0x4f is printable ascii character
-	unsigned char* prefix = (unsigned char*)keybuf + strlen(KEY_PREFIX);
+	unsigned char* prefix = (unsigned char*)keybuf + g_keylen - 8;
 	prefix[0] = ((i >> 0) & 0x0f) + 0x40;
 	prefix[1] = ((i >> 4) & 0x0f) + 0x40;
 	prefix[2] = ((i >> 8) & 0x0f) + 0x40;
@@ -142,8 +153,12 @@ static void* bench_func(void* trash)
 {
 	printf("start thread ok.\n");
 
-	char keybuf[KEY_LENGTH];
-	memcpy(keybuf, KEY_PREFIX, strlen(KEY_PREFIX));
+	char* keybuf = malloc(g_keylen);
+	if(!keybuf) {
+		perror("malloc for key failed");
+		exit(1);
+	}
+	memset(keybuf, KEY_FILL, g_keylen);
 
 	memcached_st* st = initialize_user();
 
@@ -156,7 +171,7 @@ static void* bench_func(void* trash)
 		pack_keynum(keybuf, i);
 		size_t vallen;
 		uint32_t flags;
-		char* value = memcached_get(st, keybuf, sizeof(keybuf),
+		char* value = memcached_get(st, keybuf, g_keylen,
 				&vallen, &flags, &ret);
 		if(ret != MEMCACHED_SUCCESS) {
 			fprintf(stderr, "get failed: %s\n",
@@ -201,19 +216,23 @@ int main(int argc, char* argv[])
 	
 		memcached_st* st = initialize_user();
 	
-		char keybuf[KEY_LENGTH];
-		memcpy(keybuf, KEY_PREFIX, strlen(KEY_PREFIX));
+		char* keybuf = malloc(g_keylen);
+		if(!keybuf) {
+			perror("malloc for key failed");
+			exit(1);
+		}
+		memset(keybuf, KEY_FILL, g_keylen);
 	
 		char* valbuf = malloc(g_vallen);
 		if(!valbuf) {
-			perror("malloc() failed");
+			perror("malloc for value failed");
 			exit(1);
 		}
 		memset(valbuf, 0, g_vallen);
 	
 		for(i=0; i < g_num_request; ++i) {
 			pack_keynum(keybuf, i);
-			ret = memcached_set(st, keybuf, sizeof(keybuf), valbuf, g_vallen, 0, 0);
+			ret = memcached_set(st, keybuf, g_keylen, valbuf, g_vallen, 0, 0);
 			if(ret != MEMCACHED_SUCCESS) {
 				fprintf(stderr, "put failed: %s\n",
 						memcached_strerror(st, ret));

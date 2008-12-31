@@ -58,7 +58,7 @@ try {
 				&raw_vallen, *z);
 	}
 
-	if(raw_val && raw_vallen >= DBFormat::LEADING_METADATA_SIZE) {
+	if(raw_val && raw_vallen >= DBFormat::VALUE_META_SIZE) {
 		LOG_DEBUG("key found");
 		msgpack::type::raw_ref res(raw_val, raw_vallen);
 		response.result(res, z);
@@ -215,8 +215,7 @@ RPC_REPLY(ResReplicateSet, from, res, err, life,
 		LOG_DEBUG("ReplicateSet succeeded");
 	}
 
-	--*copy_required;
-	if(*copy_required == 0) {
+	if(__sync_sub_and_fetch(copy_required, 1) == 0) {
 		LOG_DEBUG("send response ",*copy_required);
 		response.result( msgpack::type::tuple<uint64_t>(clocktime) );
 	}
@@ -243,8 +242,7 @@ RPC_REPLY(ResReplicateDelete, from, res, err, life,
 		LOG_DEBUG("ReplicateDelete succeeded");
 	}
 
-	--*copy_required;
-	if(*copy_required == 0) {
+	if(__sync_sub_and_fetch(copy_required, 1) == 0) {
 		response.result(true);
 	}
 }

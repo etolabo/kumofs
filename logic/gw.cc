@@ -24,7 +24,7 @@ void Gateway::submit(get_request& req)
 {
 #ifdef GATEWAY_NO_SUBMIT
 	Get(req.callback, req.user, req.life,
-			req.key, req.keylen);
+			req.key, req.keylen, req.hash);
 #else
 	wavy::submit(
 			&Gateway::Get, this,
@@ -37,7 +37,8 @@ void Gateway::submit(set_request& req)
 {
 #ifdef GATEWAY_NO_SUBMIT
 	Set(req.callback, req.user, req.life,
-			req.key, req.keylen, req.val, req.vallen);
+			req.key, req.keylen, req.hash,
+			req.val, req.vallen);
 #else
 	wavy::submit(
 			&Gateway::Set, this,
@@ -51,7 +52,7 @@ void Gateway::submit(delete_request& req)
 {
 #ifdef GATEWAY_NO_SUBMIT
 	Delete(req.callback, req.user, req.life,
-			req.key, req.keylen);
+			req.key, req.keylen, req.hash);
 #else
 	wavy::submit(
 			&Gateway::Delete, this,

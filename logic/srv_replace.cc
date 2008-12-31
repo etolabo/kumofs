@@ -169,9 +169,8 @@ void Server::replace_copy(const address& manager_addr, HashSpace& hs)
 		const char* raw_val = kv.val();
 		size_t raw_vallen = kv.vallen();
 
-		if(raw_vallen < DBFormat::LEADING_METADATA_SIZE) { continue; }
-		// FIXME
-		if(raw_keylen < 8) { continue; }
+		if(raw_vallen < DBFormat::VALUE_META_SIZE) { continue; }
+		if(raw_keylen < DBFormat::KEY_META_SIZE) { continue; }
 
 		uint64_t h = DBFormat::hash(kv.key());
 
@@ -199,16 +198,17 @@ void Server::replace_copy(const address& manager_addr, HashSpace& hs)
 			}
 		}
 
-		uint64_t clocktime = DBFormat::clocktime(raw_val);
-
 		shared_zone z(new msgpack::zone());
 		kv.release_key(*z);
 		if(raw_vallen > 512) {   // FIXME
+			// propose -> push
+			uint64_t clocktime = DBFormat::clocktime(raw_val);
 			for(addrs_it it(newbies.begin()); it != newbies.end(); ++it) {
 				propose_replace_push(*it, raw_key, raw_keylen, clocktime, z, replace_time);
 			}
 
 		} else {
+			// push directly
 			kv.release_val(*z);
 			for(addrs_it it(newbies.begin()); it != newbies.end(); ++it) {
 				replace_push(*it, raw_key, raw_keylen, raw_val, raw_vallen, z, replace_time);
@@ -247,7 +247,7 @@ inline void Server::replace_push(const address& node,
 		const char* raw_val, size_t raw_vallen,
 		shared_zone& life, ClockTime replace_time)
 {
-	if(!raw_val || raw_vallen < DBFormat::LEADING_METADATA_SIZE) { return; }
+	if(!raw_val || raw_vallen < DBFormat::VALUE_META_SIZE) { return; }
 
 	RetryReplacePush* retry = life->allocate<RetryReplacePush>(
 			protocol::type::ReplacePush(raw_key, raw_keylen, raw_val, raw_vallen)
@@ -457,7 +457,8 @@ void Server::replace_delete(shared_node& manager, HashSpace& hs)
 		pthread_scoped_wrlock dblk(m_db.mutex());
 		m_db.iterator_init(kv);
 		while(m_db.iterator_next(kv)) {
-			if(kv.keylen() < 8 || kv.vallen() < 16) {  // FIXME
+			if(kv.keylen() < DBFormat::KEY_META_SIZE ||
+					kv.vallen() < DBFormat::VALUE_META_SIZE) {
 				LOG_TRACE("delete invalid key: ",kv.key());
 				m_db.del(kv.key(), kv.keylen());
 			}

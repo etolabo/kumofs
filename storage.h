@@ -7,11 +7,20 @@
 
 // =Database entry format
 // Big endian
+//
+// key:
+// +--------+-----------------+
+// |   64   |       ...       |
+// +--------+-----------------+
+// hash
+//          key
+//
+// value:
 // +--------+--------+-----------------+
 // |   64   |   64   |       ...       |
 // +--------+--------+-----------------+
 // clocktime
-//          partial write clocktime
+//          meta
 //                   data
 
 #ifdef __LITTLE_ENDIAN__
@@ -52,7 +61,8 @@ public:
 
 	~DBFormat() {}
 
-	static const size_t LEADING_METADATA_SIZE = 16;
+	static const size_t VALUE_META_SIZE = 16;
+	static const size_t KEY_META_SIZE = 8;
 
 	static bool get_clocktime(Storage& db,
 			const char* key, size_t keylen, uint64_t* result);
@@ -60,6 +70,11 @@ public:
 	static uint64_t clocktime(const char* val)
 	{
 		return kumo_be64(*(uint64_t*)val);
+	}
+
+	static uint64_t meta(const char* val)
+	{
+		return kumo_be64(*(uint64_t*)(val+8));
 	}
 
 	static uint64_t hash(const char* key)

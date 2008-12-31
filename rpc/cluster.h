@@ -80,6 +80,8 @@ inline void cluster_transport::submit_message(msgobj msg, auto_zone& z)
 	if(!m_process_state) {
 		init_message(msg, z);
 	} else {
+		// FIXME better performance?
+		//(this->*m_process_state)(msg, z.release());
 		wavy::submit(m_process_state,
 				shared_self<cluster_transport>(),
 				msg, z.get());
