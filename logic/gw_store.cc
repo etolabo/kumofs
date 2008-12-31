@@ -87,9 +87,8 @@ catch (std::runtime_error& e) { \
 
 void Gateway::Get(void (*callback)(void*, get_response&), void* user,
 		shared_zone life,
-		const char* key, uint32_t keylen)
+		const char* key, uint32_t keylen, uint64_t hash)
 try {
-	uint64_t hash = HashSpace::hash(key, keylen);
 	RetryGet* retry = life->allocate<RetryGet>(
 			protocol::type::Get(
 				protocol::type::DBKey(key, keylen, hash)
@@ -103,7 +102,7 @@ GATEWAY_CATCH(Get, get_response)
 
 void Gateway::Set(void (*callback)(void*, set_response&), void* user,
 		shared_zone life,
-		const char* key, uint32_t keylen,
+		const char* key, uint32_t keylen, uint64_t hash,
 		const char* val, uint32_t vallen)
 try {
 	uint64_t hash = HashSpace::hash(key, keylen);
@@ -122,9 +121,8 @@ GATEWAY_CATCH(Set, set_response)
 
 void Gateway::Delete(void (*callback)(void*, delete_response&), void* user,
 		shared_zone life,
-		const char* key, uint32_t keylen)
+		const char* key, uint32_t keylen, uint64_t hash)
 try {
-	uint64_t hash = HashSpace::hash(key, keylen);
 	RetryDelete* retry = life->allocate<RetryDelete>(
 			protocol::type::Delete(
 				protocol::type::DBKey(key, keylen, hash)
@@ -149,6 +147,7 @@ RPC_REPLY(ResGet, from, res, err, life,
 		ret.life      = life;
 		ret.key       = key.data();
 		ret.keylen    = key.size();
+		ret.hash      = key.hash();
 		if(res.is_nil()) {
 			ret.val       = NULL;
 			ret.vallen    = 0;
@@ -179,6 +178,7 @@ RPC_REPLY(ResGet, from, res, err, life,
 		ret.life      = life;
 		ret.key       = key.data();
 		ret.keylen    = key.size();
+		ret.hash      = key.hash();
 		ret.val       = NULL;
 		ret.vallen    = 0;
 		ret.clocktime = 0;
@@ -203,6 +203,7 @@ RPC_REPLY(ResSet, from, res, err, life,
 		ret.life      = life;
 		ret.key       = key.data();
 		ret.keylen    = key.size();
+		ret.hash      = key.hash();
 		ret.val       = val.data();
 		ret.vallen    = val.size();
 		ret.clocktime = st.get<0>();
@@ -228,6 +229,7 @@ RPC_REPLY(ResSet, from, res, err, life,
 		ret.life      = life;
 		ret.key       = key.data();
 		ret.keylen    = key.size();
+		ret.hash      = key.hash();
 		ret.val       = val.data();
 		ret.vallen    = val.size();
 		ret.clocktime = 0;
@@ -251,6 +253,7 @@ RPC_REPLY(ResDelete, from, res, err, life,
 		ret.life      = life;
 		ret.key       = key.data();
 		ret.keylen    = key.size();
+		ret.hash      = key.hash();
 		ret.deleted   = st;
 		(*callback)(user, ret);
 
@@ -274,12 +277,12 @@ RPC_REPLY(ResDelete, from, res, err, life,
 		ret.life      = life;
 		ret.key       = key.data();
 		ret.keylen    = key.size();
+		ret.hash      = key.hash();
 		ret.deleted   = false;
 		(*callback)(user, ret);
 		LOG_ERROR("Delete error: ",err);
 	}
 }
-
 
 
 }  // namespace kumo

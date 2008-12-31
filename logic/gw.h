@@ -41,10 +41,12 @@ public:
 		shared_zone life;
 	};
 
+	static uint64_t stdhash(const char* key, size_t keylen);
 
 	struct get_response : basic_response {
 		const char* key;
 		uint32_t keylen;
+		uint64_t hash;
 		char* val;
 		uint32_t vallen;
 		uint64_t clocktime;
@@ -55,12 +57,14 @@ public:
 		void* user;
 		const char* key;
 		uint32_t keylen;
+		uint64_t hash;
 	};
 
 
 	struct set_response : basic_response {
 		const char* key;
 		uint32_t keylen;
+		uint64_t hash;
 		const char* val;
 		uint32_t vallen;
 		uint64_t clocktime;
@@ -71,6 +75,7 @@ public:
 		void* user;
 		const char* key;
 		uint32_t keylen;
+		uint64_t hash;
 		const char* val;
 		uint32_t vallen;
 	};
@@ -79,6 +84,7 @@ public:
 	struct delete_response : basic_response {
 		const char* key;
 		uint32_t keylen;
+		uint64_t hash;
 		bool deleted;
 	};
 
@@ -87,6 +93,7 @@ public:
 		void* user;
 		const char* key;
 		uint32_t keylen;
+		uint64_t hash;
 	};
 
 	void submit(get_request& req);
@@ -98,16 +105,16 @@ public:
 private:
 	void Get(void (*callback)(void*, get_response&), void* user,
 			shared_zone life,
-			const char* key, uint32_t keylen);
+			const char* key, uint32_t keylen, uint64_t hash);
 
 	void Set(void (*callback)(void*, set_response&), void* user,
 			shared_zone life,
-			const char* key, uint32_t keylen,
+			const char* key, uint32_t keylen, uint64_t hash,
 			const char* val, uint32_t vallen);
 
 	void Delete(void (*callback)(void*, delete_response&), void* user,
 			shared_zone life,
-			const char* key, uint32_t keylen);
+			const char* key, uint32_t keylen, uint64_t hash);
 
 private:
 	typedef RPC_RETRY(Get) RetryGet;
@@ -180,6 +187,10 @@ Gateway::Gateway(Config& cfg) :
 	renew_hash_space();
 }
 
+inline uint64_t Gateway::stdhash(const char* key, size_t keylen)
+{
+	return HashSpace::hash(key, keylen);
+}
 
 }  // namespace kumo
 

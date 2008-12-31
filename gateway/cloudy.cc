@@ -376,6 +376,7 @@ void Cloudy::Connection::memproto_getx(memproto_header* h, const char* key, uint
 	get_request req;
 	req.keylen = keylen;
 	req.key = key;
+	req.hash = Gateway::stdhash(req.key, req.keylen);
 	req.user = (void*)ctx;
 	req.callback = &mp::object_callback<void (get_response&)>
 		::mem_fun<ResGet, &ResGet::response>;
@@ -400,6 +401,7 @@ void Cloudy::Connection::memproto_set(memproto_header* h, const char* key, uint1
 	req.keylen = keylen;
 	req.key = key;
 	req.vallen = vallen;
+	req.hash = Gateway::stdhash(req.key, req.keylen);
 	req.val = val;
 	req.user = (void*)ctx;
 	req.callback = &mp::object_callback<void (set_response&)>
@@ -423,6 +425,7 @@ void Cloudy::Connection::memproto_delete(memproto_header* h, const char* key, ui
 	delete_request req;
 	req.key = key;
 	req.keylen = keylen;
+	req.hash = Gateway::stdhash(req.key, req.keylen);
 	req.user = (void*)ctx;
 	req.callback = &mp::object_callback<void (delete_response&)>
 		::mem_fun<ResDelete, &ResDelete::response>;

@@ -51,17 +51,6 @@ namespace kumo {
 	} \
 }
 
-#if 0
-namespace {
-
-inline bool clocktime_new(const char* meta, uint64_t clocktime)
-{
-	return ClockTime(DBFormat(meta, DBFormat::LEADING_METADATA_SIZE).clocktime()) < ClockTime(clocktime);
-}
-
-}  // noname namespace
-#endif
-
 
 }  // namespace kumo
 

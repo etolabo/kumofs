@@ -29,7 +29,7 @@ void Gateway::submit(get_request& req)
 	wavy::submit(
 			&Gateway::Get, this,
 			req.callback, req.user, req.life,
-			req.key, req.keylen);
+			req.key, req.keylen, req.hash);
 #endif
 }
 
@@ -42,7 +42,7 @@ void Gateway::submit(set_request& req)
 	wavy::submit(
 			&Gateway::Set, this,
 			req.callback, req.user, req.life,
-			req.key, req.keylen,
+			req.key, req.keylen, req.hash,
 			req.val, req.vallen);
 #endif
 }
@@ -56,7 +56,7 @@ void Gateway::submit(delete_request& req)
 	wavy::submit(
 			&Gateway::Delete, this,
 			req.callback, req.user, req.life,
-			req.key, req.keylen);
+			req.key, req.keylen, req.hash);
 #endif
 }
 
