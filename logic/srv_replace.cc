@@ -182,6 +182,7 @@ void Server::replace_copy(const address& manager_addr, HashSpace& hs)
 	shared_zone propose_life(new msgpack::zone());
 	shared_zone push_life(new msgpack::zone());
 	size_t pool_size = 0;
+	size_t pool_num  = 0;
 
 	// FIXME
 	//// only one thread can use iterator
@@ -252,6 +253,7 @@ void Server::replace_copy(const address& manager_addr, HashSpace& hs)
 					raw_key, raw_keylen, clocktime);
 			POOL_REQUEST(propose_pool_t, propose_pool, e);
 			pool_size += (raw_keylen + 64) * newbies.size();  // FIXME 64
+			pool_num  += newbies.size();
 
 		} else {
 			// push directly
@@ -263,6 +265,7 @@ void Server::replace_copy(const address& manager_addr, HashSpace& hs)
 					raw_val, raw_vallen);
 			POOL_REQUEST(push_pool_t, push_pool, e);
 			pool_size += (raw_keylen + raw_vallen + 64) * newbies.size();  // FIXME 64
+			pool_num  += newbies.size() * 2;
 		}
 
 		#define FLUSH_POOL(FUNC, TYPE, POOL, LIFE) \
@@ -272,12 +275,14 @@ void Server::replace_copy(const address& manager_addr, HashSpace& hs)
 			} \
 			propose_pool.clear();
 
-		if(pool_size/1024/1024 > m_cfg_replace_pool_size) {
+		// FIXME pool_num limit
+		if(pool_num > 10240 || pool_size/1024/1024 > m_cfg_replace_pool_size) {
 			FLUSH_POOL(send_replace_propose, propose_pool_t, propose_pool, propose_life);
 			FLUSH_POOL(send_replace_push, push_pool_t, push_pool, push_life);
 			propose_life.reset(new msgpack::zone());
 			push_life.reset(new msgpack::zone());
 			pool_size = 0;
+			pool_num  = 0;
 		}
 
 	}

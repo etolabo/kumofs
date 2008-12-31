@@ -65,12 +65,21 @@ inline void responder::call(Result& res, Error& err, auto_zone z)
 	msgpack::pack(*buf, msgres);
 
 	size_t sz = buf->vector_size();
-	struct iovec vb[sz];
-	buf->get_vector(vb);
+	struct iovec* vb = (struct iovec*)::malloc(
+			sz * sizeof(struct iovec));
+	if(!vb) { throw std::bad_alloc(); }
 
-	wavy::request req(&mp::object_delete<msgpack::zone>, z.get());
-	wavy::writev(m_fd, vb, sz, req);
-	z.release();
+	try {
+		buf->get_vector(vb);
+		wavy::request req(&mp::object_delete<msgpack::zone>, z.get());
+		wavy::writev(m_fd, vb, sz, req);
+		z.release();
+
+	} catch (...) {
+		free(vb);
+		throw;
+	}
+	free(vb);
 }
 
 inline void responder::send_response(const char* buf, size_t buflen, auto_zone z)

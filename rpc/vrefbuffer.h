@@ -8,6 +8,7 @@
 
 namespace rpc {
 
+// FIXME 72?
 static const size_t VREFBUFFER_INITIAL_ALLOCATION_SIZE = 1024;
 
 class vrefbuffer {
@@ -55,7 +56,7 @@ inline vrefbuffer::~vrefbuffer() { clear(); }
 
 inline void vrefbuffer::write(const char* buf, size_t len)
 {
-	if(len > 32) {  // FIXME
+	if(len > 512) {  // FIXME
 		append_ref(buf, len);
 	} else {
 		if(m_free < len) { expand_buffer(len); }

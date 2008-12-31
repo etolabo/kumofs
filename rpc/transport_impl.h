@@ -77,12 +77,20 @@ inline void basic_transport::send_datav(
 		void (*finalize)(void*), void* data)
 {
 	size_t sz = buf->vector_size();
+	struct iovec* vb = (struct iovec*)::malloc(
+			sz * sizeof(struct iovec));
+	if(!vb) { throw std::bad_alloc(); }
 
-	struct iovec vec[sz];
-	buf->get_vector(vec);
+	try {
+		buf->get_vector(vb);
+		wavy::request req(finalize, data);
+		wavy::writev(m_fd, vb, sz, req);
 
-	wavy::request req(finalize, data);
-	wavy::writev(m_fd, vec, sz, req);
+	} catch (...) {
+		free(vb);
+		throw;
+	}
+	free(vb);
 }
 
 

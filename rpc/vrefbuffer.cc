@@ -22,10 +22,10 @@ void vrefbuffer::expand_buffer(size_t len)
 	if(m_buffer && m_vec.back().used == 0) {
 		size_t nlen = VREFBUFFER_INITIAL_ALLOCATION_SIZE*2;
 		while(nlen < len) { nlen *= 2; }
-		char* tmp = (char*)::realloc(m_buffer, len);
+		char* tmp = (char*)::realloc(m_buffer, nlen);
 		if(!tmp) { throw std::bad_alloc(); }
 		m_buffer = m_vec.back().buffer = tmp;
-		m_free = len - m_vec.back().used;
+		m_free = nlen - m_vec.back().used;
 
 	} else {
 		len = std::max(len, VREFBUFFER_INITIAL_ALLOCATION_SIZE);
