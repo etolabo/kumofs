@@ -3,8 +3,7 @@ noinst_LIBRARIES = libkumo_rpc.a libkumo_cluster.a
 
 libkumo_rpc_a_SOURCES = \
 		address.cc \
-		session.cc \
-		vrefbuffer.cc
+		session.cc
 
 libkumo_cluster_a_SOURCES = \
 		$(libkumo_rpc_a_SOURCES) \

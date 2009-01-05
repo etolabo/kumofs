@@ -64,22 +64,9 @@ inline void responder::call(Result& res, Error& err, auto_zone z)
 	rpc_response<Result&, Error> msgres(res, err, m_msgid);
 	msgpack::pack(*buf, msgres);
 
-	size_t sz = buf->vector_size();
-	struct iovec* vb = (struct iovec*)::malloc(
-			sz * sizeof(struct iovec));
-	if(!vb) { throw std::bad_alloc(); }
-
-	try {
-		buf->get_vector(vb);
-		wavy::request req(&mp::object_delete<msgpack::zone>, z.get());
-		wavy::writev(m_fd, vb, sz, req);
-		z.release();
-
-	} catch (...) {
-		free(vb);
-		throw;
-	}
-	free(vb);
+	wavy::request req(&mp::object_delete<msgpack::zone>, z.get());
+	wavy::writev(m_fd, buf->vector(), buf->vector_size(), req);
+	z.release();
 }
 
 inline void responder::send_response(const char* buf, size_t buflen, auto_zone z)
