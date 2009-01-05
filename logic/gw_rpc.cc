@@ -42,19 +42,14 @@ RPC_REPLY(ResHashSpaceRequest, from, res, err, life)
 	} else {
 		protocol::type::HashSpacePush st(res.convert());
 
-		{
-			pthread_scoped_wrlock whlk(m_whs_rwlock);
-			if(m_whs.empty() ||
-					m_whs.clocktime() <= st.wseed().clocktime()) {
-				m_whs = HashSpace(st.wseed());
-			}
+		pthread_scoped_wrlock hslk(m_hs_rwlock);
+		if(m_whs.empty() ||
+				m_whs.clocktime() <= st.wseed().clocktime()) {
+			m_whs = HashSpace(st.wseed());
 		}
-		{
-			pthread_scoped_wrlock whlk(m_rhs_rwlock);
-			if(m_rhs.empty() ||
-					m_rhs.clocktime() <= st.rseed().clocktime()) {
-				m_rhs = HashSpace(st.rseed());
-			}
+		if(m_rhs.empty() ||
+				m_rhs.clocktime() <= st.rseed().clocktime()) {
+			m_rhs = HashSpace(st.rseed());
 		}
 	}
 }
@@ -64,19 +59,14 @@ RPC_FUNC(HashSpacePush, from, response, life, param)
 try {
 	LOG_DEBUG("HashSpacePush");
 
-	{
-		pthread_scoped_wrlock whlk(m_whs_rwlock);
-		if(m_whs.empty() ||
-				m_whs.clocktime() <= param.wseed().clocktime()) {
-			m_whs = HashSpace(param.wseed());
-		}
+	pthread_scoped_wrlock hslk(m_hs_rwlock);
+	if(m_whs.empty() ||
+			m_whs.clocktime() <= param.wseed().clocktime()) {
+		m_whs = HashSpace(param.wseed());
 	}
-	{
-		pthread_scoped_wrlock whlk(m_rhs_rwlock);
-		if(m_rhs.empty() ||
-				m_rhs.clocktime() <= param.rseed().clocktime()) {
-			m_rhs = HashSpace(param.rseed());
-		}
+	if(m_rhs.empty() ||
+			m_rhs.clocktime() <= param.rseed().clocktime()) {
+		m_rhs = HashSpace(param.rseed());
 	}
 
 	response.result(true);

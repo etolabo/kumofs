@@ -131,10 +131,8 @@ private:
 private:
 	Clock m_clock;
 
-	mp::pthread_rwlock m_rhs_rwlock;
+	mp::pthread_rwlock m_hs_rwlock;
 	HashSpace m_rhs;
-
-	mp::pthread_rwlock m_whs_rwlock;
 	HashSpace m_whs;
 
 	const address m_manager1;

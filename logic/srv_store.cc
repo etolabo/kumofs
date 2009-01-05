@@ -42,7 +42,7 @@ RPC_FUNC(Get, from, response, z, param)
 try {
 	protocol::type::DBKey key(param.dbkey());
 	LOG_DEBUG("Get '",
-			std::string(key.data(),key.size()),"' with hash ",
+			/*std::string(key.data(),key.size()),*/"' with hash ",
 			key.hash());
 
 	{
@@ -76,8 +76,8 @@ try {
 	protocol::type::DBKey key(param.dbkey());
 	protocol::type::DBValue val(param.dbval());
 	LOG_DEBUG("Set '",
-			std::string(key.data(),key.size()),"' => '",
-			std::string(val.data(),val.size()),"' with hash ",
+			/*std::string(key.data(),key.size()),*/"' => '",
+			/*std::string(val.data(),val.size()),*/"' with hash ",
 			key.hash(),", with meta ",val.meta());
 
 	pthread_scoped_rdlock whlk(m_whs_mutex);

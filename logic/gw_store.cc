@@ -11,8 +11,7 @@ Gateway::shared_session Gateway::server_for(uint64_t h, unsigned int offset)
 #endif
 	assert(offset == 0 || offset == 1 || offset == 2);
 
-	pthread_scoped_rdlock lk(Hs == HS_WRITE ?
-			m_whs_rwlock : m_rhs_rwlock);
+	pthread_scoped_rdlock hslk(m_hs_rwlock);
 
 	if((Hs == HS_WRITE ? m_whs : m_rhs).empty()) {
 		renew_hash_space();  // FIXME may burst
@@ -53,7 +52,7 @@ Gateway::shared_session Gateway::server_for(uint64_t h, unsigned int offset)
 
 node_found:
 	address addr = it->addr();
-	lk.unlock();
+	hslk.unlock();
 	return get_server(addr);
 }
 

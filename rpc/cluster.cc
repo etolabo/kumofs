@@ -119,7 +119,7 @@ void cluster_transport::init_message(msgobj msg, auto_zone z)
 void cluster_transport::subsys_state(msgobj msg, msgpack::zone* newz)
 {
 	auto_zone z(newz);
-	LOG_TRACE("receive rpc message: ",msg);
+//	LOG_TRACE("receive rpc message: ",msg);
 	rpc_message rpc(msg.convert());
 
 	if(rpc.is_request()) {
@@ -139,7 +139,7 @@ void cluster_transport::subsys_state(msgobj msg, msgpack::zone* newz)
 void cluster_transport::cluster_state(msgobj msg, msgpack::zone* newz)
 {
 	auto_zone z(newz);
-	LOG_TRACE("receive rpc message: ",msg);
+//	LOG_TRACE("receive rpc message: ",msg);
 	rpc_message rpc(msg.convert());
 
 	if(rpc.is_request()) {
