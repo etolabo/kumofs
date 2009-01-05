@@ -168,7 +168,7 @@ namespace type {
 
 	struct HashSpaceRequest : define< tuple<> > {
 		HashSpaceRequest() {}
-		// success: hash_space:tuple<array<raw_ref>,uint64_t>
+		// success: HashSpacePush
 	};
 
 	struct WHashSpaceRequest : define< tuple<> > {
@@ -225,13 +225,15 @@ namespace type {
 		// acknowledge: true
 	};
 
-	struct HashSpacePush : define< tuple<HSSeed> > {
+	struct HashSpacePush : define< tuple<HSSeed, HSSeed> > {
 		HashSpacePush() {}
-		HashSpacePush(HSSeed& hsseed) :
-			define_type(msgpack_type( hsseed )) {}
-		HSSeed& hsseed()				{ return get<0>(); }
+		HashSpacePush(HSSeed& wseed, HSSeed& rseed) :
+			define_type(msgpack_type( wseed, rseed )) {}
+		HSSeed& wseed()					{ return get<0>(); }
+		HSSeed& rseed()					{ return get<1>(); }
 		// acknowledge: true
 	};
+
 
 	struct ReplicateSet : define< tuple<raw_ref, raw_ref, uint32_t> > {
 		ReplicateSet() {}

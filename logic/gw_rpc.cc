@@ -40,15 +40,20 @@ RPC_REPLY(ResHashSpaceRequest, from, res, err, life)
 					BIND_RESPONSE(ResHashSpaceRequest), 10);
 		}  // retry on Gateway::session_lost() if the node is lost
 	} else {
-		HashSpace::Seed hsseed(res.convert());
-		pthread_scoped_wrlock lk(m_hs_rwlock);
-		if(m_hs.empty()) {
-			LOG_DEBUG("renew hash space");
-			m_hs = HashSpace(hsseed);
-		} else {
-			if(m_hs.clocktime() <= hsseed.clocktime()) {
-				LOG_DEBUG("renew hash space");
-				m_hs = HashSpace(hsseed);
+		protocol::type::HashSpacePush st(res.convert());
+
+		{
+			pthread_scoped_wrlock whlk(m_whs_rwlock);
+			if(m_whs.empty() ||
+					m_whs.clocktime() <= st.wseed().clocktime()) {
+				m_whs = HashSpace(st.wseed());
+			}
+		}
+		{
+			pthread_scoped_wrlock whlk(m_rhs_rwlock);
+			if(m_rhs.empty() ||
+					m_rhs.clocktime() <= st.rseed().clocktime()) {
+				m_rhs = HashSpace(st.rseed());
 			}
 		}
 	}
@@ -60,9 +65,17 @@ try {
 	LOG_DEBUG("HashSpacePush");
 
 	{
-		pthread_scoped_wrlock lk(m_hs_rwlock);
-		if(m_hs.empty() || m_hs.clocktime() < param.hsseed().clocktime()) {
-			m_hs = HashSpace(param.hsseed());
+		pthread_scoped_wrlock whlk(m_whs_rwlock);
+		if(m_whs.empty() ||
+				m_whs.clocktime() <= param.wseed().clocktime()) {
+			m_whs = HashSpace(param.wseed());
+		}
+	}
+	{
+		pthread_scoped_wrlock whlk(m_rhs_rwlock);
+		if(m_rhs.empty() ||
+				m_rhs.clocktime() <= param.rseed().clocktime()) {
+			m_rhs = HashSpace(param.rseed());
 		}
 	}
 

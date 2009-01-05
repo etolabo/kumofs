@@ -36,9 +36,11 @@ RPC_CATCH(RHashSpaceRequest, response)
 RPC_FUNC(HashSpaceRequest, from, response, z, param)
 try {
 	pthread_scoped_lock hslk(m_hs_mutex);
-	HashSpace::Seed* seed = z->allocate<HashSpace::Seed>(m_whs);
+	HashSpace::Seed* wseed = z->allocate<HashSpace::Seed>(m_whs);
+	HashSpace::Seed* rseed = z->allocate<HashSpace::Seed>(m_rhs);
 	hslk.unlock();
-	response.result(*seed, z);
+	protocol::type::HashSpacePush arg(*wseed, *rseed);
+	response.result(arg, z);
 }
 RPC_CATCH(HashSpaceRequest, response)
 
@@ -46,9 +48,10 @@ RPC_CATCH(HashSpaceRequest, response)
 
 namespace {
 	struct each_client_push {
-		each_client_push(HashSpace::Seed* hs, rpc::callback_t cb, shared_zone& l) :
+		each_client_push(HashSpace::Seed* whs, HashSpace::Seed* rhs,
+				rpc::callback_t cb, shared_zone& l) :
 			life(l),
-			arg(*hs),
+			arg(*whs, *rhs),
 			callback(cb) { }
 
 		void operator() (rpc::shared_peer p)
@@ -68,9 +71,10 @@ void Manager::push_hash_space_clients(REQUIRE_HSLK)
 {
 	LOG_WARN("push hash space ...");
 	shared_zone life(new msgpack::zone());
-	HashSpace::Seed* seed = life->allocate<HashSpace::Seed>(m_whs);
+	HashSpace::Seed* wseed = life->allocate<HashSpace::Seed>(m_whs);
+	HashSpace::Seed* rseed = life->allocate<HashSpace::Seed>(m_rhs);
 	rpc::callback_t callback( BIND_RESPONSE(ResHashSpacePush) );
-	subsystem().for_each_peer( each_client_push(seed, callback, life) );
+	subsystem().for_each_peer( each_client_push(wseed, rseed, callback, life) );
 }
 
 RPC_REPLY(ResHashSpacePush, from, res, err, life)

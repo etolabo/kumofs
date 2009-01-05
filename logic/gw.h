@@ -121,14 +121,21 @@ private:
 	void renew_hash_space_for(const address& addr);
 	RPC_REPLY_DECL(ResHashSpaceRequest, from, res, err, life);
 
-	shared_session server_for(uint64_t h);
-	shared_session server_for(uint64_t h, unsigned int offset);
+	enum hash_space_type {
+		HS_WRITE,
+		HS_READ,
+	};
+	template <hash_space_type Hs>
+	shared_session server_for(uint64_t h, unsigned int offset = 0);
 
 private:
 	Clock m_clock;
 
-	mp::pthread_rwlock m_hs_rwlock;
-	HashSpace m_hs;
+	mp::pthread_rwlock m_rhs_rwlock;
+	HashSpace m_rhs;
+
+	mp::pthread_rwlock m_whs_rwlock;
+	HashSpace m_whs;
 
 	const address m_manager1;
 	const address m_manager2;

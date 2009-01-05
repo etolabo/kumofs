@@ -3,11 +3,7 @@
 
 namespace kumo {
 
-inline Gateway::shared_session Gateway::server_for(uint64_t h)
-{
-	return server_for(h, 0);
-}
-
+template <Gateway::hash_space_type Hs>
 Gateway::shared_session Gateway::server_for(uint64_t h, unsigned int offset)
 {
 #if NUM_REPLICATION != 2
@@ -15,13 +11,15 @@ Gateway::shared_session Gateway::server_for(uint64_t h, unsigned int offset)
 #endif
 	assert(offset == 0 || offset == 1 || offset == 2);
 
-	pthread_scoped_rdlock lk(m_hs_rwlock);
+	pthread_scoped_rdlock lk(Hs == HS_WRITE ?
+			m_whs_rwlock : m_rhs_rwlock);
 
-	if(m_hs.empty()) {
+	if((Hs == HS_WRITE ? m_whs : m_rhs).empty()) {
 		renew_hash_space();  // FIXME may burst
 		throw std::runtime_error("No server");
 	}
-	HashSpace::iterator it( m_hs.find(h) );
+	HashSpace::iterator it =
+		(Hs == HS_WRITE ? m_whs : m_rhs).find(h);
 
 	{
 		if(offset == 0) {
@@ -94,7 +92,7 @@ try {
 				));
 
 	retry->set_callback( BIND_RESPONSE(ResGet, retry, callback, user) );
-	retry->call(server_for(hash), life, 10);
+	retry->call(server_for<HS_READ>(hash), life, 10);
 }
 GATEWAY_CATCH(Get, get_response)
 
@@ -113,7 +111,7 @@ try {
 				));
 
 	retry->set_callback( BIND_RESPONSE(ResSet, retry, callback, user) );
-	retry->call(server_for(hash), life, 10);
+	retry->call(server_for<HS_WRITE>(hash), life, 10);
 }
 GATEWAY_CATCH(Set, set_response)
 
@@ -129,7 +127,7 @@ try {
 				));
 
 	retry->set_callback( BIND_RESPONSE(ResDelete, retry, callback, user) );
-	retry->call(server_for(hash), life, 10);
+	retry->call(server_for<HS_WRITE>(hash), life, 10);
 }
 GATEWAY_CATCH(Delete, delete_response)
 
@@ -163,7 +161,7 @@ try {
 	} else if( retry->retry_incr((NUM_REPLICATION+1) * m_cfg_get_retry_num - 1) ) {
 		incr_error_count();
 		unsigned short offset = retry->num_retried() % (NUM_REPLICATION+1);
-		retry->call(server_for(key.hash(), offset), life, 10);
+		retry->call(server_for<HS_READ>(key.hash(), offset), life, 10);
 		LOG_INFO("Get error: ",err,", fallback to offset +",offset," node");
 
 	} else {
@@ -213,7 +211,7 @@ try {
 		if(!SESSION_IS_ACTIVE(from)) {
 			// FIXME renew hash space?
 			// FIXME delayed retry
-			from = server_for(key.hash());
+			from = server_for<HS_WRITE>(key.hash());
 		}
 		retry->call(from, life, 10);
 		LOG_WARN("Set error: ",err,", retry ",retry->num_retried());
@@ -262,7 +260,7 @@ try {
 		if(!SESSION_IS_ACTIVE(from)) {
 			// FIXME renew hash space?
 			// FIXME delayed retry
-			from = server_for(key.hash());
+			from = server_for<HS_WRITE>(key.hash());
 		}
 		retry->call(from, life, 10);
 		LOG_WARN("Delete error: ",err,", retry ",retry->num_retried());
