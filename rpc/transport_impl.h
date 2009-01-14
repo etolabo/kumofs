@@ -18,6 +18,11 @@ inline transport_manager* basic_transport::get_manager()
 	return m_manager;
 }
 
+inline basic_shared_session basic_transport::shutdown()
+{
+	::shutdown(m_fd, SHUT_RD);  // FIXME
+	return m_session;
+}
 
 inline transport::transport(int fd, basic_shared_session& s,
 		transport_manager* mgr) :

@@ -188,6 +188,11 @@ RPC_REPLY(ResKeepAlive, from, res, err, life)
 		LOG_TRACE("KeepAlive succeeded");
 	} else {
 		LOG_DEBUG("KeepAlive failed: ",err);
+		if(from && !from->is_lost()) {
+			if(from->increment_connect_retried_count() > 5) {  // FIXME
+				from->shutdown();
+			}
+		}
 	}
 }
 

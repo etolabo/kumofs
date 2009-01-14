@@ -21,8 +21,8 @@ inline void basic_session::revive()
 	{ m_lost = false; }
 
 
-inline void basic_session::increment_connect_retried_count()
-	{ ++m_connect_retried_count; } // FIXME atomic?
+inline unsigned short basic_session::increment_connect_retried_count()
+	{ return ++m_connect_retried_count; } // FIXME atomic?
 
 inline unsigned short basic_session::connect_retried_count()
 	{ return m_connect_retried_count; }

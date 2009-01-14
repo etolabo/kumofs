@@ -22,6 +22,9 @@ public:
 	// get transport manager
 	transport_manager* get_manager();
 
+	// called from basic_session::shutdown()
+	basic_shared_session shutdown();
+
 public:
 	void process_request(method_id method, msgobj param,
 			msgid_t msgid, auto_zone& z);

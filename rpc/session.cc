@@ -123,6 +123,23 @@ bool session::unbind_transport(basic_transport* t, basic_shared_session& self)
 }
 
 
+void basic_session::shutdown()
+{
+	pthread_scoped_lock lk(m_binds_mutex);
+
+	basic_shared_session self;
+	for(binds_t::iterator it(m_binds.begin()), it_end(m_binds.end());
+			it != it_end; ++it) {
+		basic_shared_session b = (*it)->shutdown();
+		if(b) { self = b; }
+	}
+	m_binds.clear();
+
+	if(m_manager && self) {
+		wavy::submit(&session_manager::transport_lost_notify, m_manager, self);
+	}
+}
+
 void basic_session::force_lost(msgobj res, msgobj err)
 {
 	m_lost = true;

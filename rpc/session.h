@@ -60,13 +60,17 @@ public:
 			void (*finalize)(void*), void* data);
 
 public:
-	// called from server::connect_session.
+	// called from client::async_connect and user.
 	// the number of retried times is reset when bind_transport()
 	// is called.
-	void increment_connect_retried_count();
+	unsigned short increment_connect_retried_count();
 
 	// return number of connect retried times.
 	unsigned short connect_retried_count();
+
+	// called from user.
+	// close this session.
+	void shutdown();
 
 public:
 	// call all registered callback functions with specified arguments
