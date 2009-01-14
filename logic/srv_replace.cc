@@ -253,7 +253,8 @@ void Server::replace_copy(const address& manager_addr, HashSpace& hs)
 			protocol::type::ReplaceProposeElement e(
 					raw_key, raw_keylen, clocktime);
 			POOL_REQUEST(propose_pool_t, propose_pool, e);
-			pool_size += (raw_keylen + 64) * newbies.size();  // FIXME 64
+			//pool_size += (raw_keylen + 64) * newbies.size();  // FIXME 64
+			pool_size += (raw_keylen + raw_vallen + 64) * newbies.size();  // FIXME 64
 			pool_num  += newbies.size();
 
 		} else {
@@ -321,7 +322,7 @@ try {
 	pthread_scoped_lock relk(m_replacing_mutex);
 	m_replacing.proposed(replace_time);
 
-	retry->call(get_node(node), life, 10);
+	retry->call(get_node(node), life, 80);  // FIXME
 
 } catch (std::exception& e) {
 	LOG_WARN("replace propose failed: ",e.what());
@@ -338,7 +339,7 @@ try {
 	pthread_scoped_lock relk(m_replacing_mutex);
 	m_replacing.pushed(replace_time);
 
-	retry->call(get_node(node), life, 10);
+	retry->call(get_node(node), life, 80);  // FIXME
 
 } catch (std::exception& e) {
 	LOG_WARN("replace push failed: ",e.what());

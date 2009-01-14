@@ -84,7 +84,7 @@ void do_daemonize(bool close_stdio, const char* pidfile)
 
 rpc_server_args::rpc_server_args() :
 	keepalive_interval(2.0),
-	clock_interval(0.5),
+	clock_interval(2.0),
 	connect_timeout_sec(1.0),
 	connect_retry_limit(4),
 	wthreads(2),

@@ -15,9 +15,8 @@ server::~server() { }
 
 shared_peer server::accepted(int fd)
 {
-	int on = 1;
-	::setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &on, sizeof(on));  // ignore error
-
+	//int on = 1;
+	//::setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &on, sizeof(on));  // ignore error
 	basic_shared_session s(new peer(this));
 	wavy::add<transport>(fd, s, this);
 	void* k = (void*)s.get();

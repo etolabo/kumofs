@@ -41,6 +41,8 @@ struct arg_t : rpc_cluster_args {
 		replace_push_retry_num(20),
 		replace_pool_size(8)
 	{
+		clock_interval = 8.0;
+
 		using namespace kazuhiki;
 		set_basic_args();
 		on("-l",  "--listen",
