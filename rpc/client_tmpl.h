@@ -1,6 +1,11 @@
 #ifndef RPC_CLIENT_TMPL_H__
 #define RPC_CLIENT_TMPL_H__
 
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <netinet/tcp.h>
+
 namespace rpc {
 
 
@@ -110,6 +115,12 @@ void client<Transport, Session>::connect_callback(
 		address addr, shared_session s, int fd, int err)
 {
 	if(fd >= 0) {
+		int on = 1;
+		if(::setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &on, sizeof(on)) < 0) {
+			::close(fd);
+			goto error;
+		}
+
 		LOG_INFO("connect success ",addr," fd(",fd,")");
 		try {
 			basic_shared_session bs(mp::static_pointer_cast<basic_session>(s));
@@ -121,6 +132,7 @@ void client<Transport, Session>::connect_callback(
 		return;
 	}
 
+error:
 	LOG_INFO("connect failed ",addr,": ",strerror(err));
 	if(s->connect_retried_count() > m_connect_retry_limit) {
 		connect_failed(s, addr, err);

@@ -1,5 +1,9 @@
 #include "rpc/server.h"
 #include "rpc/protocol.h"
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <netinet/tcp.h>
 
 namespace rpc {
 
@@ -11,6 +15,9 @@ server::~server() { }
 
 shared_peer server::accepted(int fd)
 {
+	int on = 1;
+	::setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &on, sizeof(on));  // ignore error
+
 	basic_shared_session s(new peer(this));
 	wavy::add<transport>(fd, s, this);
 	void* k = (void*)s.get();
