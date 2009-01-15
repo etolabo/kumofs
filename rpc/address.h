@@ -17,7 +17,9 @@ class address {
 public:
 	address();
 	address(const struct sockaddr_in& addr);
+#ifdef KUMO_IPV6
 	address(const struct sockaddr_in6& addr);
+#endif
 	address(const char* ptr, unsigned int len);
 //	address(const address& o);
 
@@ -42,13 +44,18 @@ private:
 	// port network byte order
 	//    IPv6 address
 	//                     scope id
+#ifdef KUMO_IPV6
 	char m_serial_address[22];
 	unsigned int m_serial_length;  // 6 or 22
+#else
+	uint64_t m_serial;
+#endif
 
 public:
 	socklen_t addrlen() const;
 	void getaddr(sockaddr* addrbuf) const;
-
+	uint16_t port() const;
+	void set_port(uint16_t port);
 private:
 	uint16_t raw_port() const;
 
@@ -64,11 +71,16 @@ public:
 std::ostream& operator<< (std::ostream& stream, const address& addr);
 
 
+#ifdef KUMO_IPV6
 inline address::address() :
 	m_serial_length(0)
 {
 	*((uint16_t*)&m_serial_address[0]) = 0;
 }
+#else
+inline address::address() :
+	m_serial(0) { }
+#endif
 
 //inline address::address(const address& o) :
 //	m_serial_length(o.m_serial_length)
@@ -77,21 +89,59 @@ inline address::address() :
 //}
 
 inline unsigned int address::dump_size() const
-{ return m_serial_length; }
-
+{
+#ifdef KUMO_IPV6
+	return m_serial_length;
+#else
+	return 6;
+#endif
+}
 inline const char* address::dump() const
-{ return m_serial_address; }	
+{
+#ifdef KUMO_IPV6
+	return m_serial_address;
+#else
+	return (char*)&m_serial;
+#endif
+}
+
+inline uint16_t address::port() const
+{
+	return ntohs(raw_port());
+}
+
+inline void address::set_port(uint16_t port)
+{
+#ifdef KUMO_IPV6
+	*((uint16_t*)m_serial_address) = htons(port);
+#else
+	*((uint16_t*)(void*)&m_serial) = htons(port);
+#endif
+}
 
 inline bool address::connectable() const
-{ return raw_port() != 0; }
+{
+	return raw_port() != 0;
+}
 
 inline socklen_t address::addrlen() const
-{ return m_serial_length == 6 ? sizeof(sockaddr_in) : sizeof(sockaddr_in6); }
+{
+#ifdef KUMO_IPV6
+	return m_serial_length == 6 ?
+		sizeof(sockaddr_in) : sizeof(sockaddr_in6);
+#else
+	return sizeof(sockaddr_in);
+#endif
+}
 
 inline bool address::operator== (const address& addr) const
 {
+#ifdef KUMO_IPV6
 	return m_serial_length == addr.m_serial_length &&
 		memcmp(m_serial_address, addr.m_serial_address, m_serial_length) == 0;
+#else
+	return m_serial == addr.m_serial;
+#endif
 }
 
 inline bool address::operator!= (const address& addr) const
@@ -101,24 +151,38 @@ inline bool address::operator!= (const address& addr) const
 
 inline bool address::operator< (const address& addr) const
 {
+#ifdef KUMO_IPV6
 	if(m_serial_length == addr.m_serial_length) {
 		return memcmp(m_serial_address, addr.m_serial_address, m_serial_length) < 0;
 	} else {
 		return m_serial_length < addr.m_serial_length;
 	}
+#else
+	return m_serial < addr.m_serial;
+#endif
 }
 
 inline bool address::operator> (const address& addr) const
 {
+#ifdef KUMO_IPV6
 	if(m_serial_length == addr.m_serial_length) {
 		return memcmp(m_serial_address, addr.m_serial_address, m_serial_length) > 0;
 	} else {
 		return m_serial_length > addr.m_serial_length;
 	}
+#else
+	return m_serial > addr.m_serial;
+#endif
 }
 
 inline uint16_t address::raw_port() const
-{ return *((uint16_t*)&m_serial_address[0]); }
+{
+#ifdef KUMO_IPV6
+	return *((uint16_t*)&m_serial_address[0]);
+#else
+	return m_serial;
+#endif
+}
 
 
 #ifdef MSGPACK_OBJECT_HPP__
