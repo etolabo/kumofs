@@ -42,8 +42,7 @@ enum message_type {
 	// Server -> Server
 	ReplicateSet			= 64,
 	ReplicateDelete			= 65,
-	ReplacePropose			= 66,
-	ReplacePush				= 67,
+	ReplaceOffer			= 66,
 
 	// Manager -> Manager
 	ReplaceElection			= 80,
@@ -274,39 +273,12 @@ namespace type {
 		// ignored: false
 	};
 
-	struct ReplaceProposeElement : define< tuple<raw_ref, uint64_t> > {
-		ReplaceProposeElement() {}
-		ReplaceProposeElement(
-				const char* raw_key, size_t raw_keylen,
-				uint64_t clocktime) :
-			define_type(msgpack_type(
-						raw_ref(raw_key, raw_keylen), clocktime )) {}
-		DBKey dbkey() const
-			{ return DBKey(get<0>().ptr, get<0>().size); }
-		uint64_t clocktime() const		{ return get<1>(); }
-	};
-
-	struct ReplacePushElement : define< tuple<raw_ref, raw_ref> > {
-		ReplacePushElement() {}
-		ReplacePushElement(
-				const char* raw_key, size_t raw_keylen,
-				const char* raw_val, size_t raw_vallen) :
-			define_type(msgpack_type(
-						raw_ref(raw_key, raw_keylen),
-						raw_ref(raw_val, raw_vallen))) {}
-		DBKey dbkey() const
-			{ return DBKey(get<0>().ptr, get<0>().size); }
-		DBValue dbval() const
-			{ return DBValue(get<1>().ptr, get<1>().size); }
-	};
-
-	struct ReplacePropose : define< std::vector<ReplaceProposeElement> > {
-		typedef std::vector<uint32_t> request;
-		// requiest: std::vector<uint32_t>  #=> request Nth value
-	};
-
-	struct ReplacePush : define< std::vector<ReplacePushElement> > {
-		// acknowledge: true
+	struct ReplaceOffer : define< tuple<uint16_t> > {
+		ReplaceOffer() { }
+		ReplaceOffer(uint16_t port) :
+			define_type(msgpack_type( port )) { }
+		uint16_t port() const { return get<0>(); }
+		// no response
 	};
 
 	struct ReplaceElection : define< tuple<HSSeed, uint32_t> > {

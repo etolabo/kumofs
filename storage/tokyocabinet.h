@@ -74,6 +74,15 @@ public:
 		}
 	}
 
+	void set_async(const char* key, uint32_t keylen,
+			const char* val, uint32_t vallen)
+	{
+		if(!tchdbputasync(m_db, key, keylen, val, vallen)) {
+			LOG_ERROR("DB set error: ",tchdberrmsg(tchdbecode(m_db)));
+			throw std::runtime_error("store failed");
+		}
+	}
+
 	bool setkeep(const char* key, uint32_t keylen,
 			const char* val, uint32_t vallen)
 	{

@@ -14,20 +14,25 @@ struct arg_t : rpc_cluster_args {
 	rpc::address manager1;  // convert
 	rpc::address manager2;  // convert
 
+	uint16_t stream_port;
+	rpc::address stream_addr;  // convert
+	int stream_lsock;
+
+	std::string offer_tmpdir;
+
 	Storage* db;
 	std::string db_backup_basename;  // convert?
 
 	unsigned short replicate_set_retry_num;
 	unsigned short replicate_delete_retry_num;
-	unsigned short replace_propose_retry_num;
-	unsigned short replace_push_retry_num;
-
-	unsigned short replace_pool_size;
 
 	virtual void convert()
 	{
 		cluster_addr = rpc::address(cluster_addr_in);
 		cluster_lsock = scoped_listen_tcp::listen(cluster_addr);
+		stream_addr = cluster_addr;
+		stream_addr.set_port(stream_port);
+		stream_lsock = scoped_listen_tcp::listen(stream_addr);
 		manager1 = rpc::address(manager1_in);
 		manager2 = rpc::address(manager2_in);
 		db_backup_basename = dbpath + "-";
@@ -35,11 +40,9 @@ struct arg_t : rpc_cluster_args {
 	}
 
 	arg_t(int argc, char** argv) :
+		stream_port(SERVER_STREAM_DEFAULT_PORT),
 		replicate_set_retry_num(20),
-		replicate_delete_retry_num(20),
-		replace_propose_retry_num(20),
-		replace_push_retry_num(20),
-		replace_pool_size(8)
+		replicate_delete_retry_num(20)
 	{
 		clock_interval = 8.0;
 
@@ -47,6 +50,10 @@ struct arg_t : rpc_cluster_args {
 		set_basic_args();
 		on("-l",  "--listen",
 				type::connectable(&cluster_addr_in, SERVER_DEFAULT_PORT));
+		on("-L", "--stream-listen",
+				type::numeric(&stream_port, stream_port));
+		on("-f", "--offer-tmp",
+				type::string(&offer_tmpdir, "/tmp"));
 		on("-s", "--store",
 				type::string(&dbpath));
 		on("-m", "--manager1",
@@ -57,8 +64,6 @@ struct arg_t : rpc_cluster_args {
 				type::numeric(&replicate_set_retry_num, replicate_set_retry_num));
 		on("-G", "--replicate-delete-retry",
 				type::numeric(&replicate_delete_retry_num, replicate_delete_retry_num));
-		on("-L", "--replace-pool",
-				type::numeric(&replace_pool_size, replace_pool_size));
 		parse(argc, argv);
 	}
 
@@ -68,12 +73,12 @@ std::cout <<
 "usage: "<<prog<<" -m <addr[:port="<<MANAGER_DEFAULT_PORT<<"]> -p <addr[:port"<<MANAGER_DEFAULT_PORT<<"]> -l <addr[:port="<<SERVER_DEFAULT_PORT<<"]> -s <path.tch>\n"
 "\n"
 "  -l  <addr[:port="<<SERVER_DEFAULT_PORT<<"]>   "        "--listen         listen address\n"
+"  -L  <port="<<SERVER_STREAM_DEFAULT_PORT<<">      "     "--stream-listen  listen port for replacing stream\n"
 "  -s  <path.tch>            "                            "--store          path to database\n"
 "  -m  <addr[:port="<<MANAGER_DEFAULT_PORT<<"]>   "       "--manager1       address of manager 1\n"
 "  -p  <addr[:port="<<MANAGER_DEFAULT_PORT<<"]>   "       "--manager2       address of manager 2\n"
 "  -S  <number="<<replicate_set_retry_num<<">   "         "--replicate-set-retry    replicate set retry limit\n"
 "  -D  <number="<<replicate_delete_retry_num<<">   "      "--replicate-delete-retry replicate delete retry limit\n"
-"  -L  <number="<<replace_pool_size<<">    "              "--replace-pool           gather replace requests up to N mega bytes\n"
 ;
 rpc_cluster_args::show_usage();
 	}

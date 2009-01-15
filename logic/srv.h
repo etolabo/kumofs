@@ -38,8 +38,7 @@ public:
 
 	CLUSTER_DECL(ReplaceCopyStart);
 	CLUSTER_DECL(ReplaceDeleteStart);
-	CLUSTER_DECL(ReplacePropose);
-	CLUSTER_DECL(ReplacePush);
+	CLUSTER_DECL(ReplaceOffer);
 
 	RPC_DECL(Get);
 	RPC_DECL(Set);
@@ -84,22 +83,6 @@ private:
 	void finish_replace_copy(ClockTime clocktime, REQUIRE_RELK);
 	RPC_REPLY_DECL(ResReplaceCopyEnd, from, res, err, life);
 
-	typedef RPC_RETRY(ReplacePropose) RetryReplacePropose;
-	typedef RPC_RETRY(ReplacePush) RetryReplacePush;
-
-	RPC_REPLY_DECL(ResReplacePropose, from, res, err, life,
-			RetryReplacePropose* retry, ClockTime replace_time);
-	RPC_REPLY_DECL(ResReplacePush, from, res, err, life,
-			RetryReplacePush* retry, ClockTime replace_time);
-
-	void send_replace_propose(const address& node,
-			const protocol::type::ReplacePropose& req,
-			shared_zone& life, ClockTime replace_time);
-
-	void send_replace_push(const address& node,
-			const protocol::type::ReplacePush& req,
-			shared_zone& life, ClockTime replace_time);
-
 private:
 	Clock m_clock;
 
@@ -114,42 +97,112 @@ private:
 	const address m_manager1;
 	const address m_manager2;
 
+	int m_stream_lsock;
+	address m_stream_addr;
+
+private:
+	// srv_offer.cc
+	class OfferStorage {
+	public:
+		OfferStorage(const std::string& basename,
+				const address& addr, ClockTime replace_time);
+		~OfferStorage();
+	public:
+		void add(const char* key, size_t keylen,
+				const char* val, size_t vallen);
+		void send(int sock);
+
+		const address& addr() const { return m_addr; }
+		ClockTime replace_time() const { return m_replace_time; }
+	private:
+		address m_addr;
+		ClockTime m_replace_time;
+
+		struct scoped_fd {
+			scoped_fd(int fd) : m(fd) { }
+			~scoped_fd() { ::close(m); }
+			int get() { return m; }
+		private:
+			int m;
+			scoped_fd();
+			scoped_fd(const scoped_fd&);
+		};
+		static int openfd(const std::string& basename);
+		scoped_fd m_fd;
+
+		class mmap_stream;
+		std::auto_ptr<mmap_stream> m_mmap;
+	private:
+		OfferStorage();
+		OfferStorage(const OfferStorage&);
+	};
+
+	typedef mp::shared_ptr<OfferStorage> SharedOfferStorage;
+	typedef std::vector<SharedOfferStorage> SharedOfferMap;
+	struct SharedOfferMapComp;
+
+	mp::pthread_mutex m_offer_map_mutex;
+	SharedOfferMap m_offer_map;
+	static SharedOfferMap::iterator find_offer_map(
+			SharedOfferMap& map, const address& addr);
+
+	class OfferStorageMap {
+	public:
+		OfferStorageMap(const std::string& basename, ClockTime replace_time);
+		~OfferStorageMap();
+	public:
+		void add(const address& addr,
+				const char* key, size_t keylen,
+				const char* val, size_t vallen);
+		void commit(SharedOfferMap* dst);
+	private:
+		SharedOfferMap m_map;
+		const std::string& m_basename;
+		ClockTime m_replace_time;
+	private:
+		OfferStorageMap();
+		OfferStorageMap(const OfferStorageMap&);
+	};
+
+	void send_offer(OfferStorageMap& offer, ClockTime replace_time);
+	RPC_REPLY_DECL(ResReplaceOffer, from, res, err, life,
+			ClockTime replace_time, address addr);
+
+	void stream_accepted(int fd, int err);
+	void stream_connected(int fd, int err);
+
+	mp::wavy::core m_stream_core;
+	class OfferStreamHandler;
+	friend class OfferStreamHandler;
+
+private:
+	mp::pthread_mutex m_replacing_mutex;
+
 	class ReplaceContext {
 	public:
 		ReplaceContext();
 		~ReplaceContext();
-
 	public:
 		void reset(const address& mgr, ClockTime ct);
-
-		void proposed(ClockTime ct);
-		void propose_returned(ClockTime ct);
-
 		void pushed(ClockTime ct);
 		void push_returned(ClockTime ct);
-
 		const address& mgr_addr() const;
-
 		bool is_finished(ClockTime ct) const;
 		void invalidate();
-
 	private:
-		int m_propose_waiting;
 		int m_push_waiting;
 		ClockTime m_clocktime;
 		address m_mgr;
 	};
-
-	mp::pthread_mutex m_replacing_mutex;
 	ReplaceContext m_replacing;
+	void replace_offer_start(ClockTime replace_time, REQUIRE_RELK);
+	void replace_offer_finished(ClockTime replace_time, REQUIRE_RELK);
 
+	std::string m_cfg_offer_tmpdir;
 	std::string m_cfg_db_backup_basename;
 
 	const unsigned short m_cfg_replicate_set_retry_num;
 	const unsigned short m_cfg_replicate_delete_retry_num;
-	const unsigned short m_cfg_replace_propose_retry_num;
-	const unsigned short m_cfg_replace_push_retry_num;
-	const unsigned short m_cfg_replace_pool_size;
 
 private:
 	Server();
@@ -168,17 +221,22 @@ Server::Server(Config& cfg) :
 	m_db(*cfg.db),
 	m_manager1(cfg.manager1),
 	m_manager2(cfg.manager2),
+	m_stream_addr(cfg.stream_addr),
+	m_cfg_offer_tmpdir(cfg.offer_tmpdir),
 	m_cfg_db_backup_basename(cfg.db_backup_basename),
 	m_cfg_replicate_set_retry_num(cfg.replicate_set_retry_num),
-	m_cfg_replicate_delete_retry_num(cfg.replicate_delete_retry_num),
-	m_cfg_replace_propose_retry_num(cfg.replace_propose_retry_num),
-	m_cfg_replace_push_retry_num(cfg.replace_push_retry_num),
-	m_cfg_replace_pool_size(cfg.replace_pool_size)
+	m_cfg_replicate_delete_retry_num(cfg.replicate_delete_retry_num)
 {
 	LOG_INFO("start server ",addr());
 	listen_cluster(cfg.cluster_lsock);
 	start_timeout_step(cfg.clock_interval_usec);
 	start_keepalive(cfg.keepalive_interval_usec);
+
+	m_stream_core.add_thread(2);  // FIXME
+	using namespace mp::placeholders;
+	wavy::listen(cfg.stream_lsock, mp::bind(
+			&Server::stream_accepted, this,
+			_1, _2));
 }
 
 
