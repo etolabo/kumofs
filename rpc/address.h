@@ -55,7 +55,7 @@ public:
 	socklen_t addrlen() const;
 	void getaddr(sockaddr* addrbuf) const;
 	uint16_t port() const;
-	void set_port(uint16_t port);
+	void set_port(uint16_t p);
 private:
 	uint16_t raw_port() const;
 
@@ -110,12 +110,13 @@ inline uint16_t address::port() const
 	return ntohs(raw_port());
 }
 
-inline void address::set_port(uint16_t port)
+inline void address::set_port(uint16_t p)
 {
 #ifdef KUMO_IPV6
-	*((uint16_t*)m_serial_address) = htons(port);
+	*((uint16_t*)m_serial_address) = htons(p);
 #else
-	*((uint16_t*)(void*)&m_serial) = htons(port);
+	m_serial &= 0x0000ffffffffffff;
+	m_serial |= htons(p);
 #endif
 }
 
@@ -180,7 +181,7 @@ inline uint16_t address::raw_port() const
 #ifdef KUMO_IPV6
 	return *((uint16_t*)&m_serial_address[0]);
 #else
-	return m_serial;
+	return (uint16_t)m_serial;
 #endif
 }
 
