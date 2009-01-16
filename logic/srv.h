@@ -28,6 +28,10 @@ public:
 
 	void step_timeout();
 
+	// override wavy_server::run
+	virtual void run();
+	virtual void end_preprocess();
+
 public:
 	CLUSTER_DECL(KeepAlive);
 
@@ -102,6 +106,10 @@ private:
 
 private:
 	// srv_offer.cc
+	void init_stream(int lsock);
+	void run_stream();
+	void stop_stream();
+
 	class OfferStorage {
 	public:
 		OfferStorage(const std::string& basename,
@@ -171,7 +179,7 @@ private:
 	void stream_accepted(int fd, int err);
 	void stream_connected(int fd, int err);
 
-	mp::wavy::core m_stream_core;
+	std::auto_ptr<mp::wavy::core> m_stream_core;
 	class OfferStreamHandler;
 	friend class OfferStreamHandler;
 
@@ -229,14 +237,21 @@ Server::Server(Config& cfg) :
 {
 	LOG_INFO("start server ",addr());
 	listen_cluster(cfg.cluster_lsock);
+	init_stream(cfg.stream_lsock);
 	start_timeout_step(cfg.clock_interval_usec);
 	start_keepalive(cfg.keepalive_interval_usec);
+}
 
-	m_stream_core.add_thread(2);  // FIXME
-	using namespace mp::placeholders;
-	wavy::listen(cfg.stream_lsock, mp::bind(
-			&Server::stream_accepted, this,
-			_1, _2));
+inline void Server::run()
+{
+	wavy_server::run();
+	run_stream();
+	// FIXME end
+}
+
+inline void Server::end_preprocess()
+{
+	stop_stream();
 }
 
 

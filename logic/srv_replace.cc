@@ -240,7 +240,7 @@ void Server::send_offer(OfferStorageMap& offer, ClockTime replace_time)
 	for(SharedOfferMap::iterator it(m_offer_map.begin()),
 			it_end(m_offer_map.end()); it != it_end; ++it) {
 		const address& addr( (*it)->addr() );
-		LOG_TRACE("send offer to ",(*it)->addr());
+		LOG_DEBUG("send offer to ",(*it)->addr());
 		shared_zone nullz;
 		protocol::type::ReplaceOffer arg(m_stream_addr.port());
 		using namespace mp::placeholders;
@@ -260,7 +260,7 @@ try {
 	stream_addr.getaddr((sockaddr*)addrbuf);
 
 	using namespace mp::placeholders;
-	m_stream_core.connect(
+	m_stream_core->connect(
 			PF_INET, SOCK_STREAM, 0,
 			(sockaddr*)addrbuf, sizeof(addrbuf),
 			m_connect_timeout_msec,

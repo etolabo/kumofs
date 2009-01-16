@@ -12,6 +12,26 @@
 namespace kumo {
 
 
+void Server::init_stream(int fd)
+{
+	m_stream_core.reset(new mp::wavy::core());
+	using namespace mp::placeholders;
+	m_stream_core->listen(fd, mp::bind(
+				&Server::stream_accepted, this,
+				_1, _2));
+}
+
+void Server::run_stream()
+{
+	m_stream_core->add_thread(2);  // FIXME 2
+}
+
+void Server::stop_stream()
+{
+	m_stream_core->end();
+}
+
+
 class Server::OfferStorage::mmap_stream {
 public:
 	mmap_stream(int fd);
@@ -232,7 +252,7 @@ private:
 
 void Server::stream_accepted(int fd, int err)
 try {
-	LOG_DEBUG("stream accepted fd(",fd,") err:",err);
+	LOG_TRACE("stream accepted fd(",fd,") err:",err);
 
 	if(fd < 0) {
 		LOG_FATAL("accept failed: ",strerror(err));
@@ -296,7 +316,7 @@ try {
 
 void Server::stream_connected(int fd, int err)
 try {
-	LOG_TRACE("stream connect fd(",fd,") err:",err);
+	LOG_TRACE("stream connected fd(",fd,") err:",err);
 	if(fd < 0) {
 		LOG_ERROR("stream connect failed", strerror(err));
 		return;
@@ -330,7 +350,8 @@ try {
 	}
 
 	mp::set_nonblock(fd);
-	m_stream_core.add<OfferStreamHandler>(fd, this);
+
+	m_stream_core->add<OfferStreamHandler>(fd, this);
 	fdscope.release();
 
 } catch (std::exception& e) {
@@ -358,6 +379,7 @@ void Server::OfferStreamHandler::submit_message(msgobj msg, auto_zone& z)
 {
 	pthread_scoped_wrlock dblk(m_srv->m_db.mutex());
 	msgpack::type::tuple<msgpack::type::raw_ref, msgpack::type::raw_ref> kv(msg);
+	// FIXME XXX 新旧確認
 	m_srv->m_db.set_async(
 			kv.get<0>().ptr, kv.get<0>().size,
 			kv.get<1>().ptr, kv.get<1>().size);
