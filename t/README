@@ -1,0 +1,16 @@
+== 準備 ==
+
+cpan install Test::More
+cpan install Test::Base
+cpan install Cache::Memcached::Fast
+ほか、「そんなモジュールないよ！」っていわれたら適宜いれてください。
+
+== how to test ==
+
+cd kumofs
+prove t/*.t
+  or
+prove -v t/*.t
+  or
+prove -v t/01_set.t
+
