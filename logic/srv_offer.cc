@@ -378,11 +378,25 @@ private:
 void Server::OfferStreamHandler::submit_message(msgobj msg, auto_zone& z)
 {
 	pthread_scoped_wrlock dblk(m_srv->m_db.mutex());
-	msgpack::type::tuple<msgpack::type::raw_ref, msgpack::type::raw_ref> kv(msg);
-	// FIXME XXX 新旧確認
-	m_srv->m_db.set_async(
-			kv.get<0>().ptr, kv.get<0>().size,
-			kv.get<1>().ptr, kv.get<1>().size);
+	msgpack::type::tuple<protocol::type::DBKey, protocol::type::DBValue> kv(msg);
+
+	protocol::type::DBKey key = kv.get<0>();
+	protocol::type::DBValue val = kv.get<1>();
+
+	uint64_t clocktime = 0;
+	bool stored = DBFormat::get_clocktime(m_srv->m_db,
+			key.raw_data(), key.raw_size(), &clocktime);
+
+	if(!stored || ClockTime(clocktime) <= ClockTime(val.clocktime())) {
+		// stored key is old
+		m_srv->m_db.set_async(
+				key.raw_data(), key.raw_size(),
+				val.raw_data(), val.raw_size());
+
+	} else {
+		// key is overwritten while replicating
+		// do nothing
+	}
 }
 
 
