@@ -436,13 +436,8 @@ void MemprotoText::Connection::ResMultiGet::response(get_response& res)
 	m_vec[2].iov_len  = sprintf(m_numbuf, " 0 %u\r\n", res.vallen);
 	m_vec[3].iov_base = const_cast<char*>(res.val);
 	m_vec[3].iov_len  = res.vallen;
-	if(m_count == 0) {
-		m_vec[4].iov_base = const_cast<char*>("\r\nEND\r\n");
-		m_vec[4].iov_len  = 7;
-	} else {
-		m_vec[4].iov_base = const_cast<char*>("\r\n");
-		m_vec[4].iov_len  = 2;
-	}
+	m_vec[4].iov_base = const_cast<char*>("\r\n");
+	m_vec[4].iov_len  = 2;
 
 filled:
 	if(__sync_sub_and_fetch(m_count, 1) == 0) {

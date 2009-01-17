@@ -43,9 +43,6 @@ typedef enum {
 	/* cas */
 	MEMTEXT_CMD_CAS,
 
-	/* numeric */
-	MEMTEXT_CMD_NUMERIC,
-
 	/* delete */
 	MEMTEXT_CMD_DELETE,
 
