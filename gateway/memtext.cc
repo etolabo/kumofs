@@ -108,16 +108,30 @@ private:
 			Responder(fd, valid) { }
 		~ResGet() { }
 		void response(get_response& res);
+	private:
+		char m_numbuf[3+10+3];  // " 0 " + uint32 + "\r\n\0"
+		ResGet();
+		ResGet(const ResGet&);
 	};
 
 	struct ResMultiGet : Responder {
-		ResMultiGet(int fd, SharedValid& valid, size_t count) :
-			Responder(fd, valid), m_count(count) { }
+		ResMultiGet(int fd, SharedValid& valid,
+				struct iovec* vec, unsigned* count,
+				struct iovec* qhead, unsigned qlen) :
+			Responder(fd, valid),
+			m_vec(vec), m_count(count),
+			m_qhead(qhead), m_qlen(qlen) { }
 		~ResMultiGet() { }
 		void response(get_response& res);
 	private:
-		mp::pthread_mutex m_mutex;
-		size_t m_count;
+		struct iovec* m_vec;
+		unsigned *m_count;
+		struct iovec* m_qhead;
+		size_t m_qlen;
+		char m_numbuf[3+10+3];  // " 0 " + uint32 + "\r\n\0"
+	private:
+		ResMultiGet();
+		ResMultiGet(const ResMultiGet&);
 	};
 
 	struct ResSet : Responder {
@@ -270,18 +284,30 @@ int MemprotoText::Connection::memproto_get(
 		m_gw->submit(req);
 
 	} else {
-		ResMultiGet* ctx = life->allocate<ResMultiGet>(fd(), m_valid, r->key_num);
+		ResMultiGet* ctxs[r->key_num];
+		unsigned* count = life->allocate<unsigned>(r->key_num);
+
+		size_t qlen = r->key_num * 5 + 1;  // +1: "END\r\n"
+		struct iovec* qhead = (struct iovec*)life->malloc(sizeof(struct iovec) * qlen);
+		qhead[qlen-1].iov_base = const_cast<char*>("END\r\n");
+		qhead[qlen-1].iov_len = 5;
+
+		for(unsigned i=0; i < r->key_num; ++i) {
+			ctxs[i] = life->allocate<ResMultiGet>(fd(), m_valid,
+					qhead + i*5, count, qhead, qlen);
+		}
+
 		get_request req;
 		req.callback = &mp::object_callback<void (get_response&)>
 			::mem_fun<ResMultiGet, &ResMultiGet::response>;
-		req.user = (void*)ctx;
 		req.life = life;
 
 		for(unsigned i=0; i < r->key_num; ++i) {
+			// don't use shared zone. msgpack::allocate is not thread-safe.
+			req.user = (void*)ctxs[i];
 			req.key = r->key[i];
 			req.keylen = r->key_len[i];
 			req.hash = Gateway::stdhash(req.key, req.keylen);
-			// FIXME shared zone. msgpack::allocate is not thread-safe.
 			m_gw->submit(req);
 		}
 	}
@@ -376,21 +402,18 @@ void MemprotoText::Connection::ResGet::response(get_response& res)
 		return;
 	}
 
-	struct iovec vb[6];
+	struct iovec vb[5];
 	vb[0].iov_base = const_cast<char*>("VALUE ");
 	vb[0].iov_len  = 6;
 	vb[1].iov_base = const_cast<char*>(res.key);
 	vb[1].iov_len  = res.keylen;
-	vb[2].iov_base = const_cast<char*>(" 0 ");
-	vb[2].iov_len  = 3;
-	char* numbuf = (char*)res.life->malloc(10+3);  // uint32 + \r\n\0
-	vb[3].iov_base = numbuf;
-	vb[3].iov_len  = sprintf(numbuf, "%u\r\n", res.vallen);
-	vb[4].iov_base = const_cast<char*>(res.val);
-	vb[4].iov_len  = res.vallen;
-	vb[5].iov_base = const_cast<char*>("\r\nEND\r\n");
-	vb[5].iov_len  = 7;
-	send_datav(vb, 6, res.life);
+	vb[2].iov_base = m_numbuf;
+	vb[2].iov_len  = sprintf(m_numbuf, " 0 %u\r\n", res.vallen);
+	vb[3].iov_base = const_cast<char*>(res.val);
+	vb[3].iov_len  = res.vallen;
+	vb[4].iov_base = const_cast<char*>("\r\nEND\r\n");
+	vb[4].iov_len  = 7;
+	send_datav(vb, 5, res.life);
 }
 
 
@@ -399,36 +422,32 @@ void MemprotoText::Connection::ResMultiGet::response(get_response& res)
 	if(!is_valid()) { return; }
 	LOG_TRACE("get multi response ",m_count);
 
-	mp::pthread_scoped_lock lk(m_mutex);
-	--m_count;
-
 	if(res.error || !res.val) {
-		if(m_count == 0) {
-			send_data("END\r\n", 5);
-		}
-		return;
+		memset(m_vec, 0, sizeof(struct iovec)*5);
+		goto filled;
 	}
 
-	struct iovec vb[6];
-	vb[0].iov_base = const_cast<char*>("VALUE ");
-	vb[0].iov_len  = 6;
-	vb[1].iov_base = const_cast<char*>(res.key);
-	vb[1].iov_len  = res.keylen;
-	vb[2].iov_base = const_cast<char*>(" 0 ");
-	vb[2].iov_len  = 3;
-	char* numbuf = (char*)res.life->malloc(10+3);  // uint32 + \r\n\0
-	vb[3].iov_base = numbuf;
-	vb[3].iov_len  = sprintf(numbuf, "%u\r\n", res.vallen);
-	vb[4].iov_base = const_cast<char*>(res.val);
-	vb[4].iov_len  = res.vallen;
+	// don't use shared zone. msgpack::allocate is not thread-safe.
+	m_vec[0].iov_base = const_cast<char*>("VALUE ");
+	m_vec[0].iov_len  = 6;
+	m_vec[1].iov_base = const_cast<char*>(res.key);
+	m_vec[1].iov_len  = res.keylen;
+	m_vec[2].iov_base = m_numbuf;
+	m_vec[2].iov_len  = sprintf(m_numbuf, " 0 %u\r\n", res.vallen);
+	m_vec[3].iov_base = const_cast<char*>(res.val);
+	m_vec[3].iov_len  = res.vallen;
 	if(m_count == 0) {
-		vb[5].iov_base = const_cast<char*>("\r\nEND\r\n");
-		vb[5].iov_len  = 7;
+		m_vec[4].iov_base = const_cast<char*>("\r\nEND\r\n");
+		m_vec[4].iov_len  = 7;
 	} else {
-		vb[5].iov_base = const_cast<char*>("\r\n");
-		vb[5].iov_len  = 2;
+		m_vec[4].iov_base = const_cast<char*>("\r\n");
+		m_vec[4].iov_len  = 2;
 	}
-	send_datav(vb, 6, res.life);
+
+filled:
+	if(__sync_sub_and_fetch(m_count, 1) == 0) {
+		send_datav(m_qhead, m_qlen, res.life);
+	}
 }
 
 
