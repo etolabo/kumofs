@@ -213,7 +213,8 @@
 		} else { goto convert_error; }
 	}
 
-	key        = ([\!-\~]+)          >mark_key        %key;
+	key        = ([^\r \0\n]+)       >mark_key        %key;
+	#key       = ([\!-\~]+)          >mark_key        %key;
 	flags      = ('0' | [1-9][0-9]*) >mark_flags      %flags;
 	exptime    = ('0' | [1-9][0-9]*) >mark_exptime    %exptime;
 	bytes      = ([1-9][0-9]*)       >mark_bytes      %bytes;
