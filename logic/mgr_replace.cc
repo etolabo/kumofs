@@ -339,6 +339,7 @@ void Manager::finish_replace_copy(REQUIRE_RELK)
 
 	pthread_scoped_lock hslk(m_hs_mutex);
 	m_rhs = m_whs;
+	push_hash_space_clients(hslk);
 	hslk.unlock();
 }
 
