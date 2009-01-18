@@ -20,7 +20,10 @@ basic_session::~basic_session()
 	force_lost(res, err);
 }
 
-session::~session() { }
+session::~session()
+{
+	cancel_pendings();
+}
 
 
 void basic_session::process_response(
