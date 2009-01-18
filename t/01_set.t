@@ -2,6 +2,15 @@
 use Test::Base;
 use t::TestUtil;
 
+=pod
+== getとset ==
+  1. Managerを起動する
+  2. Serverを起動する
+  3. kumoctl manager attachを実行する
+  4. Gatewayを起動する
+  5. このテストを実行する
+=cut
+
 plan tests => 1 * blocks;
 #filters { kv => 'eval' };
 

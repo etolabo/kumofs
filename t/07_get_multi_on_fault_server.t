@@ -1,18 +1,27 @@
 # -*- coding: utf-8; mode: cperl -*-
 use Test::Base;
 use t::TestUtil;
+use t::ManyData;
 
 =pod
-== get_multi ==
+== サーバー障害時のget_multi 1 ==
   1. Managerを起動する
   2. Serverを起動する
   3. kumoctl manager attachを実行する
   4. Gatewayを起動する
   5. このテストを実行する
+  6.1. Serverを1台落とす
+
+== サーバー障害時のget_multi 2 ==
+  ...
+  6.1. Serverを2台落とす
+  ...
 =cut
 
 plan tests => 1 * blocks;
 filters { data => 'yaml' };
+
+wait_user_operation("Serverを落とす");
 
 run {
     my $block = shift;
