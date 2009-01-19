@@ -166,33 +166,31 @@ basic_session::callback_entry::callback_entry(
 	m_callback(callback),
 	m_life(life) { }
 
-namespace {
-struct shared_zone_keeper {
-	shared_zone_keeper(shared_zone& z) : m(z) {}
-	shared_zone m;
-};
-}  // noname namespace
-
 void basic_session::callback_entry::callback(basic_shared_session& s,
 		msgobj res, msgobj err, auto_zone& z)
 {
 	// msgpack::zone::push_finalizer is not thread-safe
+	// m_life may null. see {basic_,}session::call
 	//m_life->push_finalizer(&mp::object_delete<msgpack::zone>, z.release());
 	shared_zone life(z.release());
-	if(m_life) { life->allocate<shared_zone_keeper>(m_life); }
+	if(m_life) { life->allocate<shared_zone>(m_life); }
 	callback_real(s, res, err, life);
 }
 
 void basic_session::callback_entry::callback(basic_shared_session& s,
 		msgobj res, msgobj err)
 {
-	callback_real(s, res, err, m_life);
+	shared_zone life = m_life;
+	if(!life) { life.reset(new msgpack::zone()); }
+	callback_real(s, res, err, life);
 }
 
 void basic_session::callback_entry::callback_submit(
 		basic_shared_session& s, msgobj res, msgobj err)
 {
-	wavy::submit(m_callback, s, res, err, m_life);
+	shared_zone life = m_life;
+	if(!life) { life.reset(new msgpack::zone()); }
+	wavy::submit(m_callback, s, res, err, life);
 }
 
 void basic_session::callback_entry::callback_real(basic_shared_session& s,

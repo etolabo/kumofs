@@ -93,7 +93,7 @@ void basic_session::call(
 {
 	LOG_DEBUG("send request method=",(uint16_t)method);
 	if(is_lost()) { throw std::runtime_error("lost session"); }
-	if(!life) { life.reset(new msgpack::zone()); }
+	//if(!life) { life.reset(new msgpack::zone()); }
 
 	std::auto_ptr<vrefbuffer> buf(new vrefbuffer());
 	msgid_t msgid = pack(*buf, method, params);
@@ -125,7 +125,7 @@ void session::call(
 {
 	LOG_DEBUG("send request method=",(uint16_t)method);
 	if(is_lost()) { throw std::runtime_error("lost session"); }
-	if(!life) { life.reset(new msgpack::zone()); }
+	//if(!life) { life.reset(new msgpack::zone()); }
 
 	std::auto_ptr<vrefbuffer> buf(new vrefbuffer());
 	msgid_t msgid = pack(*buf, method, params);
