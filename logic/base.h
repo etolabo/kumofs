@@ -4,6 +4,7 @@
 #include "kazuhiki/kazuhiki.h"
 #include "log/mlogger_tty.h"
 #include "log/mlogger_ostream.h"
+#include "log/logpacker.h"
 #include "logic/global.h"
 #include "rpc/wavy.h"
 #include <mp/object_callback.h>

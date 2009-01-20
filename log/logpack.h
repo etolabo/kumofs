@@ -29,6 +29,7 @@ extern "C" {
 typedef struct logpack_t logpack_t;
 
 logpack_t* logpack_new(const char* basename, size_t lotate_size);
+logpack_t* logpack_new_pshared(const char* basename, size_t lotate_size);
 void logpack_free(logpack_t* lpk);
 
 int logpack_write_raw(logpack_t* lpk, const char* buf, size_t size);

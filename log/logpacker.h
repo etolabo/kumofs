@@ -2,19 +2,14 @@
 #define LOGPACKER_H__
 
 #include "logpack.hpp"
+#include <memory>
 
 class logpacker {
 public:
-	static void initialize(const std::string& basename, size_t lotate_size)
-	{
-		s_instance.reset(new logpack(basename, lotate_size));
-	}
-
-	static void destroy() { s_instance.reset(); }
-
-	bool is_active() { return s_instance; }
+	static void initialize(const std::string& basename, size_t lotate_size);
+	static void destroy();
+	bool is_active() { return !!s_instance.get(); }
 	logpack& instance() { return *s_instance; }
-
 private:
 	static std::auto_ptr<logpack> s_instance;
 };

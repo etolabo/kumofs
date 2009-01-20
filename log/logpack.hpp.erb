@@ -27,7 +27,9 @@
 
 class logpack {
 public:
+	struct PSHARED_TAG { };
 	logpack(const std::string& basename, size_t lotate_size);
+	logpack(const std::string& basename, size_t lotate_size, PSHARED_TAG);
 	~logpack();
 
 public:
@@ -105,6 +107,14 @@ private:
 inline logpack::logpack(const std::string& basename, size_t lotate_size)
 {
 	m_logpack = logpack_new(basename.c_str(), lotate_size);
+	if(!m_logpack) {
+		throw std::runtime_error("failed to initialize msgpack::logpack");
+	}
+}
+
+inline logpack::logpack(const std::string& basename, size_t lotate_size, PSHARED_TAG)
+{
+	m_logpack = logpack_new_pshared(basename.c_str(), lotate_size);
 	if(!m_logpack) {
 		throw std::runtime_error("failed to initialize msgpack::logpack");
 	}

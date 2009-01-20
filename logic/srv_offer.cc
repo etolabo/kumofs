@@ -119,7 +119,7 @@ void Server::OfferStorage::mmap_stream::expand_map(size_t req)
 
 	m_map = (char*)::mmap(NULL, nsize,
 			PROT_WRITE, MAP_SHARED, m_fd, 0);
-	if(m_map == (void*)-1) {
+	if(m_map == MAP_FAILED) {
 		throw mp::system_error(errno, "failed to mmap");
 	}
 

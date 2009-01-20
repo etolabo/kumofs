@@ -23,6 +23,7 @@
 #include <time.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/mman.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <errno.h>
@@ -35,6 +36,10 @@ struct logpack_t {
 	pthread_mutex_t mutex;
 	char* namebuf;
 	size_t namelen;
+#ifdef LOGPACK_ENABLE_PSHARED
+	int mapfd;
+	volatile int rec;
+#endif
 };
 
 static int open_logfile(logpack_t* lpk)
@@ -65,47 +70,153 @@ logpack_t* logpack_new(const char* basename, size_t lotate_size)
 {
 	logpack_t* lpk = (logpack_t*)calloc(1, sizeof(logpack_t));
 	if(!lpk) {
-		return NULL;
+		goto err_calloc;
 	}
 
 	if(pthread_mutex_init(&lpk->mutex, NULL) != 0) {
-		free(lpk);
-		return NULL;
+		goto err_mutex;
 	}
 
 	lpk->namelen = strlen(basename);
 	lpk->namebuf = (char*)malloc(lpk->namelen + 17);  /* 17: "-YYYY-mm.dd.nnnn\0" */
 	if(!lpk->namebuf) {
-		pthread_mutex_destroy(&lpk->mutex);
-		free(lpk);
-		return NULL;
+		goto err_namebuf;
 	}
 	memcpy(lpk->namebuf, basename, lpk->namelen);
 
 	lpk->fd = open_logfile(lpk);
 	if(lpk->fd < 0) {
-		free(lpk->namebuf);
-		pthread_mutex_destroy(&lpk->mutex);
-		free(lpk);
-		return NULL;
+		goto err_openfd;
 	}
 
 	lpk->lotate_size = lotate_size;
+#ifdef LOGPACK_ENABLE_PSHARED
+	lpk->mapfd = -1;
+#endif
 
 	return lpk;
+
+err_openfd:
+	free(lpk->namebuf);
+err_namebuf:
+	pthread_mutex_destroy(&lpk->mutex);
+err_mutex:
+	free(lpk);
+err_calloc:
+	return NULL;
 }
+
+#ifdef LOGPACK_ENABLE_PSHARED
+logpack_t* logpack_new_pshared(const char* basename, size_t lotate_size)
+{
+	int mapfd;
+	logpack_t* lpk;
+	pthread_mutexattr_t attr;
+
+	const size_t namelen = strlen(basename);
+	char* namebuf = (char*)malloc(namelen + 17);  /* 17: "-YYYY-mm.dd.nnnn\0" */
+	if(!namebuf) {
+		goto err_namebuf;
+	}
+	memcpy(namebuf, basename, namelen);
+
+	memcpy(namebuf+namelen, "-XXXXXX", 8);  // '-XXXXXX' + 1(='\0')
+	mapfd = ::mkstemp(namebuf);
+	if(mapfd < 0) {
+		goto err_mkstemp;
+	}
+	if(ftruncate(mapfd, sizeof(logpack_t)) < 0 ) {
+		goto err_mkstemp;
+	}
+	unlink(namebuf);
+
+	lpk = (logpack_t*)mmap(NULL, sizeof(logpack_t),
+			PROT_READ|PROT_WRITE, MAP_SHARED, mapfd, 0);
+	if(lpk == MAP_FAILED) {
+		goto err_mmap;
+	}
+	memset(lpk, 0, sizeof(logpack_t));
+
+	if(pthread_mutexattr_init(&attr) != 0) {
+		goto err_mutexattr;
+	}
+	if(pthread_mutexattr_setrobust_np(&attr, PTHREAD_MUTEX_ROBUST_NP) != 0) {
+		goto err_mutexattr_set;
+	}
+	if(pthread_mutexattr_setpshared(&attr, PTHREAD_PROCESS_SHARED) != 0) {
+		goto err_mutexattr_set;
+	}
+
+	memset(&lpk->mutex, 0, sizeof(pthread_mutex_t));
+	if(pthread_mutex_init(&lpk->mutex, &attr) != 0) {
+		goto err_mutexattr_set;
+		return NULL;
+	}
+
+	lpk->namebuf = namebuf;
+	lpk->namelen = namelen;
+
+	lpk->fd = open_logfile(lpk);
+	if(lpk->fd < 0) {
+		goto err_openfd;
+	}
+
+	lpk->lotate_size = lotate_size;
+	lpk->mapfd = mapfd;
+
+	pthread_mutexattr_destroy(&attr);
+	return lpk;
+
+err_openfd:
+	pthread_mutex_destroy(&lpk->mutex);
+err_mutexattr_set:
+	pthread_mutexattr_destroy(&attr);
+err_mutexattr:
+	munmap(lpk, sizeof(logpack_t));
+err_mmap:
+	close(mapfd);
+err_mkstemp:
+	free(namebuf);
+err_namebuf:
+	return NULL;
+}
+#endif
 
 void logpack_free(logpack_t* lpk)
 {
 	close(lpk->fd);
 	free(lpk->namebuf);
-	pthread_mutex_destroy(&lpk->mutex);
-	free(lpk);
+#ifdef LOGPACK_ENABLE_PSHARED
+	if(lpk->mapfd < 0) {
+#endif
+		pthread_mutex_destroy(&lpk->mutex);
+		free(lpk);
+#ifdef LOGPACK_ENABLE_PSHARED
+	} else {
+		int mapfd = lpk->mapfd;
+		munmap(lpk, sizeof(logpack_t));
+		close(mapfd);
+	}
+#endif
 }
 
 static int logpack_lotate_log(logpack_t* lpk)
 {
+#ifdef LOGPACK_ENABLE_PSHARED
+retry:
+	int rec = lpk->rec;
+#endif
 	if(pthread_mutex_lock(&lpk->mutex) != 0) {
+#ifdef LOGPACK_ENABLE_PSHARED
+		if(errno == EOWNERDEAD) {
+			if(__sync_bool_compare_and_swap(&lpk->rec, rec, rec+1)) {
+				if(pthread_mutex_consistent_np(&lpk->mutex) != 0) {
+					return -1;
+				}
+			}
+			goto retry;
+		}
+#endif
 		return -1;
 	}
 	if(lpk->off <= lpk->lotate_size) {

@@ -110,6 +110,7 @@ inline void connection<IMPL>::submit_message(msgobj msg, auto_zone& z)
 	wavy::submit(&IMPL::process_message,
 			shared_self<IMPL>(), msg, z.get());
 	z.release();
+	//static_cast<IMPL*>(this)->process_message(msg, z.release());
 }
 
 template <typename IMPL>
