@@ -115,7 +115,7 @@ inline void address::set_port(uint16_t p)
 #ifdef KUMO_IPV6
 	*((uint16_t*)m_serial_address) = htons(p);
 #else
-	m_serial &= 0x0000ffffffffffff;
+	m_serial &= 0x0000ffffffffffffULL;
 	m_serial |= htons(p);
 #endif
 }

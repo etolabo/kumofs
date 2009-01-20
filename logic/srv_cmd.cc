@@ -73,7 +73,7 @@ std::cout <<
 "usage: "<<prog<<" -m <addr[:port="<<MANAGER_DEFAULT_PORT<<"]> -p <addr[:port"<<MANAGER_DEFAULT_PORT<<"]> -l <addr[:port="<<SERVER_DEFAULT_PORT<<"]> -s <path.tch>\n"
 "\n"
 "  -l  <addr[:port="<<SERVER_DEFAULT_PORT<<"]>   "        "--listen         listen address\n"
-"  -L  <port="<<SERVER_STREAM_DEFAULT_PORT<<">      "     "--stream-listen  listen port for replacing stream\n"
+"  -L  <port="<<SERVER_STREAM_DEFAULT_PORT<<">          " "--stream-listen  listen port for replacing stream\n"
 "  -s  <path.tch>            "                            "--store          path to database\n"
 "  -m  <addr[:port="<<MANAGER_DEFAULT_PORT<<"]>   "       "--manager1       address of manager 1\n"
 "  -p  <addr[:port="<<MANAGER_DEFAULT_PORT<<"]>   "       "--manager2       address of manager 2\n"

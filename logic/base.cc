@@ -130,7 +130,7 @@ void rpc_server_args::show_usage()
 std::cout <<
 "  -Ys <number="<<connect_timeout_sec<<">    "  "--connect-timeout        connect timeout time in seconds\n"
 "  -Yn <number="<<connect_retry_limit<<">    "  "--connect-retry-limit    connect retry limit\n"
-"  -Ci <number="<<clock_interval<<">  "         "--clock-interval         clock interval in seconds\n"
+"  -Ci <number="<<clock_interval<<">    "       "--clock-interval         clock interval in seconds\n"
 "  -TW <number="<<wthreads<<">    "             "--write-threads          number of threads for asynchronous writing\n"
 "  -TR <number="<<rthreads<<">    "             "--read-threads           number of threads for asynchronous reading\n"
 "  -o  <path.log>    "                          "--log\n"
