@@ -1,0 +1,125 @@
+//
+// MessagePack fast log format
+//
+// Copyright (C) 2008-2009 FURUHASHI Sadayuki
+//
+//    Licensed under the Apache License, Version 2.0 (the "License");
+//    you may not use this file except in compliance with the License.
+//    You may obtain a copy of the License at
+//
+//        http://www.apache.org/licenses/LICENSE-2.0
+//
+//    Unless required by applicable law or agreed to in writing, software
+//    distributed under the License is distributed on an "AS IS" BASIS,
+//    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//    See the License for the specific language governing permissions and
+//    limitations under the License.
+//
+#ifndef LOGPACK_HPP__
+#define LOGPACK_HPP__
+
+#include <msgpack.hpp>
+#include <string>
+#include <memory>
+#include <stdexcept>
+#include "logpack.h"
+
+
+class logpack {
+public:
+	logpack(const std::string& basename, size_t lotate_size);
+	~logpack();
+
+public:
+#define MSGPACK_LOG_BEGIN(NUM) \
+	msgpack::sbuffer buf; \
+	{ \
+		uint64_t zero = 0; \
+		buf.write((const char*)&zero, 4); \
+	} \
+	msgpack::packer<msgpack::sbuffer> m(buf); \
+	m.pack_array(3); \
+	m.pack_uint64(conststr(name)); \
+	m.pack_uint16(version); \
+	m.pack_map(NUM);
+#define MSGPACK_LOG_ADD(k, v) \
+	m.pack_uint64(conststr(k)); \
+	m << v;
+#define MSGPACK_LOG_END \
+	char* p = (char*)buf.data(); \
+	size_t sz = buf.size(); \
+	*(uint32_t*)p = htonl(sz - 4); \
+	return write_raw(p, sz);
+
+<%1.upto(16) {|i|%>
+	template <size_t LN<%1.upto(i) {|j|%>, size_t L<%=j%>, typename T<%=j%><%}%>>
+	int write(const char (&name)[LN], uint16_t version<%1.upto(i) {|j|%>, const char (&k<%=j%>)[L<%=j%>], T<%=j%> v<%=j%><%}%>)
+	{
+		MSGPACK_LOG_BEGIN(<%=i%>);
+<%1.upto(i) {|j|%>
+		MSGPACK_LOG_ADD(k<%=j%>, v<%=j%>);
+<%}%>
+		MSGPACK_LOG_END;
+	}
+<%}%>
+
+private:
+	static uint64_t conststr(const char (&str)[1])
+	{ return 0; }
+
+	static uint64_t conststr(const char (&str)[2])
+	{ return ((uint64_t)*(uint8_t*)str); }
+
+	static uint64_t conststr(const char (&str)[3])
+	{ return ((uint64_t)*(uint16_t*)str); }
+
+	static uint64_t conststr(const char (&str)[4])
+	{ return (uint64_t)((*(uint32_t*)str) << 8); }
+
+	static uint64_t conststr(const char (&str)[5])
+	{ return ((uint64_t)*(uint32_t*)str); }
+
+	static uint64_t conststr(const char (&str)[6])
+	{ uint64_t o = 0; memcpy(((char*)&o)+3, str, 5); return o; }
+
+	static uint64_t conststr(const char (&str)[7])
+	{ uint64_t o = 0; memcpy(((char*)&o)+2, str, 6); return o; }
+
+	static uint64_t conststr(const char (&str)[8])
+	{ return (*(uint64_t*)str) << 8; }
+
+	static uint64_t conststr(const char (&str)[9])
+	{ return *(uint64_t*)str; }
+
+	int write_raw(char* p, size_t sz);
+
+private:
+	logpack_t* m_logpack;
+
+private:
+	logpack();
+	logpack(const logpack&);
+};
+
+
+inline logpack::logpack(const std::string& basename, size_t lotate_size)
+{
+	m_logpack = logpack_new(basename.c_str(), lotate_size);
+	if(!m_logpack) {
+		throw std::runtime_error("failed to initialize msgpack::logpack");
+	}
+}
+
+inline logpack::~logpack()
+{
+	logpack_free(m_logpack);
+}
+
+inline int logpack::write_raw(char* buf, size_t size)
+{
+	return logpack_write_raw(m_logpack, buf, size);
+}
+
+
+#endif /* logpack.hpp */
+
