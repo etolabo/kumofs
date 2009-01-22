@@ -215,6 +215,14 @@ RPC_REPLY(ResReplicateSet, from, res, err, life,
 			}
 		}
 		response.null();
+		MLOGPACK("ERepSet",1, "Replicate set failed",
+				"msg",std::string("ReplicateSet failed"),
+				"key",msgtype::raw_ref(
+					retry->param().dbkey().data(),
+					retry->param().dbkey().size()),
+				"val",msgtype::raw_ref(
+					retry->param().dbval().data(),
+					retry->param().dbval().size()));
 		LOG_ERROR("ReplicateSet failed: ",err);
 	} else {
 		LOG_DEBUG("ReplicateSet succeeded");
@@ -242,6 +250,11 @@ RPC_REPLY(ResReplicateDelete, from, res, err, life,
 			}
 		}
 		response.null();
+		MLOGPACK("ERepDel",1, "Replicate delete failed",
+				"msg",std::string("ReplicateDelete failed"),
+				"key",msgtype::raw_ref(
+					retry->param().dbkey().data(),
+					retry->param().dbkey().size()));
 		LOG_ERROR("ReplicateDelete failed: ",err);
 	} else {
 		LOG_DEBUG("ReplicateDelete succeeded");

@@ -173,6 +173,10 @@ Gateway::Gateway(Config& cfg) :
 	m_cfg_delete_retry_num(cfg.delete_retry_num),
 	m_cfg_renew_threshold(cfg.renew_threshold)
 {
+	MLOGPACK("Gw",1, "Gateway start",
+			"time", time(NULL),
+			"mgr1", m_manager1,
+			"mgr2", m_manager2);
 	start_timeout_step(cfg.clock_interval_usec);
 	renew_hash_space();
 }

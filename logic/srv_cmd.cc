@@ -91,9 +91,12 @@ int main(int argc, char* argv[])
 	// initialize logger first
 	mlogger::level loglevel = (arg.verbose ? mlogger::TRACE : mlogger::WARN);
 	if(arg.logfile_set) {
-		// log to file
-		std::ostream* logstream = new std::ofstream(arg.logfile.c_str(), std::ios::app);
-		mlogger::reset(new mlogger_ostream(loglevel, *logstream));
+		if(arg.logfile == "-") {
+			mlogger::reset(new mlogger_ostream(loglevel, std::cout));
+		} else {
+			std::ostream* logstream = new std::ofstream(arg.logfile.c_str(), std::ios::app);
+			mlogger::reset(new mlogger_ostream(loglevel, *logstream));
+		}
 	} else if(arg.pidfile_set) {
 		// log to stdout
 		mlogger::reset(new mlogger_ostream(loglevel, std::cout));
@@ -105,6 +108,11 @@ int main(int argc, char* argv[])
 	// daemonize
 	if(!arg.pidfile.empty()) {
 		do_daemonize(!arg.logfile.empty(), arg.pidfile.c_str());
+	}
+
+	// initialize binary logger
+	if(arg.logpack_path_set) {
+		logpacker::initialize(arg.logpack_path, 1024*1024*1024);  // FIXME lotate size
 	}
 
 	// open database

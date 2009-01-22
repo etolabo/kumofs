@@ -84,7 +84,7 @@ std::cout <<
 "\n"
 "  -m  <addr[:port="<<MANAGER_DEFAULT_PORT<<"]>   "       "--manager1       address of manager 1\n"
 "  -p  <addr[:port="<<MANAGER_DEFAULT_PORT<<"]>   "       "--manager2       address of manager 2\n"
-"  -t  <[addr:]port="<<MEMTEXT_DEFAULT_PORT<<">   " "--memproto-text  memcached text protocol listen port\n"
+"  -t  <[addr:]port="<<MEMTEXT_DEFAULT_PORT<<">   "       "--memproto-text  memcached text protocol listen port\n"
 "  -c  <[addr:]port="<<CLOUDY_DEFAULT_PORT<<">   "        "--cloudy         memcached binary protocol listen port\n"
 "  -G  <number="<<get_retry_num<<">    "                  "--get-retry              get retry limit\n"
 "  -S  <number="<<set_retry_num<<">   "                   "--set-retry              set retry limit\n"
@@ -104,8 +104,12 @@ int main(int argc, char* argv[])
 	mlogger::level loglevel = (arg.verbose ? mlogger::TRACE : mlogger::WARN);
 	if(arg.logfile_set) {
 		// log to file
-		std::ostream* logstream = new std::ofstream(arg.logfile.c_str(), std::ios::app);
-		mlogger::reset(new mlogger_ostream(loglevel, *logstream));
+		if(arg.logfile == "-") {
+			mlogger::reset(new mlogger_ostream(loglevel, std::cout));
+		} else {
+			std::ostream* logstream = new std::ofstream(arg.logfile.c_str(), std::ios::app);
+			mlogger::reset(new mlogger_ostream(loglevel, *logstream));
+		}
 	} else if(arg.pidfile_set) {
 		// log to stdout
 		mlogger::reset(new mlogger_ostream(loglevel, std::cout));
@@ -129,6 +133,11 @@ int main(int argc, char* argv[])
 	// daemonize
 	if(!arg.pidfile.empty()) {
 		do_daemonize(!arg.logfile.empty(), arg.pidfile.c_str());
+	}
+
+	// initialize binary logger
+	if(arg.logpack_path_set) {
+		logpacker::initialize(arg.logpack_path, 1024*1024*1024);  // FIXME lotate size
 	}
 
 	// run server

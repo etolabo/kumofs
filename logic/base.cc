@@ -111,6 +111,8 @@ void rpc_server_args::set_basic_args()
 			type::boolean(&verbose));
 	on("-o", "--log", &logfile_set,
 			type::string(&logfile));
+	on("-g", "--binary-log", &logpack_path_set,
+			type::string(&logpack_path));
 	on("-d", "--daemon", &pidfile_set,
 			type::string(&pidfile));
 	on("-Ci", "--clock-interval",
@@ -133,7 +135,8 @@ std::cout <<
 "  -Ci <number="<<clock_interval<<">    "       "--clock-interval         clock interval in seconds\n"
 "  -TW <number="<<wthreads<<">    "             "--write-threads          number of threads for asynchronous writing\n"
 "  -TR <number="<<rthreads<<">    "             "--read-threads           number of threads for asynchronous reading\n"
-"  -o  <path.log>    "                          "--log\n"
+"  -o  <path.log>    "                          "--log                    output logs to the file\n"
+"  -g  <path->       "                          "--binary-log             enable binary log\n"
 "  -v                "                          "--verbose\n"
 "  -d  <path.pid>    "                          "--daemon\n"
 << std::endl;

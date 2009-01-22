@@ -153,6 +153,10 @@ Manager::Manager(Config& cfg) :
 	m_delayed_replace_clock(0)
 {
 	LOG_INFO("start manager ",addr());
+	MLOGPACK("Mgr",1, "Manager start",
+			"time", time(NULL),
+			"addr", cfg.cluster_addr,
+			"Pner", m_partner);
 	listen_cluster(cfg.cluster_lsock);
 	listen_control(cfg.ctlsock_lsock);
 	start_timeout_step(cfg.clock_interval_usec);

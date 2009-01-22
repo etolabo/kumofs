@@ -236,6 +236,15 @@ Server::Server(Config& cfg) :
 	m_cfg_replicate_delete_retry_num(cfg.replicate_delete_retry_num)
 {
 	LOG_INFO("start server ",addr());
+	MLOGPACK("Srv",1, "Server start",
+			"time", time(NULL),
+			"addr", cfg.cluster_addr,
+			"db",cfg.dbpath,
+			"mgr1", m_manager1,
+			"mgr2", m_manager2,
+			"saddr", m_stream_addr,
+			"tmpdir", m_cfg_offer_tmpdir,
+			"BkUpTo", m_cfg_db_backup_basename);
 	listen_cluster(cfg.cluster_lsock);
 	init_stream(cfg.stream_lsock);
 	start_timeout_step(cfg.clock_interval_usec);

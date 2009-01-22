@@ -52,6 +52,9 @@ struct rpc_server_args {
 	bool logfile_set;
 	std::string logfile;
 
+	bool logpack_path_set;
+	std::string logpack_path;
+
 	bool pidfile_set;
 	std::string pidfile;
 

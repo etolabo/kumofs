@@ -25,6 +25,10 @@ using mp::pthread_scoped_lock;
 using mp::pthread_scoped_rdlock;
 using mp::pthread_scoped_wrlock;
 
+namespace msgtype {
+	using namespace msgpack::type;
+}
+
 template <typename Logic>
 class RPCBase : public wavy_server {
 public:

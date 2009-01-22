@@ -178,6 +178,9 @@ try {
 		ret.vallen    = 0;
 		ret.clocktime = 0;
 		try { (*callback)(user, ret); } catch (...) { }
+		MLOGPACK("EGet",1, "Get failed",
+				"key",msgtype::raw_ref(key.data(),key.size()),
+				"ecode",err.via.u64);
 		LOG_ERROR("Get error: ", err);
 	}
 }
@@ -230,6 +233,10 @@ try {
 		ret.vallen    = val.size();
 		ret.clocktime = 0;
 		try { (*callback)(user, ret); } catch (...) { }
+		MLOGPACK("ESet",1, "Set failed",
+				"key",msgtype::raw_ref(key.data(),key.size()),
+				"val",msgtype::raw_ref(val.data(),val.size()),
+				"ecode",err.via.u64);
 		LOG_ERROR("Set error: ",err);
 	}
 }
@@ -277,6 +284,9 @@ try {
 		ret.hash      = key.hash();
 		ret.deleted   = false;
 		try { (*callback)(user, ret); } catch (...) { }
+		MLOGPACK("EDel",1, "Delete failed",
+				"key",msgtype::raw_ref(key.data(),key.size()),
+				"ecode",err.via.u64);
 		LOG_ERROR("Delete error: ",err);
 	}
 }
