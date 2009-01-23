@@ -32,6 +32,8 @@ typedef mp::function<void (basic_shared_session, msgobj, msgobj, shared_zone)> c
 
 
 using mp::pthread_scoped_lock;
+using mp::pthread_scoped_rdlock;
+using mp::pthread_scoped_wrlock;
 
 
 }  // namespace rpc

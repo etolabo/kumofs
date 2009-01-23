@@ -28,24 +28,39 @@ client<Transport, Session>::get_session_impl(const address& addr)
 {
 	shared_session s;
 
-	pthread_scoped_lock lk(m_sessions_mutex);
+	{
+		pthread_scoped_rdlock rdlk(m_sessions_rwlock);
 
-	std::pair<typename sessions_t::iterator, typename sessions_t::iterator> pair =
-		m_sessions.equal_range(addr);
+		std::pair<typename sessions_t::iterator, typename sessions_t::iterator> pair =
+			m_sessions.equal_range(addr);
 
-	while(pair.first != pair.second) {
-		s = pair.first->second.lock();
-		if(s && !s->is_lost()) { return s; }
-		//++pair.first;
-		m_sessions.erase(pair.first++);
+		while(pair.first != pair.second) {
+			s = pair.first->second.lock();
+			if(s && !s->is_lost()) { return s; }
+			++pair.first;
+			//m_sessions.erase(pair.first++);
+		}
 	}
 
-	LOG_TRACE("no session exist, creating ",addr);
-	s.reset(new Session(this));
-	m_sessions.insert( typename sessions_t::value_type(
-				addr, weak_session(s)) );
+	// ほとんどの場合rwlockだけでヒットする
+	{
+		pthread_scoped_wrlock wrlk(m_sessions_rwlock);
 
-	lk.unlock();
+		std::pair<typename sessions_t::iterator, typename sessions_t::iterator> pair =
+			m_sessions.equal_range(addr);
+
+		while(pair.first != pair.second) {
+			s = pair.first->second.lock();
+			if(s && !s->is_lost()) { return s; }
+			//++pair.first;
+			m_sessions.erase(pair.first++);
+		}
+
+		LOG_TRACE("no session exist, creating ",addr);
+		s.reset(new Session(this));
+		m_sessions.insert( typename sessions_t::value_type(
+					addr, weak_session(s)) );
+	}
 
 	if(!CONNECT) {
 		return s;
@@ -81,7 +96,7 @@ client<Transport, Session>::add(int fd, const address& addr)
 	shared_session s(new Session(this));
 	wavy::add<Transport>(fd, s, this);
 
-	pthread_scoped_lock lk(m_sessions_mutex);
+	pthread_scoped_wrlock lk(m_sessions_rwlock);
 	m_sessions.insert( typename sessions_t::value_type(addr, s) );
 	return s;
 }
@@ -172,7 +187,7 @@ void client<Transport, Session>::step_timeout()
 {
 	LOG_TRACE("step timeout ...");
 
-	pthread_scoped_lock lk(m_sessions_mutex);
+	pthread_scoped_wrlock lk(m_sessions_rwlock);
 	for(typename sessions_t::iterator it(m_sessions.begin()),
 			it_end(m_sessions.end()); it != it_end; ) {
 		shared_session s(it->second.lock());
