@@ -178,7 +178,7 @@ port ||= KumoManager::CONTROL_DEFAULT_PORT
 
 cmd = ARGV.shift
 case cmd
-when "stat"
+when "stat", "status"
 	usage if ARGV.length != 0
 	attached, not_attached, date, clock =
 			KumoManager.new(host, port).GetStatus
