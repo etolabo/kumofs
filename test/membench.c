@@ -57,9 +57,7 @@ void show_timer()
 	printf("%f MB\n", ((double)size_bytes)/1024/1024);
 	printf("%f Mbps\n", ((double)size_bytes)*8/sec/1000/1000);
 	printf("%f req/sec\n", ((double)requests)/sec);
-	if(g_num_thread == 1) {
-		printf("%f usec/req\n", ((double)sec)/requests*1000*1000);
-	}
+	printf("%f usec/req\n", ((double)sec)/requests*1000*1000);
 }
 
 
