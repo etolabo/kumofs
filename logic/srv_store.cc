@@ -102,6 +102,12 @@ try {
 				 val.raw_data(), val.raw_size());
 	}
 
+	LOG_DEBUG("set copy required: ", *copy_required);
+	if(*copy_required == 0) {
+		response.result( msgpack::type::tuple<uint64_t>(ct.get()) );
+		return;
+	}
+
 	// Replication
 	RetryReplicateSet* retry = z->allocate<RetryReplicateSet>(
 			protocol::type::ReplicateSet(
@@ -124,11 +130,6 @@ try {
 #ifdef KUMO_SET_ASYNC
 	*copy_required = 0;
 	response.result( msgpack::type::tuple<uint64_t>(ct.get()) );
-#else
-	LOG_DEBUG("set copy required: ", *copy_required);
-	if(*copy_required == 0) {
-		response.result( msgpack::type::tuple<uint64_t>(ct.get()) );
-	}
 #endif
 }
 RPC_CATCH(Set, response)
@@ -167,6 +168,12 @@ try {
 		return;
 	}
 
+	LOG_DEBUG("delete copy required: ", *copy_required);
+	if(*copy_required == 0) {
+		response.result(true);
+		return;
+	}
+
 	// Replication
 	RetryReplicateDelete* retry = z->allocate<RetryReplicateDelete>(
 			protocol::type::ReplicateDelete(
@@ -188,11 +195,6 @@ try {
 #ifdef KUMO_DELETE_ASYNC
 	*copy_required = 0;
 	response.result(true);
-#else
-	LOG_DEBUG("delete copy required: ", *copy_required);
-	if(*copy_required == 0) {
-		response.result(true);
-	}
 #endif
 }
 RPC_CATCH(Delete, response)
@@ -210,7 +212,7 @@ RPC_REPLY(ResReplicateSet, from, res, err, life,
 			// FIXME delayed retry?
 			if(retry->retry_incr(m_cfg_replicate_set_retry_num)) {
 				retry->call(from, life);
-				LOG_DEBUG("ReplicateSet failed: ",err,", retry ",retry->num_retried());
+				LOG_WARN("ReplicateSet error: ",err,", retry ",retry->num_retried());
 				return;
 			}
 		}
@@ -224,12 +226,12 @@ RPC_REPLY(ResReplicateSet, from, res, err, life,
 					retry->param().dbval().data(),
 					retry->param().dbval().size()));
 		LOG_ERROR("ReplicateSet failed: ",err);
-	} else {
-		LOG_DEBUG("ReplicateSet succeeded");
+		return;
 	}
 
+	LOG_DEBUG("ReplicateSet succeeded");
+
 	if(__sync_sub_and_fetch(copy_required, 1) == 0) {
-		LOG_DEBUG("send response ",*copy_required);
 		response.result( msgpack::type::tuple<uint64_t>(clocktime) );
 	}
 }
@@ -245,7 +247,7 @@ RPC_REPLY(ResReplicateDelete, from, res, err, life,
 			// FIXME delayed retry?
 			if(retry->retry_incr(m_cfg_replicate_delete_retry_num)) {
 				retry->call(from, life);
-				LOG_DEBUG("ReplicateDelete failed: ",err,", retry ",retry->num_retried());
+				LOG_WARN("ReplicateDelete error: ",err,", retry ",retry->num_retried());
 				return;
 			}
 		}
@@ -256,9 +258,10 @@ RPC_REPLY(ResReplicateDelete, from, res, err, life,
 					retry->param().dbkey().data(),
 					retry->param().dbkey().size()));
 		LOG_ERROR("ReplicateDelete failed: ",err);
-	} else {
-		LOG_DEBUG("ReplicateDelete succeeded");
+		return;
 	}
+
+	LOG_DEBUG("ReplicateDelete succeeded");
 
 	if(__sync_sub_and_fetch(copy_required, 1) == 0) {
 		response.result(true);

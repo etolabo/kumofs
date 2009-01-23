@@ -47,9 +47,6 @@ public:
 			shared_zone life, callback_t callback,
 			unsigned short timeout_steps);
 
-	// return true if callbacks are empty.
-	bool empty() const;
-
 	// get session manager
 	session_manager* get_manager();
 
@@ -129,9 +126,24 @@ private:
 protected:
 	msgid_t m_msgid_rr;
 
-	mp::pthread_mutex m_callbacks_mutex;
-	typedef std::map<msgid_t, callback_entry> callbacks_t;
-	callbacks_t m_callbacks;
+	class callback_table {
+	public:
+		callback_table() { }
+		~callback_table() { }
+	public:
+		void insert(msgid_t msgid, const callback_entry& entry);
+		bool out(msgid_t msgid, callback_entry* result);
+		template <typename F> void for_each_clear(F f);
+		template <typename F> void erase_if(F f);
+	public:
+		static const size_t PARTITION_NUM = 2;  // FIXME
+		typedef std::map<msgid_t, callback_entry> callbacks_t;
+		mp::pthread_mutex m_callbacks_mutex[PARTITION_NUM];
+		callbacks_t m_callbacks[PARTITION_NUM];
+	private:
+		callback_table(const callback_table&);
+	};
+	callback_table m_cbtable;
 
 	mp::pthread_mutex m_binds_mutex;
 	typedef std::vector<basic_transport*> binds_t;
@@ -162,10 +174,6 @@ public:
 			shared_zone life, callback_t callback,
 			unsigned short timeout_steps);
 
-	// return true if both pending requests and
-	// callbacks are empty.
-	bool empty() const;
-
 	// clear all pending requests.
 	void cancel_pendings();
 
@@ -174,8 +182,9 @@ public:
 	virtual bool unbind_transport(basic_transport* t, basic_shared_session& self);
 
 private:
+	mp::pthread_mutex m_pending_queue_mutex;
 	typedef std::vector<vrefbuffer*> pending_queue_t;
-	pending_queue_t m_pending_queue;  // synchronized by m_callbacks_mutex
+	pending_queue_t m_pending_queue;
 	void clear_pending_queue(pending_queue_t& queue);
 
 private:

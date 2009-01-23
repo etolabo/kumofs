@@ -6,6 +6,48 @@
 namespace rpc {
 
 
+inline bool basic_session::callback_table::out(
+		msgid_t msgid, callback_entry* result)
+{
+	pthread_scoped_lock lk(m_callbacks_mutex[msgid % PARTITION_NUM]);
+	callbacks_t& cbs(m_callbacks[msgid % PARTITION_NUM]);
+	callbacks_t::iterator it(cbs.find(msgid));
+	if(it == cbs.end()) { return false; }
+	*result = it->second;
+	cbs.erase(it);
+	return true;
+}
+
+template <typename F>
+inline void basic_session::callback_table::for_each_clear(F f)
+{
+	for(size_t i=0; i < PARTITION_NUM; ++i) {
+		pthread_scoped_lock lk(m_callbacks_mutex[i]);
+		callbacks_t& cbs(m_callbacks[i]);
+		std::for_each(cbs.begin(), cbs.end(), f);
+		cbs.clear();
+	}
+}
+
+template <typename F>
+inline void basic_session::callback_table::erase_if(F f)
+{
+	for(size_t i=0; i < PARTITION_NUM; ++i) {
+		pthread_scoped_lock lk(m_callbacks_mutex[i]);
+		callbacks_t& cbs(m_callbacks[i]);
+		for(callbacks_t::iterator it(cbs.begin()), it_end(cbs.end());
+				it != it_end; ) {
+			if(f(*it)) {
+				cbs.erase(it++);
+			} else {
+				++it;
+			}
+		}
+		//cbs.erase(std::remove_if(cbs.begin(), cbs.end(), f), cbs.end());
+	}
+}
+
+
 basic_session::~basic_session()
 {
 	// FIXME
@@ -31,16 +73,12 @@ void basic_session::process_response(
 		msgobj result, msgobj error,
 		msgid_t msgid, auto_zone z)
 {
-	pthread_scoped_lock lk(m_callbacks_mutex);
-
-	callbacks_t::iterator it(m_callbacks.find(msgid));
-	LOG_DEBUG("process callback ",m_callbacks.size()," this=",(void*)this," id=",msgid," found:",(it != m_callbacks.end())," result:",result," error:",error);
-	if(it == m_callbacks.end()) { return; }
-
-	callback_entry e = it->second;
-	m_callbacks.erase(it);
-
-	lk.unlock();
+	callback_entry e;
+	LOG_DEBUG("process callback this=",(void*)this," id=",msgid," result:",result," error:",error);
+	if(!m_cbtable.out(msgid, &e)) {
+		LOG_DEBUG("callback not found id=",msgid);
+		return;
+	}
 	e.callback(self, result, error, z);
 }
 
@@ -88,7 +126,7 @@ bool session::bind_transport(basic_transport* t)
 
 	pending_queue_t pendings;
 	{
-		pthread_scoped_lock lk(m_callbacks_mutex);
+		pthread_scoped_lock lk(m_pending_queue_mutex);
 		pendings.swap(m_pending_queue);
 	}
 
@@ -143,17 +181,28 @@ void basic_session::shutdown()
 	}
 }
 
+
+namespace {
+	struct each_callback_submit {
+		each_callback_submit(msgobj r, msgobj e) :
+			res(r), err(e) { }
+		template <typename T>
+		void operator() (T& pair) const
+		{
+			basic_shared_session nulls;
+			pair.second.callback_submit(nulls, res, err);
+		}
+	private:
+		msgobj res;
+		msgobj err;
+		each_callback_submit();
+	};
+}
+
 void basic_session::force_lost(msgobj res, msgobj err)
 {
 	m_lost = true;
-	basic_shared_session nulls;
-
-	pthread_scoped_lock lk(m_callbacks_mutex);
-	for(callbacks_t::iterator it(m_callbacks.begin()), it_end(m_callbacks.end());
-			it != it_end; ++it) {
-		it->second.callback_submit(nulls, res, err);
-	}
-	m_callbacks.clear();
+	m_cbtable.for_each_clear(each_callback_submit(res, err));
 }
 
 
@@ -203,26 +252,38 @@ try {
 	LOG_ERROR("response callback error: unknown error");
 }
 
+
+namespace {
+	struct remove_if_step_timeout {
+		remove_if_step_timeout(basic_shared_session s) :
+			self(s)
+		{
+			res.type = msgpack::type::NIL;
+			err.type = msgpack::type::POSITIVE_INTEGER;
+			err.via.u64 = protocol::TIMEOUT_ERROR;
+		}
+		template <typename T>
+		bool operator() (T& pair)
+		{
+			if(!pair.second.step_timeout()) {
+				LOG_DEBUG("callback timeout id=",pair.first);
+				pair.second.callback_submit(self, res, err);  // client::step_timeout;
+				//pair.second.callback(self, res, err);  // client::step_timeout;  // FIXME XXX
+				return true;
+			}
+			return false;
+		}
+	private:
+		basic_shared_session& self;
+		msgobj res;
+		msgobj err;
+		remove_if_step_timeout();
+	};
+}
+
 void basic_session::step_timeout(basic_shared_session self)
 {
-	msgpack::object res;
-	res.type = msgpack::type::NIL;
-	msgpack::object err;
-	err.type = msgpack::type::POSITIVE_INTEGER;
-	err.via.u64 = protocol::TIMEOUT_ERROR;
-
-	pthread_scoped_lock lk(m_callbacks_mutex);
-	for(callbacks_t::iterator it(m_callbacks.begin()), it_end(m_callbacks.end());
-			it != it_end; ) {
-		if(!it->second.step_timeout()) {
-			LOG_DEBUG("callback timeout this=",(void*)this," id=",it->first);
-			it->second.callback_submit(self, res, err);  // client::step_timeout;
-			//it->second.callback(self, res, err);  // client::step_timeout;  // FIXME XXX
-			m_callbacks.erase(it++);
-		} else {
-			++it;
-		}
-	}
+	m_cbtable.erase_if(remove_if_step_timeout(self));
 }
 
 bool basic_session::callback_entry::step_timeout()
