@@ -46,7 +46,7 @@ public:
 		do { \
 			char tmbuf[21]; \
 			time_t ti = time(NULL); \
-			struct tm t; gmtime_r(&ti, &t); \
+			struct tm t; localtime_r(&ti, &t); \
 			s.write(tmbuf, strftime(tmbuf, sizeof(tmbuf), "%Y-%m-%d %H:%M:%S ", &t)); \
 		} while(0)
 
