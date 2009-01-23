@@ -8,9 +8,10 @@ libkumo_logic_a_SOURCES = \
 		logic/hash.cc \
 		logic/base.cc
 
-bin_PROGRAMS = kumo-manager kumo-server kumo-gateway
+bin_PROGRAMS = kumo-manager kumo-server kumo-gateway kumomergedb
 bin_SCRIPTS = kumoctl
-EXTRA_DIST = $(bin_SCRIPTS)
+
+EXTRA_DIST = $(bin_SCRIPTS) doc/memo.txt doc/memo.pdf
 
 kumo_manager_SOURCES = \
 		logic/mgr_replace.cc \
@@ -36,7 +37,8 @@ kumo_gateway_SOURCES = \
 		logic/gw_rpc.cc \
 		logic/gw_cmd.cc
 
-#		gateway/memproto.cc
+kumomergedb_SOURCES = \
+		logic/mergedb.cc
 
 kumo_manager_LDADD  = \
 		libkumo_logic.a \
@@ -58,22 +60,8 @@ kumo_gateway_LDADD  = \
 		log/libkumo_log.a \
 		rpc/libkumo_rpc.a
 
-#if WITH_LIBMEMCACHED_HOOK
-#
-#lib_LTLIBRARIES = libkumo_libmemcached.la
-#
-#libkumo_libmemcached_la_SOURCES = \
-#		$(libkumo_a_SOURCES) \
-#		user/libmemcached.cc \
-#		memproto/memproto.c \
-#		logic/cli_dispatch.cc \
-#		logic/cli_rpc.cc
-#
-## work around for "created both with libtool and without"
-#libkumo_libmemcached_la_CFLAGS = $(AM_CFLAGS)
-#libkumo_libmemcached_la_CXXFLAGS = $(AM_CXXFLAGS)
-#
-#endif
+kumomergedb_LDADD = \
+		log/libkumo_log.a
 
 
 noinst_HEADERS = \
