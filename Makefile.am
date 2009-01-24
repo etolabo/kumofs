@@ -9,7 +9,7 @@ libkumo_logic_a_SOURCES = \
 		logic/base.cc
 
 bin_PROGRAMS = kumo-manager kumo-server kumo-gateway kumomergedb
-bin_SCRIPTS = kumoctl
+bin_SCRIPTS = kumoctl kumolog
 
 EXTRA_DIST = $(bin_SCRIPTS) doc/memo.txt doc/memo.pdf
 

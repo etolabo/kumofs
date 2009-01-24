@@ -68,12 +68,9 @@ public:
 <%}%>
 
 private:
-	static uint64_t fixstr(const char (&str)[1])
-	{ return 0; }
-
-<%2.upto(9) {|i|%>
+<%1.upto(9) {|i|%>
 	static uint64_t fixstr(const char (&str)[<%=i%>])
-	{ return 0 <%0.upto(i-2) {|j|%>| (((uint64_t)str[<%=j%>])<<(<%=i-2-j%>*8))<%}%>; }
+	{ return 0<%0.upto(i-2) {|j|%> | (((uint64_t)str[<%=j%>])<<(<%=i-2-j%>*8))<%}%>; }
 <%}%>
 
 	int write_raw(char* p, size_t sz);

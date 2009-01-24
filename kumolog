@@ -1,0 +1,145 @@
+#!/usr/bin/env ruby
+begin
+	require 'rubygems'
+rescue LoadError
+end
+require 'msgpack'
+require 'pp'
+
+def fixstr(code)
+	r = ""
+	8.times {|i|
+		c = ((code >> (8*(7-i))) & 0xff)
+		r << c.chr if c != 0
+	}
+	r
+end
+
+def do_recover(src, off)
+	puts "recover at #{off}"
+	sz = src.length
+	pk = MessagePack::Unpacker.new
+
+	while (sz - off) >= 4
+		br = src[off,4].unpack('N')[0]
+		doff = off + 4
+
+		failed = false
+		begin
+			#noff = pk.execute_limit(src, doff, doff+br)
+			noff = pk.execute(src, doff)
+		rescue
+			failed = true
+		end
+
+		if !failed && pk.finished? && noff - doff == br
+			return off
+		end
+
+		pk.reset
+		off += 1
+	end
+	return sz
+end
+
+def do_parse(src, count, &block)
+	off = 0
+	noff = 0
+	sz = src.length
+
+	pk = MessagePack::Unpacker.new
+
+	while true
+		return if (sz - off) < 4
+
+		br = src[off,4].unpack('N')[0]
+		off += 4
+
+		if (sz - off) < br
+			off = do_recover(src, off-3)
+			next
+		end
+
+		failed = false
+		begin
+			pk.reset
+			#noff = pk.execute_limit(src, off, off+br)
+			noff = pk.execute(src, off)
+		rescue
+			failed = true
+		end
+
+		if failed || !pk.finished? || noff - off != br
+			off = do_recover(src, off-3)
+			next
+		end
+
+		obj = pk.data
+
+		name = nil
+		version = 0
+		hash = {}
+		begin
+			unless obj.is_a?(Array) && obj.length == 3 &&
+					obj[0].is_a?(Numeric) && obj[1].is_a?(Numeric) &&
+					obj[2].is_a?(Hash)
+				off = do_recover(src, off-3)
+				next
+			end
+			name = fixstr(obj[0])
+			version = obj[1]
+			obj[2].each_pair {|k,v|
+				hash[fixstr(k)] = v
+			}
+		rescue
+			off = do_recover(src, off-3)
+			next
+		end
+
+		off += br
+
+		block.call(name, version, hash)
+	end
+end
+
+if ARGV.length == 0
+	puts "usage: #{File.basename($0)} <logfile.mpac>"
+	exit 1
+end
+
+do_parse(File.read(ARGV[0]), 1<<30) {|name, version, hash|
+	puts "#{name}.#{version}: #{hash.pretty_inspect}"
+}
+
+__END__
+if ARGV.length != 3
+	prog = File.basename($0)
+puts <<EOF
+usage:  #{prog} <logfile.mpac> <map> <reduce>
+example:
+  - show logs whose "length" parameter is larger than 3
+     #{prog} log.mpack  'self if self[\"length\"] > 3'  'self'
+
+  - count logs whose "msg" parameter is "target":
+     #{prog} log.mpack  '1 if self[\"msg\"] == \"target\"'  'count'
+EOF
+	exit 1
+end
+
+map = eval("Proc.new{#{ARGV[1]}}")
+reduce = eval("Proc.new{#{ARGV[2]}}")
+src = File.read(ARGV[0])
+
+result = []
+
+do_parse(src, 1<<30) {|name, hash|
+	puts "#{name}: #{hash.inspect}"
+	hash.instance_eval { @name = name }
+	def hash.name; @name; end
+	def hash.method_missing(name); self[name.to_s]; end
+	o = hash.instance_eval(&map)
+	result << o unless o.nil?
+}
+pp result.instance_eval(&reduce)
+
+
