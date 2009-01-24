@@ -83,13 +83,13 @@ try {
 	pthread_scoped_rdlock whlk(m_whs_mutex);
 	check_coordinator_assign(m_whs, key.hash());
 
-	unsigned short* copy_required = z->allocate<unsigned short>(0);
+	unsigned int copy_required = 0;
 	shared_node repto[NUM_REPLICATION];
 
 	EACH_ASSIGNED_ACTIVE_NODE_EXCLUDE(addr(),
 			m_whs, key.hash(), n, {
-				repto[*copy_required] = n;
-				++*copy_required;
+				repto[copy_required] = n;
+				++copy_required;
 			})
 	whlk.unlock();
 
@@ -102,8 +102,8 @@ try {
 				 val.raw_data(), val.raw_size());
 	}
 
-	LOG_DEBUG("set copy required: ", *copy_required);
-	if(*copy_required == 0) {
+	LOG_DEBUG("set copy required: ", copy_required);
+	if(copy_required == 0 || m_cfg_async_replicate_set) {
 		response.result( msgpack::type::tuple<uint64_t>(ct.get()) );
 		return;
 	}
@@ -116,21 +116,21 @@ try {
 				ct.clock().get())
 			);
 
+	volatile unsigned int* pcr =
+		(volatile unsigned int*)z->malloc(sizeof(volatile unsigned int));
+	if(m_cfg_async_replicate_set) { *pcr = 0; }
+	else { *pcr = copy_required; }
+
 	using namespace mp::placeholders;
 	retry->set_callback( BIND_RESPONSE(ResReplicateSet,
 			retry,
-			copy_required,
+			pcr,
 			response, ct.get()) );
 
 	SHARED_ZONE(life, z);
-	for(unsigned short i=0; i < *copy_required; ++i) {
+	for(unsigned int i=0; i < copy_required; ++i) {
 		retry->call(repto[i], life, 10);
 	}
-
-#ifdef KUMO_SET_ASYNC
-	*copy_required = 0;
-	response.result( msgpack::type::tuple<uint64_t>(ct.get()) );
-#endif
 }
 RPC_CATCH(Set, response)
 
@@ -145,13 +145,13 @@ try {
 	pthread_scoped_rdlock whlk(m_whs_mutex);
 	check_coordinator_assign(m_whs, key.hash());
 
-	unsigned short* copy_required = z->allocate<unsigned short>(0);
+	unsigned int copy_required = 0;
 	shared_node repto[NUM_REPLICATION];
 
 	EACH_ASSIGNED_ACTIVE_NODE_EXCLUDE(addr(),
 			m_whs, key.hash(), n, {
-				repto[*copy_required] = n;
-				++*copy_required;
+				repto[copy_required] = n;
+				++copy_required;
 			})
 	whlk.unlock();
 
@@ -168,8 +168,8 @@ try {
 		return;
 	}
 
-	LOG_DEBUG("delete copy required: ", *copy_required);
-	if(*copy_required == 0) {
+	LOG_DEBUG("delete copy required: ", copy_required);
+	if(copy_required == 0 || m_cfg_async_replicate_delete) {
 		response.result(true);
 		return;
 	}
@@ -181,28 +181,28 @@ try {
 				ct.get(), m_clock.get_incr())
 			);
 
+	volatile unsigned int* pcr =
+		(volatile unsigned int*)z->malloc(sizeof(volatile unsigned int));
+	if(m_cfg_async_replicate_delete) { *pcr = 0; }
+	else { *pcr = copy_required; }
+
 	using namespace mp::placeholders;
 	retry->set_callback( BIND_RESPONSE(ResReplicateDelete,
 				retry,
-				copy_required,
+				pcr,
 				response) );
 	
 	SHARED_ZONE(life, z);
-	for(unsigned short i=0; i < *copy_required; ++i) {
+	for(unsigned int i=0; i < copy_required; ++i) {
 		retry->call(repto[i], life, 10);
 	}
-
-#ifdef KUMO_DELETE_ASYNC
-	*copy_required = 0;
-	response.result(true);
-#endif
 }
 RPC_CATCH(Delete, response)
 
 
 RPC_REPLY(ResReplicateSet, from, res, err, life,
 		RetryReplicateSet* retry,
-		unsigned short* copy_required,
+		volatile unsigned int* copy_required,
 		rpc::weak_responder response, uint64_t clocktime)
 {
 	LOG_DEBUG("ResReplicateSet ",res,",",err," remain:",*copy_required);
@@ -238,7 +238,7 @@ RPC_REPLY(ResReplicateSet, from, res, err, life,
 
 RPC_REPLY(ResReplicateDelete, from, res, err, life,
 		RetryReplicateDelete* retry,
-		unsigned short* copy_required,
+		volatile unsigned int* copy_required,
 		rpc::weak_responder response)
 {
 	// retry if failed

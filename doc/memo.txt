@@ -1,4 +1,4 @@
-?title Kumofs memo -- Kumo Fast Storage rev.605
+?title Kumofs memo -- Kumo Fast Storage rev.650
 ?author FURUHASHI Sadayuki
 
 
@@ -100,8 +100,6 @@ $ ./configure && make && make install
 :--with-mpio=DIR:mpioがインストールされているディレクトリを指定する
 :--with-msgpack=DIR:MessagePackがインストールされているディレクトリを指定する
 :--with-tokyocabinet=DIR:TokyoCabinetがインストールされているディレクトリを指定する
-:--enable-async-replicate-set:set操作でレプリケーションするとき他のServerからの応答を待たずに成功を返すようにする
-:--enable-async-replicate-delete:delete操作でレプリケーションするとき他のServerからの応答を待たずに成功を返すようにする
 :--enable-trace:画面を埋め尽くすほど冗長なデバッグ用のメッセージを出力するようにする
 :--with-tcmalloc[=DIR]:tcmallocとリンクする
 
@@ -155,6 +153,8 @@ localhostでManagerノード1台、Server 2台を使ってクラスタを構成�
 :-p <address>:もし存在するなら、もう一台のkumo-managerのアドレスを指定する
 :-s <path.tch>:データを保存するデータベースファイルのパスを指定する
 :-f <dir>:レプリケーションの再配置に使う一時ファイルを保存するディレクトリを指定する。データベースファイルと比べて十分なサイズの空き容量が必要
+:-As:set操作でレプリケーションするとき他のServerからの応答を待たずに成功を返すようにする
+:-Ad:delete操作でレプリケーションするとき他のServerからの応答を待たずに成功を返すようにする
 
 ***kumo-gateway
 :-m <address>:kumo-managerのホスト名とポート番号を指定する

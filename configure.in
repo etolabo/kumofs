@@ -147,27 +147,6 @@ fi
 
 
 
-AC_MSG_CHECKING([if asynchronous replicate-set is enabled])
-AC_ARG_ENABLE(async-replicate-set,
-	AS_HELP_STRING([--enable-async-replicate-set], [enable asynchronous replicate-set.]) )
-if test "$enable_async_replicate_set" = "yes"; then
-	CXXFLAGS="$CXXFLAGS -DKUMO_SET_ASYNC"
-	CFLAGS="$CFLAGS -DKUMO_SET_ASYNC"
-fi
-AC_MSG_RESULT($enable_async_replicate_set)
-
-
-AC_MSG_CHECKING([if asynchronous replicate-delete is enabled])
-AC_ARG_ENABLE(async-replicate-delete,
-	AS_HELP_STRING([--enable-async-replicate-delete], [enable asynchronous replicate-delete.]) )
-if test "$enable_async_replicate_delete" = "yes"; then
-	CXXFLAGS="$CXXFLAGS -DKUMO_DELETE_ASYNC"
-	CFLAGS="$CFLAGS -DKUMO_DELETE_ASYNC"
-fi
-AC_MSG_RESULT($enable_async_replicate_delete)
-
-
-
 AC_MSG_CHECKING([if debug option is enabled])
 AC_ARG_ENABLE(debug,
 	AS_HELP_STRING([--disable-debug],

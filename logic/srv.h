@@ -67,13 +67,13 @@ private:
 	typedef RPC_RETRY(ReplicateSet) RetryReplicateSet;
 	RPC_REPLY_DECL(ResReplicateSet, from, res, err, life,
 			RetryReplicateSet* retry,
-			unsigned short* copy_required,
+			volatile unsigned int* copy_required,
 			rpc::weak_responder response, uint64_t clocktime);
 
 	typedef RPC_RETRY(ReplicateDelete) RetryReplicateDelete;
 	RPC_REPLY_DECL(ResReplicateDelete, from, res, err, life,
 			RetryReplicateDelete* retry,
-			unsigned short* copy_required,
+			volatile unsigned int* copy_required,
 			rpc::weak_responder response);
 
 	// srv_replace.cc
@@ -206,6 +206,9 @@ private:
 	void replace_offer_start(ClockTime replace_time, REQUIRE_RELK);
 	void replace_offer_finished(ClockTime replace_time, REQUIRE_RELK);
 
+	const bool m_cfg_async_replicate_set;
+	const bool m_cfg_async_replicate_delete;
+
 	std::string m_cfg_offer_tmpdir;
 	std::string m_cfg_db_backup_basename;
 
@@ -230,6 +233,8 @@ Server::Server(Config& cfg) :
 	m_manager1(cfg.manager1),
 	m_manager2(cfg.manager2),
 	m_stream_addr(cfg.stream_addr),
+	m_cfg_async_replicate_set(cfg.async_replicate_set),
+	m_cfg_async_replicate_delete(cfg.async_replicate_delete),
 	m_cfg_offer_tmpdir(cfg.offer_tmpdir),
 	m_cfg_db_backup_basename(cfg.db_backup_basename),
 	m_cfg_replicate_set_retry_num(cfg.replicate_set_retry_num),
