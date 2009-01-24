@@ -6,8 +6,9 @@
 
 class logpacker {
 public:
-	static void initialize(const std::string& basename, size_t lotate_size);
+	static void initialize(const char* fname);
 	static void destroy();
+	static void reopen() { s_instance->reopen(); }
 	static bool is_active() { return !!s_instance.get(); }
 	static logpack& instance() { return *s_instance; }
 private:

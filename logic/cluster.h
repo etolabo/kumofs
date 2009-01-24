@@ -36,7 +36,7 @@ private:
 	{
 		if(fd < 0) {
 			LOG_FATAL("accept failed: ",strerror(err));
-			RPCBase<Logic>::signal_end(SIGTERM);
+			RPCBase<Logic>::signal_end();
 			return;
 		}
 		LOG_DEBUG("accept cluster fd=",fd);

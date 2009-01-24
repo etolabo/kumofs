@@ -27,7 +27,7 @@ void Memproto::accepted(void* data, int fd)
 	Gateway* gw = reinterpret_cast<Gateway*>(data);
 	if(fd < 0) {
 		LOG_FATAL("accept failed: ",strerror(-fd));
-		gw->signal_end(SIGTERM);
+		gw->signal_end();
 		return;
 	}
 	mp::set_nonblock(fd);

@@ -28,12 +28,12 @@ extern "C" {
 
 typedef struct logpack_t logpack_t;
 
-logpack_t* logpack_new(const char* basename, size_t lotate_size);
-logpack_t* logpack_new_pshared(const char* basename, size_t lotate_size);
+logpack_t* logpack_new(const char* fname);
+logpack_t* logpack_new_pshared(const char* fname);
+int logpack_reopen(logpack_t* lpk);
 void logpack_free(logpack_t* lpk);
 
 int logpack_write_raw(logpack_t* lpk, const char* buf, size_t size);
-
 
 #if 0
 typedef struct {

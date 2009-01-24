@@ -146,7 +146,7 @@ void Manager::control_checked_accepted(int fd, int err)
 {
 	if(fd < 0) {
 		LOG_FATAL("accept failed: ",strerror(err));
-		signal_end(SIGTERM);
+		signal_end();
 		return;
 	}
 	wavy::add<ControlConnection>(fd, this);

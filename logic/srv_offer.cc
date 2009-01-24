@@ -256,7 +256,7 @@ try {
 
 	if(fd < 0) {
 		LOG_FATAL("accept failed: ",strerror(err));
-		signal_end(SIGTERM);
+		signal_end();
 		return;
 	}
 

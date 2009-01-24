@@ -28,9 +28,11 @@
 class logpack {
 public:
 	struct PSHARED_TAG { };
-	logpack(const std::string& basename, size_t lotate_size);
-	logpack(const std::string& basename, size_t lotate_size, PSHARED_TAG);
+	logpack(const char* fname);
+	logpack(const char* fname, PSHARED_TAG);
 	~logpack();
+
+	int reopen();
 
 public:
 #define MSGPACK_LOG_BEGIN(NUM) \
@@ -41,11 +43,11 @@ public:
 	} \
 	msgpack::packer<msgpack::sbuffer> m(buf); \
 	m.pack_array(3); \
-	m.pack_uint64(conststr(name)); \
+	m.pack_uint64(fixstr(name)); \
 	m.pack_uint16(version); \
 	m.pack_map(NUM);
 #define MSGPACK_LOG_ADD(k, v) \
-	m.pack_uint64(conststr(k)); \
+	m.pack_uint64(fixstr(k)); \
 	m << v;
 #define MSGPACK_LOG_END \
 	char* p = (char*)buf.data(); \
@@ -66,32 +68,13 @@ public:
 <%}%>
 
 private:
-	static uint64_t conststr(const char (&str)[1])
+	static uint64_t fixstr(const char (&str)[1])
 	{ return 0; }
 
-	static uint64_t conststr(const char (&str)[2])
-	{ return ((uint64_t)*(uint8_t*)str); }
-
-	static uint64_t conststr(const char (&str)[3])
-	{ return ((uint64_t)*(uint16_t*)str); }
-
-	static uint64_t conststr(const char (&str)[4])
-	{ return (uint64_t)((*(uint32_t*)str) << 8); }
-
-	static uint64_t conststr(const char (&str)[5])
-	{ return ((uint64_t)*(uint32_t*)str); }
-
-	static uint64_t conststr(const char (&str)[6])
-	{ uint64_t o = 0; memcpy(((char*)&o)+3, str, 5); return o; }
-
-	static uint64_t conststr(const char (&str)[7])
-	{ uint64_t o = 0; memcpy(((char*)&o)+2, str, 6); return o; }
-
-	static uint64_t conststr(const char (&str)[8])
-	{ return (*(uint64_t*)str) << 8; }
-
-	static uint64_t conststr(const char (&str)[9])
-	{ return *(uint64_t*)str; }
+<%2.upto(9) {|i|%>
+	static uint64_t fixstr(const char (&str)[<%=i%>])
+	{ return 0 <%0.upto(i-2) {|j|%>| (((uint64_t)str[<%=j%>])<<(<%=i-2-j%>*8))<%}%>; }
+<%}%>
 
 	int write_raw(char* p, size_t sz);
 
@@ -104,20 +87,25 @@ private:
 };
 
 
-inline logpack::logpack(const std::string& basename, size_t lotate_size)
+inline logpack::logpack(const char* fname)
 {
-	m_logpack = logpack_new(basename.c_str(), lotate_size);
+	m_logpack = logpack_new(fname);
 	if(!m_logpack) {
 		throw std::runtime_error("failed to initialize msgpack::logpack");
 	}
 }
 
-inline logpack::logpack(const std::string& basename, size_t lotate_size, PSHARED_TAG)
+inline logpack::logpack(const char* fname, PSHARED_TAG)
 {
-	m_logpack = logpack_new_pshared(basename.c_str(), lotate_size);
+	m_logpack = logpack_new_pshared(fname);
 	if(!m_logpack) {
 		throw std::runtime_error("failed to initialize msgpack::logpack");
 	}
+}
+
+inline int logpack::reopen()
+{
+	return logpack_reopen(m_logpack);
 }
 
 inline logpack::~logpack()

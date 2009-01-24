@@ -121,7 +121,7 @@ int main(int argc, char* argv[])
 
 	// initialize binary logger
 	if(arg.logpack_path_set) {
-		logpacker::initialize(arg.logpack_path, 1024*1024*1024);  // FIXME lotate size
+		logpacker::initialize(arg.logpack_path.c_str());
 	}
 
 	// open database

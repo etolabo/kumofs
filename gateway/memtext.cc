@@ -29,7 +29,7 @@ void MemprotoText::accepted(Gateway* gw, int fd, int err)
 {
 	if(fd < 0) {
 		LOG_FATAL("accept failed: ",strerror(err));
-		gw->signal_end(SIGTERM);
+		gw->signal_end();
 		return;
 	}
 	LOG_DEBUG("accept memproto text user fd=",fd);

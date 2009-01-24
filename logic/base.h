@@ -120,7 +120,7 @@ protected:
 		sigaddset(&ss, SIGTERM);
 
 		s_pth.reset( new mp::pthread_signal(ss,
-					get_signal_end(),
+					get_signal_handler(),
 					reinterpret_cast<void*>(this)) );
 
 		// initialize wavy
@@ -144,7 +144,16 @@ public:
 	}
 
 public:
-	void signal_end(int signo)
+	void signal_handler(int signo)
+	{
+		if(signo == SIGINT || signo == SIGTERM) {
+			signal_end();
+		} else {
+			signal_hup();
+		}
+	}
+
+	void signal_end()
 	{
 		wavy::end();
 		wavy::submit(finished);  // submit dummy function
@@ -152,15 +161,23 @@ public:
 		LOG_INFO("end");
 	}
 
+	void signal_hup()
+	{
+		LOG_INFO("SIGHUP");
+		if(logpacker::is_active()) {
+			logpacker::reopen();
+		}
+	}
+
 private:
 	static void finished() { }
 
 	// avoid compile error
 	typedef void (*sigend_callback)(void*, int);
-	static sigend_callback get_signal_end()
+	static sigend_callback get_signal_handler()
 	{
 		sigend_callback f = &mp::object_callback<void (int)>::
-			mem_fun<wavy_server, &wavy_server::signal_end>;
+			mem_fun<wavy_server, &wavy_server::signal_handler>;
 		return f;
 	}
 
