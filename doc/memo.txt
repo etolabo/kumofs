@@ -1,4 +1,4 @@
-?title Kumofs memo -- Kumo Fast Storage rev.650
+?title Kumofs memo -- Kumo Fast Storage rev.653
 ?author FURUHASHI Sadayuki
 
 
@@ -132,6 +132,7 @@ localhostでManagerノード1台、Server 2台を使ってクラスタを構成�
 **主な引数
 **共通
 :-o <path.log>:ログを標準出力ではなく指定されたファイルに出力する
+:-g <path.mpac>:バイナリログを指定されたファイルに出力する
 :-d <path.pid>:デーモンになる。指定されたファイルにpidを書き出す
 :-v:WARNよりレベルの低いメッセージを出力する
 :-Ci <sec>:タイマークロックの間隔を秒で指定する。少数を指定できる
@@ -223,6 +224,22 @@ suffixは省略するとその日の日付（YYMMDD）が使われる。
 $ kumomergedb backup.tch-20090101 server1.tch-20090101 server2.tch-20090101 server3.tch-20090101
 ||<
 ^title kumomergedbコマンドの実行例
+
+
+*ログ
+kumo-manager, kumo-server, kumo-gatewayは、それぞれ2種類のログを出力する:
+:テキストログ:行区切りのテキストフォーマットのログ。通常標準出力に出力される
+:バイナリログ:MessagePackでシリアライズされたログ
+
+テキストログは常に出力される。''-v''オプションを付けると冗長なログも出力されるようになる。テキストログはファイルに書き出すこともできるが、ログローテーションはサポートしていない。''-d <path.pid>''オプションを指定してデーモンとして起動するか、''-o -''オプションを指定すると、ログに色が付かなくなる。
+
+バイナリログは''-g <path.mpac>''オプションを付けたときだけ出力される。''-v''オプションは影響しない。バイナリログはSIGHUPシグナルを受け取るとログファイルを開き直すため、logrotateなどを使ってログローテーションができる。
+
+バイナリログは''kumolog''コマンドを使ってテキストに変換して読むことができる。
+>||
+$ kumolog manager.mpac
+||<
+^title kumologコマンドの実行例
 
 
 *チューニング
