@@ -103,7 +103,7 @@ try {
 	}
 
 	LOG_DEBUG("set copy required: ", copy_required);
-	if(copy_required == 0 || m_cfg_async_replicate_set) {
+	if(copy_required == 0 || param.is_async()) {
 		response.result( msgpack::type::tuple<uint64_t>(ct.get()) );
 		return;
 	}
@@ -118,7 +118,7 @@ try {
 
 	volatile unsigned int* pcr =
 		(volatile unsigned int*)z->malloc(sizeof(volatile unsigned int));
-	if(m_cfg_async_replicate_set) { *pcr = 0; }
+	if(param.is_async()) { *pcr = 0; }
 	else { *pcr = copy_required; }
 
 	using namespace mp::placeholders;
@@ -169,7 +169,7 @@ try {
 	}
 
 	LOG_DEBUG("delete copy required: ", copy_required);
-	if(copy_required == 0 || m_cfg_async_replicate_delete) {
+	if(copy_required == 0 || param.is_async()) {
 		response.result(true);
 		return;
 	}
@@ -183,7 +183,7 @@ try {
 
 	volatile unsigned int* pcr =
 		(volatile unsigned int*)z->malloc(sizeof(volatile unsigned int));
-	if(m_cfg_async_replicate_delete) { *pcr = 0; }
+	if(param.is_async()) { *pcr = 0; }
 	else { *pcr = copy_required; }
 
 	using namespace mp::placeholders;

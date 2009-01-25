@@ -141,6 +141,9 @@ private:
 	unsigned short m_error_count;
 	void incr_error_count();
 
+	const bool m_cfg_async_replicate_set;
+	const bool m_cfg_async_replicate_delete;
+
 	const unsigned short m_cfg_get_retry_num;
 	const unsigned short m_cfg_set_retry_num;
 	const unsigned short m_cfg_delete_retry_num;
@@ -168,6 +171,8 @@ Gateway::Gateway(Config& cfg) :
 	m_manager1(cfg.manager1),
 	m_manager2(cfg.manager2),
 	m_error_count(0),
+	m_cfg_async_replicate_set(cfg.async_replicate_set),
+	m_cfg_async_replicate_delete(cfg.async_replicate_delete),
 	m_cfg_get_retry_num(cfg.get_retry_num),
 	m_cfg_set_retry_num(cfg.set_retry_num),
 	m_cfg_delete_retry_num(cfg.delete_retry_num),

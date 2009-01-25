@@ -106,7 +106,8 @@ try {
 	RetrySet* retry = life->allocate<RetrySet>(
 			protocol::type::Set(
 				protocol::type::DBKey(key, keylen, hash),
-				protocol::type::DBValue(val, vallen, meta)
+				protocol::type::DBValue(val, vallen, meta),
+				m_cfg_async_replicate_set
 				));
 
 	retry->set_callback( BIND_RESPONSE(ResSet, retry, callback, user) );
@@ -122,7 +123,8 @@ try {
 	if(!life) { life.reset(new msgpack::zone()); }
 	RetryDelete* retry = life->allocate<RetryDelete>(
 			protocol::type::Delete(
-				protocol::type::DBKey(key, keylen, hash)
+				protocol::type::DBKey(key, keylen, hash),
+				m_cfg_async_replicate_delete
 				));
 
 	retry->set_callback( BIND_RESPONSE(ResDelete, retry, callback, user) );

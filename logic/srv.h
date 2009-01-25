@@ -206,9 +206,6 @@ private:
 	void replace_offer_start(ClockTime replace_time, REQUIRE_RELK);
 	void replace_offer_finished(ClockTime replace_time, REQUIRE_RELK);
 
-	const bool m_cfg_async_replicate_set;
-	const bool m_cfg_async_replicate_delete;
-
 	std::string m_cfg_offer_tmpdir;
 	std::string m_cfg_db_backup_basename;
 
@@ -233,8 +230,6 @@ Server::Server(Config& cfg) :
 	m_manager1(cfg.manager1),
 	m_manager2(cfg.manager2),
 	m_stream_addr(cfg.stream_addr),
-	m_cfg_async_replicate_set(cfg.async_replicate_set),
-	m_cfg_async_replicate_delete(cfg.async_replicate_delete),
 	m_cfg_offer_tmpdir(cfg.offer_tmpdir),
 	m_cfg_db_backup_basename(cfg.db_backup_basename),
 	m_cfg_replicate_set_retry_num(cfg.replicate_set_retry_num),

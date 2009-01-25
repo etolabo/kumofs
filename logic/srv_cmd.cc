@@ -23,9 +23,6 @@ struct arg_t : rpc_cluster_args {
 	Storage* db;
 	std::string db_backup_basename;  // convert?
 
-	bool async_replicate_set;
-	bool async_replicate_delete;
-
 	unsigned short replicate_set_retry_num;
 	unsigned short replicate_delete_retry_num;
 
@@ -67,10 +64,6 @@ struct arg_t : rpc_cluster_args {
 				type::numeric(&replicate_set_retry_num, replicate_set_retry_num));
 		on("-G", "--replicate-delete-retry",
 				type::numeric(&replicate_delete_retry_num, replicate_delete_retry_num));
-		on("-As", "--async-replicate-set",
-				type::boolean(&async_replicate_set));
-		on("-Ad", "--async-replicate-delete",
-				type::boolean(&async_replicate_delete));
 		parse(argc, argv);
 	}
 
@@ -84,8 +77,6 @@ std::cout <<
 "  -s  <path.tch>            "                            "--store          path to database\n"
 "  -m  <addr[:port="<<MANAGER_DEFAULT_PORT<<"]>   "       "--manager1       address of manager 1\n"
 "  -p  <addr[:port="<<MANAGER_DEFAULT_PORT<<"]>   "       "--manager2       address of manager 2\n"
-"  -As               "                                    "--async-replicate-set    send response without waiting replication on set\n"
-"  -Ad               "                                    "--async-replicate-delete send response without waiting replication on delete\n"
 "  -S  <number="<<replicate_set_retry_num<<">   "         "--replicate-set-retry    replicate set retry limit\n"
 "  -D  <number="<<replicate_delete_retry_num<<">   "      "--replicate-delete-retry replicate delete retry limit\n"
 ;

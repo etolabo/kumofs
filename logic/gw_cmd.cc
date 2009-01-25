@@ -23,6 +23,9 @@ struct arg_t : rpc_server_args {
 
 	unsigned short renew_threshold;
 
+	bool async_replicate_set;
+	bool async_replicate_delete;
+
 	//bool memtext_set;
 	sockaddr_in memtext_addr_in;
 	int memtext_lsock;  // convert
@@ -74,6 +77,10 @@ struct arg_t : rpc_server_args {
 				type::numeric(&delete_retry_num, delete_retry_num));
 		on("-rn", "--renew-threshold",
 				type::numeric(&renew_threshold, renew_threshold));
+		on("-As", "--async-replicate-set",
+				type::boolean(&async_replicate_set));
+		on("-Ad", "--async-replicate-delete",
+				type::boolean(&async_replicate_delete));
 		parse(argc, argv);
 	}
 
@@ -86,6 +93,8 @@ std::cout <<
 "  -p  <addr[:port="<<MANAGER_DEFAULT_PORT<<"]>   "       "--manager2       address of manager 2\n"
 "  -t  <[addr:]port="<<MEMTEXT_DEFAULT_PORT<<">   "       "--memproto-text  memcached text protocol listen port\n"
 "  -c  <[addr:]port="<<CLOUDY_DEFAULT_PORT<<">   "        "--cloudy         memcached binary protocol listen port\n"
+"  -As               "                                    "--async-replicate-set    send response without waiting replication on set\n"
+"  -Ad               "                                    "--async-replicate-delete send response without waiting replication on delete\n"
 "  -G  <number="<<get_retry_num<<">    "                  "--get-retry              get retry limit\n"
 "  -S  <number="<<set_retry_num<<">   "                   "--set-retry              set retry limit\n"
 "  -D  <number="<<delete_retry_num<<">   "                "--delete-retry           delete retry limit\n"

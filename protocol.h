@@ -310,19 +310,23 @@ namespace type {
 		// not found: nil
 	};
 
-	struct Set : define< tuple<DBKey, DBValue> > {
+	struct Set : define< tuple<DBKey, DBValue, uint32_t> > {
 		Set() {}
-		Set(DBKey k, DBValue v) : define_type(msgpack_type( k, v )) {}
+		Set(DBKey k, DBValue v, bool async) :
+			define_type(msgpack_type( k, v, (async ? 0x1 : 0) )) {}
 		const DBKey& dbkey() const		{ return get<0>(); }
 		const DBValue& dbval() const	{ return get<1>(); }
+		bool is_async() const			{ return get<2>() & 0x01; }
 		// success: tuple< clocktime:uint64 >
 		// failed:  nil
 	};
 
-	struct Delete : define< tuple<DBKey> > {
+	struct Delete : define< tuple<DBKey, uint32_t> > {
 		Delete() {}
-		Delete(DBKey k) : define_type(msgpack_type( k )) {}
+		Delete(DBKey k, bool async) :
+			define_type(msgpack_type( k, (async ? 0x1 : 0) )) {}
 		const DBKey& dbkey() const		{ return get<0>(); }
+		bool is_async() const			{ return get<1>() & 0x01; }
 		// success: true
 		// not foud: false
 		// failed: nil
