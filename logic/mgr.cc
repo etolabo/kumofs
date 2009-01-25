@@ -67,7 +67,7 @@ void Manager::new_node(address addr, role_type id, shared_node n)
 	LOG_WARN("new node ",id," ",addr);
 	if(id == protocol::MANAGER) {
 		if(addr != m_partner) {
-			MLOGPACK("EPner",1, "unknown partner",
+			MLOGPACK("eP",1, "unknown partner",
 					"addr",addr);
 			LOG_ERROR("unknown partner node");
 			// FIXME

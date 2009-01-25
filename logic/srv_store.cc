@@ -217,7 +217,7 @@ RPC_REPLY(ResReplicateSet, from, res, err, life,
 			}
 		}
 		response.null();
-		MLOGPACK("ERepSet",1, "Replicate set failed",
+		MLOGPACK("ers",1, "Replicate set failed",
 				"msg",std::string("ReplicateSet failed"),
 				"key",msgtype::raw_ref(
 					retry->param().dbkey().data(),
@@ -252,7 +252,7 @@ RPC_REPLY(ResReplicateDelete, from, res, err, life,
 			}
 		}
 		response.null();
-		MLOGPACK("ERepDel",1, "Replicate delete failed",
+		MLOGPACK("erd",1, "Replicate delete failed",
 				"msg",std::string("ReplicateDelete failed"),
 				"key",msgtype::raw_ref(
 					retry->param().dbkey().data(),

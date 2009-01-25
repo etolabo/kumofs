@@ -43,11 +43,11 @@ public:
 	} \
 	msgpack::packer<msgpack::sbuffer> m(buf); \
 	m.pack_array(3); \
-	m.pack_uint64(fixstr(name)); \
+	m.pack_uint32(fixstr(name)); \
 	m.pack_uint16(version); \
 	m.pack_map(NUM);
 #define MSGPACK_LOG_ADD(k, v) \
-	m.pack_uint64(fixstr(k)); \
+	m.pack_uint32(fixstr(k)); \
 	m << v;
 #define MSGPACK_LOG_END \
 	char* p = (char*)buf.data(); \
@@ -68,9 +68,9 @@ public:
 <%}%>
 
 private:
-<%1.upto(9) {|i|%>
-	static uint64_t fixstr(const char (&str)[<%=i%>])
-	{ return 0<%0.upto(i-2) {|j|%> | (((uint64_t)str[<%=j%>])<<(<%=i-2-j%>*8))<%}%>; }
+<%1.upto(5) {|i|%>
+	static uint32_t fixstr(const char (&str)[<%=i%>])
+	{ return 0<%0.upto(i-2) {|j|%> | (((uint32_t)str[<%=j%>])<<(<%=i-2-j%>*8))<%}%>; }
 <%}%>
 
 	int write_raw(char* p, size_t sz);

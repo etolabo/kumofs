@@ -31,8 +31,10 @@
 
 #ifdef LOGPACK_ENABLE_PSHARED
 typedef struct {
-	int mapfd;
+	pthread_mutex_t mutex;
+#ifdef LOGPACK_ENABLE_PSHARED_ROBUST
 	volatile int seqnum;
+#endif
 } logpack_pshared;
 #endif
 
@@ -41,7 +43,8 @@ struct logpack_t {
 	pthread_mutex_t mutex;
 	char* fname;
 #ifdef LOGPACK_ENABLE_PSHARED
-	logpack_shared* shared;
+	int mapfd;
+	logpack_pshared* pshared;
 #endif
 };
 
@@ -66,10 +69,6 @@ logpack_t* logpack_new(const char* fname)
 		goto err_logfd;
 	}
 
-#ifdef LOGPACK_ENABLE_PSHARED
-	lpk->mapfd = -1;
-#endif
-
 	return lpk;
 
 err_logfd:
@@ -82,16 +81,151 @@ err_calloc:
 	return NULL;
 }
 
+#ifdef LOGPACK_ENABLE_PSHARED
+static int logpack_open_pshared(const char* basename)
+{
+	int mapfd;
+	size_t flen = strlen(basename);
+	char* tmpname;
+
+	tmpname = (char*)malloc(flen+8);
+	if(!tmpname) {
+		return -1;
+	}
+
+	memcpy(tmpname, basename, flen);
+	memcpy(tmpname+flen, "-XXXXXX", 8);  // '-XXXXXX' + 1(='\0')
+
+	mapfd = mkstemp(tmpname);
+	if(mapfd < 0) {
+		free(tmpname);
+		return -1;
+	}
+
+	if(ftruncate(mapfd, sizeof(logpack_t)) < 0 ) {
+		unlink(tmpname);
+		free(tmpname);
+		return -1;
+	}
+
+	unlink(tmpname);
+
+	return mapfd;
+}
+
+logpack_t* logpack_new(const char* fname)
+{
+	pthread_mutexattr_t attr;
+
+	logpack_t* lpk = (logpack_t*)calloc(1, sizeof(logpack_t));
+	if(!lpk) {
+		goto err_calloc;
+	}
+
+	lpk->fname = strdup(fname);
+	if(!lpk->fname) {
+		goto err_fname;
+	}
+
+	lpk->mapfd = logpack_open_pshared(fname);
+	if(lpk->mapfd < 0) {
+		goto err_open_pshared;
+	}
+
+	lpk->pshared = (logpack_pshared*)mmap(NULL, sizeof(logpack_pshared),
+			PROT_READ|PROT_WRITE, MAP_SHARED, mapfd, 0);
+	if(lpk->pshared == MAP_FAILED) {
+		goto err_mmap;
+	}
+	memset(lpk->pshared, 0, sizeof(logpack_pshared));
+
+	if(pthread_mutexattr_init(&attr) != 0) {
+		goto err_mutexattr;
+	}
+#ifdef LOGPACK_ENABLE_PSHARED_ROBUST
+	if(pthread_mutexattr_setrobust_np(&attr, PTHREAD_MUTEX_ROBUST_NP) != 0) {
+		goto err_mutexattr_set;
+	}
+#endif
+	if(pthread_mutexattr_setpshared(&attr, PTHREAD_PROCESS_SHARED) != 0) {
+		goto err_mutexattr_set;
+	}
+
+	memset(&lpk->mutex, 0, sizeof(pthread_mutex_t));
+	if(pthread_mutex_init(&lpk->mutex, &attr) != 0) {
+		goto err_mutexattr_set;
+	}
+
+	lpk->logfd = open(lpk->fname, O_WRONLY|O_APPEND|O_CREAT, 0640);
+	if(lpk->logfd < 0) {
+		goto err_logfd;
+	}
+
+	return lpk;
+
+err_logfd:
+	pthread_mutex_destroy(&lpk->mutex);
+err_mutexattr_set:
+	pthread_mutexattr_destroy(&attr);
+err_mutexattr:
+	munmap(lpk->pshared, sizeof(logpack_pshared));
+err_mmap:
+	close(lpk->mapfd);
+err_open_pshared:
+	free(lpk->fname);
+err_fname:
+	free(lpk);
+err_calloc:
+	return NULL;
+}
+#endif
+
 void logpack_free(logpack_t* lpk)
 {
 	close(lpk->logfd);
 	free(lpk->fname);
+#ifdef LOGPACK_ENABLE_PSHARED
+	if(lpk->pshared) {
+		munmap(lpk->pshared, sizeof(logpack_pshared));
+		close(lpk->mapfd);
+	} else {
+		pthread_mutex_destroy(&lpk->mutex);
+	}
+#else
 	pthread_mutex_destroy(&lpk->mutex);
+#endif
 	free(lpk);
 }
 
 static inline int logpack_lock(logpack_t* lpk)
 {
+#ifdef LOGPACK_ENABLE_PSHARED
+#ifdef LOGPACK_ENABLE_PSHARED_ROBUST
+retry:
+	int seqnum = lpk->pshared->seqnum;
+#endif
+#endif
+
+#ifdef LOGPACK_ENABLE_PSHARED
+	if(lpk->pshared) {
+		if(pthread_mutex_lock(&lpk->pshared->mutex) != 0) {
+#ifdef LOGPACK_ENABLE_PSHARED_ROBUST
+			if(errno == EOWNERDEAD) {
+				if(__sync_bool_compare_and_swap(&lpk->pshared->seqnum,
+							seqnum, seqnum+1)) {
+					if(pthread_mutex_consistent_np(&lpk->mutex) != 0) {
+						return -1;
+					}
+				}
+				goto retry;
+			}
+#endif
+			return -1;
+		}
+		return 0;
+	}
+#endif
+
 	if(pthread_mutex_lock(&lpk->mutex) != 0) {
 		return -1;
 	}
@@ -100,6 +234,12 @@ static inline int logpack_lock(logpack_t* lpk)
 
 static inline void logpack_unlock(logpack_t* lpk)
 {
+#ifdef LOGPACK_ENABLE_PSHARED
+	if(lpk->pshared) {
+		pthread_mutex_unlock(&lpk->pshared->mutex);
+		return;
+	}
+#endif
 	pthread_mutex_unlock(&lpk->mutex);
 }
 
