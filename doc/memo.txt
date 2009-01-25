@@ -1,4 +1,4 @@
-?title Kumofs memo -- Kumo Fast Storage rev.653
+?title Kumofs memo -- Kumo Fast Storage rev.656
 ?author FURUHASHI Sadayuki
 
 
@@ -154,13 +154,13 @@ localhostでManagerノード1台、Server 2台を使ってクラスタを構成�
 :-p <address>:もし存在するなら、もう一台のkumo-managerのアドレスを指定する
 :-s <path.tch>:データを保存するデータベースファイルのパスを指定する
 :-f <dir>:レプリケーションの再配置に使う一時ファイルを保存するディレクトリを指定する。データベースファイルと比べて十分なサイズの空き容量が必要
-:-As:set操作でレプリケーションするとき他のServerからの応答を待たずに成功を返すようにする
-:-Ad:delete操作でレプリケーションするとき他のServerからの応答を待たずに成功を返すようにする
 
 ***kumo-gateway
 :-m <address>:kumo-managerのホスト名とポート番号を指定する
 :-p <address>:もし存在するなら、もう一台のManagerのアドレスを指定する
 :-t <port>:memcache text protocolを待ち受けるポート番号を指定する
+:-As:set操作でレプリケーションするとき、レプリケーション完了の応答を待たずに成功を返すようにする
+:-Ad:delete操作でレプリケーションするとき、レプリケーション完了の応答を待たずに成功を返すようにする
 
 @footnote
 
@@ -236,7 +236,7 @@ kumo-manager, kumo-server, kumo-gatewayは、それぞれ2種類のログを出�
 バイナリログは''-g <path.mpac>''オプションを付けたときだけ出力される。''-v''オプションは影響しない。バイナリログはSIGHUPシグナルを受け取るとログファイルを開き直すため、logrotateなどを使ってログローテーションができる。
 
 バイナリログは''kumolog''コマンドを使ってテキストに変換して読むことができる。
->||
+>|sh|
 $ kumolog manager.mpac
 ||<
 ^title kumologコマンドの実行例
@@ -244,11 +244,12 @@ $ kumolog manager.mpac
 
 *チューニング
 **データベースのチューニング
+Tokyo Cabinetのチューニングによって性能が大きく変わる。kumo-serverを起動する前にあらかじめ''tchmgr''コマンドでデータベースファイルを作成しておく。
+チューニングのパラメータはTokyo Cabinetのドキュメント参照。http://tokyocabinet.sourceforge.net/spex-ja.html
 >|sh|
-[localhost]$ tchdbmgr create /path/to/database.tch 1048568
-[localhost]$ kumo-server -m localhost -s /path/to/database.tch
+$ tchmgr create /path/to/database.tch 1048568  # バケット数を2097136個にして作成
+$ kumo-server -m localhost -s /path/to/database.tch
 ||<
-# TODO
 
 **タイムアウト時間とkeepalive間隔の調整
 # TODO
