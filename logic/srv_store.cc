@@ -105,7 +105,6 @@ try {
 	LOG_DEBUG("set copy required: ", copy_required);
 	if(copy_required == 0 || param.is_async()) {
 		response.result( msgpack::type::tuple<uint64_t>(ct.get()) );
-		return;
 	}
 
 	// Replication
@@ -171,7 +170,6 @@ try {
 	LOG_DEBUG("delete copy required: ", copy_required);
 	if(copy_required == 0 || param.is_async()) {
 		response.result(true);
-		return;
 	}
 
 	// Replication
