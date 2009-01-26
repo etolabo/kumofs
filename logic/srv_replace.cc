@@ -203,7 +203,10 @@ void Server::replace_copy(const address& manager_addr, HashSpace& hs)
 			}
 		}
 
-		if(current_owners.empty() || current_owners.front() != addr()) { continue; }
+		// FIXME 再配置中にServerがダウンしたときコピーが正常に行われないかもしれない
+		//if(current_owners.empty() || current_owners.front() != addr()) { continue; }
+		if(std::find(current_owners.begin(), current_owners.end(), addr())
+				== current_owners.end()) { continue; }
 
 		newbies.clear();
 		for(addrs_it it(Da.begin()); it != Da.end(); ++it) {
