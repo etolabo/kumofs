@@ -5,11 +5,10 @@
 *概要
 kumofsはkey-value型のデータを保存する分散ストレージ。key=>valueを保存する''set''、keyを取得する''get''、keyを削除する''delete''の3つの操作をサポートする。
 データを保持する''Server''、Server群を管理する''Manager''、アプリケーションからのリクエストをServerに中継する''Gateway''の3種類のノードでシステムを構成する。
+データは複数のServerに分散して保存されるため、Serverを追加するほど性能が向上する。
 データは3台のServerにコピーされて保存される。2台までならServerがダウンしても動作し続ける。
-データの取得は複数のServerに分散して行われ、Serverを追加するほど性能が向上する。
-システムを止めずにServerを追加したり、切り離したりすることができる。Serverの追加と切り離しは自動的には行われず、''kumoctlコマンド''を使ってマニュアルで行う。
-Serverを追加したときと切り離したときに、レプリケーションされたデータの再配置が行われる。
-Server群はManagerによって死活監視されている。Serverがダウンしたら、そのServerは直ちにシステムから切り離されるが、1台か2台のManagerが起動していないとServerがダウンしたときにシステムが停止してしまう。またServerの追加と切り離しはManagerが起動していないと行えない。
+Server群はManagerによって死活監視されている。Serverがダウンしたら、そのServerは直ちにシステムから切り離される。ただし1台か2台のManagerが起動していないとServerの切り離しが行われないので、Managerが1台も起動していない状態でServerがダウンするとシステムが停止してしまう。
+Serverを追加したり切り離したりした後、その状態をシステムに反映するには、レプリケーションされたデータの再配置を行う必要がある。これは自動では行われず、''kumoctlコマンド''を使って手動で行う。
 
 
 **Consistent Hashing
@@ -34,7 +33,7 @@ keyが保存されていなかった場合はエラーにならないが、タ�
 
 ***delete(key)
 keyを削除する。
-再配置処理を行っている間にdeleteを行うと、削除されないことがある。これはレプリケーションをコピーするServer同士のやりとりが、Gatewayが送出したdeleteリクエストと入れ違う可能性があるため。
+再配置処理を行っている間にdeleteを行うと、削除されないことがある。また同じkeyに対してdeleteとsetをほぼ同時に行うと、削除されないことがある。これはレプリケーションを行うServer同士のやりとりが、Gatewayが送出したdeleteリクエストと入れ違う可能性があるため。
 
 
 **動作環境と制限
@@ -55,7 +54,7 @@ ManagerとServerを動作させるホストの時刻設定は、1秒以上ずれ
 
 ***コンパイル時に必要なもの
 -g++ >= 4.1
--ragel
+-ragel >= 6.3
 -bazaar >= 1.0
 
 ***コンパイル時と実行時に必要なもの
@@ -95,17 +94,19 @@ $ ./configure && make && make install
 :kumo-server:Serverノード。実際にデータを保存する。
 :kumo-gateway:Gatewayノード。memcachedプロトコルのサーバーで、アプリケーションからの要求をServerノードに中継する。
 :kumoctl:Managerノードを制御するための管理コマンド
+:kumolog:バイナリフォーマットのログをテキストフォーマットに変換する
+:kumomergedb:コールドバックアップファイルをマージする
 
 ***configureフラグ
 :--with-mpio=DIR:mpioがインストールされているディレクトリを指定する
 :--with-msgpack=DIR:MessagePackがインストールされているディレクトリを指定する
-:--with-tokyocabinet=DIR:TokyoCabinetがインストールされているディレクトリを指定する
+:--with-tokyocabinet=DIR:Tokyo Cabinetがインストールされているディレクトリを指定する
 :--enable-trace:画面を埋め尽くすほど冗長なデバッグ用のメッセージを出力するようにする
 :--with-tcmalloc[=DIR]:tcmallocとリンクする
 
 **実行例
 ***Manager 2台, Server 4台を使った冗長構成
-''s1''〜''s4''の4台のホストでクラスタを構成し、''c1''と''c2''のホストで動作するアプリケーションから利用する例。
+''s1''〜''s4''の4台でクラスタを構成し、''c1''と''c2''で動作するアプリケーションから利用する例。
 s1〜s4でServerを起動し、''s1''と''s2''では同時にManagerも起動する。''c1''と''c2''ではGatewayを起動する。
 >|sh|
 [s1]$ kumo-manager -v -l s1 -p s2    # Manager同士は互いに指定する
@@ -114,8 +115,8 @@ s1〜s4でServerを起動し、''s1''と''s2''では同時にManagerも起動す
 [s2]$ kumo-server  -v -m s1 -p s2 -l s2 -s database.tch    # -lは常に自ホストのアドレス
 [s3]$ kumo-server  -v -m s1 -p s2 -l s3 -s database.tch    # -sはデータベース名
 [s4]$ kumo-server  -v -m s1 -p s2 -l s4 -s database.tch    # -vは冗長なメッセージを出力
-[c1]$ kumo-gateway -v -m s1 -p s2 -t 11211    # 11211/tcpでmemcache
-[c2]$ kumo-gateway -v -m s1 -p s2 -t 11211    # text protocolをlistenする
+[c1]$ kumo-gateway -v -m s1 -p s2 -t 11211    # 11211/tcpでmemcachedテキストプロトコル
+[c2]$ kumo-gateway -v -m s1 -p s2 -t 11211    # を待ち受ける
 ||<
 
 ***localhostでクラスタを構成する
@@ -135,30 +136,30 @@ localhostでManagerノード1台、Server 2台を使ってクラスタを構成�
 :-g <path.mpac>:バイナリログを指定されたファイルに出力する
 :-d <path.pid>:デーモンになる。指定されたファイルにpidを書き出す
 :-v:WARNよりレベルの低いメッセージを出力する
-:-Ci <sec>:タイマークロックの間隔を秒で指定する。少数を指定できる
-:-Ys <sec>:connect(2)のタイムアウト時間を秒で指定する。少数を指定できる
+:-Ci <sec>:タイマークロックの間隔を秒で指定する。小数を指定できる
+:-Ys <sec>:connect(2)のタイムアウト時間を秒で指定する。小数を指定できる
 :-Yn <num>:connect(2)のリトライ回数を指定する
 :-TR <num>:送信用スレッドの数を指定する
 :-TW <num>:受信用スレッドの数を指定する
 
 ***kumo-manager
 :-l <address>:待ち受けるアドレス。''他のノードから見て''接続できるホスト名とポート番号を指定する
-:-p <address>:もし存在するなら、もう一台のManagerのホスト名とポート番号を指定する
-:--auto-replace:Serverが追加・切断されたときに、マニュアル操作を待たずにレプリケーションの再配置を自動的に行うようにする。実行中でもkumoctlコマンドから変更できる
+:-p <address>:もし存在するなら、もう一台のkumo-managerのホスト名とポート番号を指定する
 :-c <port>:kumoctlからのコマンドを受け付けるポート番号を指定する
+:--auto-replace:Serverが追加・切断されたときに、マニュアル操作を待たずにレプリケーションの再配置を自動的に行うようにする。実行中でもkumoctlコマンドを使って変更できる
 
 ***kumo-server
 :-l <address>:待ち受けるアドレス。''他のノードから見て''接続できるホスト名とポート番号を指定する
 :-L <port>:kumo-serverが待ち受けるもう一つのポートのポート番号を指定する
 :-m <address>:kumo-managerのホスト名とポート番号を指定する
-:-p <address>:もし存在するなら、もう一台のkumo-managerのアドレスを指定する
+:-p <address>:もし存在するなら、もう一台のkumo-managerのホスト名とポート番号を指定する
 :-s <path.tch>:データを保存するデータベースファイルのパスを指定する
-:-f <dir>:レプリケーションの再配置に使う一時ファイルを保存するディレクトリを指定する。データベースファイルと比べて十分なサイズの空き容量が必要
+:-f <dir>:レプリケーションの再配置に使う一時ファイルを保存するディレクトリを指定する。データベースファイルのサイズに応じて十分な空き容量が必要
 
 ***kumo-gateway
 :-m <address>:kumo-managerのホスト名とポート番号を指定する
-:-p <address>:もし存在するなら、もう一台のManagerのアドレスを指定する
-:-t <port>:memcache text protocolを待ち受けるポート番号を指定する
+:-p <address>:もし存在するなら、もう一台のkumo-managerのホスト名とポート番号を指定する
+:-t <port>:memcachedテキストプロトコルを待ち受けるポート番号を指定する
 :-As:set操作でレプリケーションするとき、レプリケーション完了の応答を待たずに成功を返すようにする
 :-Ad:delete操作でレプリケーションするとき、レプリケーション完了の応答を待たずに成功を返すようにする
 
@@ -219,9 +220,10 @@ detachと同じだがレプリケーションの再配置を開始しない。�
 **backup
 コールドバックアップを作成する。バックアップはServerで作成され、元のデータベース名にsuffixを付けた名前のファイルにデータベースがコピーされる。手元にバックアップを持ってくるには、rsyncやscpなどを使ってServerからダウンロードする。
 suffixは省略するとその日の日付（YYMMDD）が使われる。
-作成されたバックアップは、kumomergedbコマンドを使って１つのデータベースファイルに結合することができる。
+作成されたバックアップファイルは、kumomergedbコマンドを使って１つのファイルに結合することができる。
 >|sh|
-$ kumomergedb backup.tch-20090101 server1.tch-20090101 server2.tch-20090101 server3.tch-20090101
+$ kumomergedb backup.tch-20090101 \
+              server1.tch-20090101 server2.tch-20090101 server3.tch-20090101
 ||<
 ^title kumomergedbコマンドの実行例
 
@@ -257,7 +259,7 @@ $ kumo-server -m localhost -s /path/to/database.tch
 
 *死活監視と再配置
 **障害の検出
-Manager/Server同士の接続では、あるノードにリクエストまたはレスポンスを送信しようとしたときに、そのノードとのコネクションが一本も存在せず、その上connect(2)が4回((--connect-retry-limitで指定))連続して失敗したら、そのノードはダウンしたと見なす。
+ManagerとServerの接続では、あるノードにリクエストまたはレスポンスを送信しようとしたときに、そのノードとのコネクションが一本も存在せず、さらにconnect(2)が4回((--connect-retry-limitで指定))連続して失敗したら、そのノードはダウンしたと見なす。
 ManagerとServerは2秒間隔((--keep-alive-interval引数で指定))でkeepaliveメッセージをやりとりしているので、いつも何らかのリクエストかレスポンスを送ろうとしている状態になっている。
 connect(2)は次の条件で失敗する：
 -接続相手から明示的に接続を拒否された（Connection Refused）
@@ -265,8 +267,7 @@ connect(2)は次の条件で失敗する：
 
 
 **接続の検出
-Manager/Server同士の接続では、あるノードから接続を受け付けた後、そのノードから初期ネゴシエーションメッセージを受け取り、かつそのメッセージのフォーマットが正しければ、そのノードが新たに起動したと見なす。
-こちらから接続するときは、最初に必ず初期ネゴシエーションメッセージを送信する。
+ManagerとServerの接続では、あるノードから接続を受け付けた後、そのノードから初期ネゴシエーションメッセージを受け取り、かつそのメッセージのフォーマットが正しければ、そのノードが新たに起動したと見なす。
 
 
 **ハッシュ空間の更新
@@ -280,7 +281,7 @@ Serverはすべてのデータを確認し終えたら、Managerにコピーが�
 
 Managerはレプリケーションのコピーを行っている最中にServerがダウンしたことを検知したら、すべてのServerからレプリケーションのコピーが終了した通知を受け取っても、レプリケーションの削除を行わない。
 
-Serverはクライアントからget/set/deleteリクエストを受け取ったとき、そのkeyに対する割り当てノードが本当に自分であるか確認するために、getの場合はrhsを、set/deleteの場合はwhsを参照する。
+ServerはGatewayからget/set/deleteリクエストを受け取ったとき、そのkeyに対する割り当てノードが本当に自分であるか確認するために、getの場合はrhsを、set/deleteの場合はwhsを参照する。
 
 
 **レプリケーションの再配置アルゴリズム

@@ -7,7 +7,7 @@ distclean: $(SRCS:.txt=.distclean)
 	wfdoc -i $< -o $@
 
 %.tex : %.sdoc
-	sdoc -toc -format:latex2e $<
+	sdoc -toc -format:latex2e -latex2e.driver=dvipdfm -latex2e.ref=HyperRefLaTeX2eRefHandler $<
 
 %.etex : %.tex
 	wftex $< $@
@@ -23,8 +23,8 @@ distclean: $(SRCS:.txt=.distclean)
 	rm -f $*.aux $*.log
 
 %.clean : %.txt
-	rm -f $*.sdoc $*.tex $*.etex $*.dvi $*.toc $*.aux $*.log $*.pdf
+	rm -f $*.sdoc $*.tex $*.etex $*.dvi $*.toc $*.aux $*.out $*.log $*.pdf
 
 %.distclean : %.txt
-	rm -f $*.sdoc $*.tex $*.etex $*.dvi $*.toc $*.aux $*.log $*.pdf $*.mk
+	rm -f $*.sdoc $*.tex $*.etex $*.dvi $*.toc $*.aux $*.out $*.log $*.pdf $*.mk
 
