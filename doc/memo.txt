@@ -1,4 +1,4 @@
-?title Kumofs memo -- Kumo Fast Storage rev.656
+?title Kumofs memo -- Kumo Fast Storage rev.725
 ?author FURUHASHI Sadayuki
 
 
@@ -200,6 +200,10 @@ not attached node:
 ^title statの実行例
 ''attached node''はハッシュ空間に入っているServerの一覧を示している。''(active)''は正常動作中のServerで、''(fault)''はfaultフラグが立っているServerを示している。
 ''not attached node''はハッシュ空間に入っていないか、入っているが(fault)状態でまだ再attachされていないServerの一覧を示している。
+
+レプリケーションの再配置を行ったとき、Managerが２台起動していれば２つのManager間で新しいハッシュ空間が同期される。ただし新しいハッシュ空間が空の時は同期されない。
+この理由は、障害が発生していたManagerを復旧したときに空のハッシュ空間が同期されてしまう可能性があるため。起動した直後はクロック（後述）が調整されていないために、ハッシュ空間の新旧の比較が正常に機能しない。このため空のハッシュ空間を受け取ったときは無視するようになっている。 # FIXME この動作は正しい？もっと良い回避方法は無いか？
+
 
 **attach
 statで''not attached node''に表示されているServerをハッシュ空間に組み入れ、レプリケーションの再配置を開始する。
