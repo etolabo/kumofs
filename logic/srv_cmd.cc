@@ -34,7 +34,12 @@ struct arg_t : rpc_cluster_args {
 		stream_addr.set_port(stream_port);
 		stream_lsock = scoped_listen_tcp::listen(stream_addr);
 		manager1 = rpc::address(manager1_in);
-		manager2 = rpc::address(manager2_in);
+		if(manager2_set) {
+			manager2 = rpc::address(manager2_in);
+			if(manager2 == manager1) {
+				throw std::runtime_error("-m and -p must be different");
+			}
+		}
 		db_backup_basename = dbpath + "-";
 		rpc_cluster_args::convert();
 	}
