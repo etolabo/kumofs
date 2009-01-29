@@ -129,6 +129,8 @@ try {
 	bool ret = false;
 
 	pthread_scoped_lock hslk(m_hs_mutex);
+	pthread_scoped_lock nslk(m_new_servers_mutex);
+
 	if(!param.wseed().empty() && (m_whs.empty() ||
 			m_whs.clocktime() <= ClockTime(param.wseed().clocktime()))) {
 		m_whs = HashSpace(param.wseed());
@@ -140,6 +142,18 @@ try {
 		m_rhs = HashSpace(param.rseed());
 		ret = true;
 	}
+
+	for(new_servers_t::iterator it(m_new_servers.begin());
+			it != m_new_servers.end(); ) {
+		shared_node srv(it->lock());
+		if(!srv || m_whs.server_is_active(srv->addr())) {
+			it = m_new_servers.erase(it);
+		} else {
+			++it;
+		}
+	}
+
+	nslk.unlock();
 	hslk.unlock();
 
 	if(ret) {
