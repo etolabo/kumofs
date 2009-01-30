@@ -8,7 +8,7 @@ require 'msgpack'
 require 'socket'
 
 
-class KumoManager
+class KumoRPC
 	def initialize(host, port)
 		@sock = TCPSocket.open(host, port)
 		@pk = MessagePack::Unpacker.new
@@ -17,7 +17,6 @@ class KumoManager
 		@seqid = rand(1<<16)  # FIXME 1 << 32
 		@callback = {}
 	end
-
 
 	private
 	def send_request(seq, cmd, param)
@@ -147,28 +146,59 @@ class KumoManager
 		send_request_sync_ex(89, [])
 	end
 
-	STAT_PID         = 0
-	STAT_UPTIME      = 1
-	STAT_TIME        = 2
-	STAT_VERSION     = 3
-	STAT_CMD_GET     = 4
-	STAT_CMD_SET     = 5
-	STAT_CMD_DELETE  = 6
-	STAT_NUM_ITMES   = 7
-	def Status(command)
-		send_request_sync_ex(120, [command])
+	module Protocol
+		ControlGetStatus           = 84
+		ControlAttachNewServers    = 85
+		ControlDetachFaultServers  = 86
+		ControlCreateBackup        = 87
+		ControlSetAutoReplace      = 88
+		ControlStartReplace        = 89
+		GetStatus  = 112
+		SetConfig  = 112
 	end
 
 	CONTROL_DEFAULT_PORT = 19750
-
+	MANAGER_DEFAULT_PORT = 19700
+	SERVER_DEFAULT_PORT  = 19800
 end
+
+if $0 == __FILE__
+
+
+
+class KumoManager < KumoRPC
+	def initialize(host, port)
+		super(host, port)
+	end
+
+	def AttachNewServers(replace)
+		send_request_sync_ex(Protocol::ControlGetStatus, [replace])
+	end
+
+	def DetachFaultServers(replace)
+		send_request_sync_ex(Protocol::ControlDetachFaultServers, [replace])
+	end
+
+	def CreateBackup(suffix)
+		send_request_sync_ex(Protocol::ControlCreateBackup, [suffix])
+	end
+
+	def SetAutoReplace(enable)
+		send_request_sync_ex(Protocol::ControlSetAutoReplace, [enable])
+	end
+
+	def StartReplace()
+		send_request_sync_ex(Protocol::ControlStartReplace, [])
+	end
+end
+
 
 $now = Time.now.strftime("%Y%m%d")
 
 def usage
-	puts "Usage: #{File.basename($0)} address[:port=#{KumoManager::CONTROL_DEFAULT_PORT}] command [options]"
+	puts "Usage: #{File.basename($0)} address[:port=#{KumoRPC::CONTROL_DEFAULT_PORT}] command [options]"
 	puts "command:"
-	puts "   stat                       get status"
+	puts "   status                     get status"
 	puts "   attach                     attach all new servers and start replace"
 	puts "   attach-noreplace           attach all new servers"
 	puts "   detach                     detach all fault servers and start replace"
@@ -186,9 +216,10 @@ end
 
 addr = ARGV.shift
 host, port = addr.split(':', 2)
-port ||= KumoManager::CONTROL_DEFAULT_PORT
+port ||= KumoRPC::CONTROL_DEFAULT_PORT
 
 cmd = ARGV.shift
+
 case cmd
 when "stat", "status"
 	usage if ARGV.length != 0
@@ -250,3 +281,5 @@ else
 	usage
 end
 
+
+end   # if $0 == __FILE__

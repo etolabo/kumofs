@@ -56,10 +56,23 @@ enum message_type {
 	Set						= 97,
 	Delete					= 98,
 
-	// Client -> Server
-	GetStatus				= 120,
+	GetStatus				= 112,
+	SetConfig				= 113,
 };
 
+enum status_type {
+	STAT_PID			= 0,
+	STAT_UPTIME			= 1,
+	STAT_TIME			= 2,
+	STAT_VERSION		= 3,
+	STAT_CMD_GET		= 4,
+	STAT_CMD_SET		= 5,
+	STAT_CMD_DELETE		= 6,
+	STAT_DB_ITEMS		= 7,
+	STAT_CONNECTIONS	= 8,
+	STAT_BYTES_READ		= 9,
+	STAT_BYTES_WRITE	= 10,
+};
 
 namespace type {
 	using msgpack::define;

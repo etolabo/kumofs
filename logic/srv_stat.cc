@@ -11,36 +11,36 @@ RPC_FUNC(GetStatus, from, response, z, param)
 try {
 	LOG_DEBUG("GetStatus");
 
-	switch(param.command()) {
-	case  0:  // pid
+	switch((protocol::status_type)param.command()) {
+	case  protocol::STAT_PID:
 		response.result((uint32_t)getpid());
 		break;
 
-	case  1:  // uptime
+	case  protocol::STAT_UPTIME:
 		response.result(time(NULL) - m_start_time);
 		break;
 
-	case  2:  // server time
+	case  protocol::STAT_TIME:
 		response.result((uint64_t)time(NULL));
 		break;
 
-	case  3:  // version
+	case  protocol::STAT_VERSION:
 		response.result(std::string(VERSION));
 		break;
 
-	case  4:    // cmd_get
+	case  protocol::STAT_CMD_GET:
 		response.result(m_stat_num_get);
 		break;
 
-	case  5:    // cmd_set
+	case  protocol::STAT_CMD_SET:
 		response.result(m_stat_num_set);
 		break;
 
-	case  6:    // cmd_delete
+	case  protocol::STAT_CMD_DELETE:
 		response.result(m_stat_num_delete);
 		break;
 
-	case  7:    // num items
+	case  protocol::STAT_DB_ITEMS:
 		{
 			uint64_t num;
 			{
@@ -51,7 +51,7 @@ try {
 		}
 		break;
 
-	case  8:    // num connections
+	case  protocol::STAT_CONNECTIONS:
 		{
 			// FIXME extreamly rough value
 			int pair[2];
@@ -65,9 +65,9 @@ try {
 		}
 		break;
 
-	case  9:    // bytes_read
+	case  protocol::STAT_BYTES_READ:
 		// XXX not implemented
-	case 10:    // bytes_write
+	case protocol::STAT_BYTES_WRITE:
 		// XXX not implemented
 	default:
 		response.result(msgpack::type::nil());
