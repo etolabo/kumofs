@@ -8,8 +8,8 @@ class KumoServer < KumoRPC
 		super(host, port)
 	end
 
-	def GetStatus(*args)
-		send_request_sync_ex(Protocol::GetStatus, args)
+	def GetStatus(key)
+		send_request_sync_ex(Protocol::GetStatus, [key])
 	end
 
 	def SetConfig(*args)
@@ -24,21 +24,19 @@ class KumoServer < KumoRPC
 	STAT_CMD_SET     = 5
 	STAT_CMD_DELETE  = 6
 	STAT_DB_ITEMS    = 7
-	STAT_CONNECTIONS = 8
 end
 
 def usage
 	puts "Usage: #{File.basename($0)} address[:port=#{KumoRPC::SERVER_DEFAULT_PORT}] command [options]"
 	puts "command:"
-	puts "   pid                        get pid of server"
+	puts "   pid                        get pid of server process"
 	puts "   uptime                     get uptime"
 	puts "   time                       get UNIX time"
 	puts "   version                    get version"
 	puts "   cmd_get                    get number of get requests"
 	puts "   cmd_set                    get number of set requests"
 	puts "   cmd_delete                 get number of delete requests"
-	puts "   items                      get number of items stored"
-	puts "   connections                get number of connections"
+	puts "   items                      get number of stored items"
 	exit 1
 end
 
@@ -84,10 +82,6 @@ when "cmd_delete"
 when "items"
 	usage if ARGV.length != 0
 	p KumoServer.new(host, port).GetStatus(KumoServer::STAT_DB_ITEMS)
-
-when "connections"
-	usage if ARGV.length != 0
-	p KumoServer.new(host, port).GetStatus(KumoServer::STAT_CONNECTIONS)
 
 end
 

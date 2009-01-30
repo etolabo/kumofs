@@ -1,4 +1,4 @@
-?title Kumofs memo -- Kumo Fast Storage rev.725
+?title Kumofs memo -- Kumo Fast Storage rev.736
 ?author FURUHASHI Sadayuki
 
 
@@ -64,7 +64,7 @@ ManagerとServerを動作させるホストの時刻設定は、1秒以上ずれ
 -Tokyo Cabinet >= 1.3.8
 
 **コンパイル
-まず最新のMessagePackとmpioライブラリをインストールする。
+まず最新のMessagePackをインストールする。
 >|sh|
 $ bzr branch lp:msgpack
 $ cd msgpack
@@ -75,14 +75,6 @@ $ ./gengem
 $ sudo gem install gem/pkg/msgpack-*.gem
 ||<
 ^title MessagePackのインストール
-
->|sh|
-$ bzr branch lp:mpio
-$ cd mpio
-$ ./configure && make
-$ sudo make install
-||<
-^title mpioのインストール
 
 次にkumofsをインストールする。
 >|sh|
@@ -98,7 +90,6 @@ $ ./configure && make && make install
 :kumomergedb:コールドバックアップファイルをマージする
 
 ***configureフラグ
-:--with-mpio=DIR:mpioがインストールされているディレクトリを指定する
 :--with-msgpack=DIR:MessagePackがインストールされているディレクトリを指定する
 :--with-tokyocabinet=DIR:Tokyo Cabinetがインストールされているディレクトリを指定する
 :--enable-trace:画面を埋め尽くすほど冗長なデバッグ用のメッセージを出力するようにする
@@ -174,7 +165,7 @@ Rubyで書かれたスクリプト。実行するにはgemでmsgpackパッケー
 $ kumoctl --help
 Usage: kumoctl address[:port=19799] command [options]
 command:
-   stat                       get status
+   status                     get status
    attach                     attach all new servers and start replace
    attach-noreplace           attach all new servers
    detach                     detach all fault servers and start replace
@@ -185,10 +176,10 @@ command:
    disable-auto-replace       disable auto replace
 ||<
 
-**stat
+**status
 Managerが持っているハッシュ空間を取得して表示する。
 >||
-$ kumoctl localhost stat
+$ kumoctl localhost status
 hash space timestamp:
   Wed Dec 03 22:15:45 +0900 2008 clock 58
 attached node:
@@ -197,7 +188,7 @@ attached node:
 not attached node:
   127.0.0.1:8002
 ||<
-^title statの実行例
+^title statusの実行例
 ''attached node''はハッシュ空間に入っているServerの一覧を示している。''(active)''は正常動作中のServerで、''(fault)''はfaultフラグが立っているServerを示している。
 ''not attached node''はハッシュ空間に入っていないか、入っているが(fault)状態でまだ再attachされていないServerの一覧を示している。
 
@@ -206,14 +197,14 @@ not attached node:
 
 
 **attach
-statで''not attached node''に表示されているServerをハッシュ空間に組み入れ、レプリケーションの再配置を開始する。
+statusで''not attached node''に表示されているServerをハッシュ空間に組み入れ、レプリケーションの再配置を開始する。
 
 **attach-noreplace
 attachと同じだがレプリケーションの再配置を開始しない。ただし再配置をしないまま長い間放置してはいけない。
 再配置を行わないと、エラーが積もってGatewayから最新のハッシュ空間を要求されたとき（後述）、Gatewayが持っているハッシュ空間とServerが持っているハッシュ空間が食い違ってしまう。食い違うとsetやdeleteがいつまで経っても成功しなくなってしまう。
 
 **detach
-statで''attached node''に表示されていて(fault)状態のServerをハッシュ空間から取り除き、レプリケーションの再配置を開始する。
+statusで''attached node''に表示されていて(fault)状態のServerをハッシュ空間から取り除き、レプリケーションの再配置を開始する。
 
 **detach-noreplace
 detachと同じだがレプリケーションの再配置を開始しない。再配置をしないまま長い間放置してはいけない。
@@ -230,6 +221,43 @@ $ kumomergedb backup.tch-20090101 \
               server1.tch-20090101 server2.tch-20090101 server3.tch-20090101
 ||<
 ^title kumomergedbコマンドの実行例
+
+
+*kumostat
+kumostatコマンドを使うとServerの状態を取得することができる。
+Rubyで書かれたスクリプト。実行するにはgemでmsgpackパッケージをインストールする。
+第1引数にServerのホスト名とポート番号を指定し、第2引数にコマンドを指定する。
+>||
+Usage: kumostat address[:port=19800] command [options]
+command:
+   pid                        get pid of server process
+   uptime                     get uptime
+   time                       get UNIX time
+   version                    get version
+   cmd_get                    get number of get requests
+   cmd_set                    get number of set requests
+   cmd_delete                 get number of delete requests
+   items                      get number of stored items
+||<
+
+**pid
+kumo-serverプロセスのpidを取得する
+
+**uptime
+kumo-serverプロセスの起動時間を取得する。単位は秒。
+
+**time
+kumo-serverプロセスが走っているホストのUNIXタイムを取得する。
+
+**version
+バージョンを取得する。
+
+**cmd_get / cmd_set / cmd_delete
+それぞれGatewayからのGetリクエスト、Setリクエスト、Deleteリクエストを処理した回数を取得する。
+
+**items
+データベースに入っているエントリの数を取得する。
+
 
 
 *ログ

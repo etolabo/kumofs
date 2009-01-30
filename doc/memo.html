@@ -5,7 +5,7 @@
     <meta content="application/xhtml+xml; charset=UTF-8" http-equiv="content-type" />
     <meta content="text/css" http-equiv="content-style-type" />
     <meta content="text/javascript" http-equiv="content-script-type" />
-    <title>Kumofs memo -- Kumo Fast Storage rev.656</title>
+    <title>Kumofs memo -- Kumo Fast Storage rev.736</title>
     <meta content="FURUHASHI Sadayuki" name="author" />
   </head>
   <body>
@@ -56,7 +56,7 @@
       <li>Tokyo Cabinet &gt;= 1.3.8</li>
     </ul>
     <h3>コンパイル</h3>
-    <p>まず最新のMessagePackとmpioライブラリをインストールする。</p>
+    <p>まず最新のMessagePackをインストールする。</p>
     <pre class="code_sh">$ bzr branch lp:msgpack
 $ cd msgpack
 $ ./configure &amp;&amp; make
@@ -66,12 +66,6 @@ $ ./gengem
 $ sudo gem install gem/pkg/msgpack-*.gem
 </pre>
     <p class="title">MessagePackのインストール</p>
-    <pre class="code_sh">$ bzr branch lp:mpio
-$ cd mpio
-$ ./configure &amp;&amp; make
-$ sudo make install
-</pre>
-    <p class="title">mpioのインストール</p>
     <p>次にkumofsをインストールする。</p>
     <pre class="code_sh">$ ./configure &amp;&amp; make &amp;&amp; make install
 </pre>
@@ -92,8 +86,6 @@ $ sudo make install
     </dl>
     <h4>configureフラグ</h4>
     <dl>
-      <dt>--with-mpio=DIR</dt>
-      <dd>mpioがインストールされているディレクトリを指定する</dd>
       <dt>--with-msgpack=DIR</dt>
       <dd>MessagePackがインストールされているディレクトリを指定する</dd>
       <dt>--with-tokyocabinet=DIR</dt>
@@ -195,7 +187,7 @@ $ sudo make install
     <pre class="code_sh">$ kumoctl --help
 Usage: kumoctl address[:port=19799] command [options]
 command:
-   stat                       get status
+   status                     get status
    attach                     attach all new servers and start replace
    attach-noreplace           attach all new servers
    detach                     detach all fault servers and start replace
@@ -205,9 +197,9 @@ command:
    enable-auto-replace        enable auto replace
    disable-auto-replace       disable auto replace
 </pre>
-    <h3>stat</h3>
+    <h3>status</h3>
     <p>Managerが持っているハッシュ空間を取得して表示する。</p>
-    <pre>$ kumoctl localhost stat
+    <pre>$ kumoctl localhost status
 hash space timestamp:
   Wed Dec 03 22:15:45 +0900 2008 clock 58
 attached node:
@@ -216,15 +208,17 @@ attached node:
 not attached node:
   127.0.0.1:8002
 </pre>
-    <p class="title">statの実行例</p>
+    <p class="title">statusの実行例</p>
     <p>
       <strong>attached node</strong>はハッシュ空間に入っているServerの一覧を示している。<strong>(active)</strong>は正常動作中のServerで、<strong>(fault)</strong>はfaultフラグが立っているServerを示している。<strong>not attached node</strong>はハッシュ空間に入っていないか、入っているが(fault)状態でまだ再attachされていないServerの一覧を示している。</p>
+    <p>レプリケーションの再配置を行ったとき、Managerが２台起動していれば２つのManager間で新しいハッシュ空間が同期される。ただし新しいハッシュ空間が空の時は同期されない。この理由は、障害が発生していたManagerを復旧したときに空のハッシュ空間が同期されてしまう可能性があるため。起動した直後はクロック（後述）が調整されていないために、ハッシュ空間の新旧の比較が正常に機能しない。このため空のハッシュ空間を受け取ったときは無視するようになっている。 # FIXME この動作は正しい？もっと良い回避方法は無いか？</p>
+    <br />
     <h3>attach</h3>
-    <p>statで<strong>not attached node</strong>に表示されているServerをハッシュ空間に組み入れ、レプリケーションの再配置を開始する。</p>
+    <p>statusで<strong>not attached node</strong>に表示されているServerをハッシュ空間に組み入れ、レプリケーションの再配置を開始する。</p>
     <h3>attach-noreplace</h3>
     <p>attachと同じだがレプリケーションの再配置を開始しない。ただし再配置をしないまま長い間放置してはいけない。再配置を行わないと、エラーが積もってGatewayから最新のハッシュ空間を要求されたとき（後述）、Gatewayが持っているハッシュ空間とServerが持っているハッシュ空間が食い違ってしまう。食い違うとsetやdeleteがいつまで経っても成功しなくなってしまう。</p>
     <h3>detach</h3>
-    <p>statで<strong>attached node</strong>に表示されていて(fault)状態のServerをハッシュ空間から取り除き、レプリケーションの再配置を開始する。</p>
+    <p>statusで<strong>attached node</strong>に表示されていて(fault)状態のServerをハッシュ空間から取り除き、レプリケーションの再配置を開始する。</p>
     <h3>detach-noreplace</h3>
     <p>detachと同じだがレプリケーションの再配置を開始しない。再配置をしないまま長い間放置してはいけない。</p>
     <h3>replace</h3>
@@ -235,6 +229,33 @@ not attached node:
               server1.tch-20090101 server2.tch-20090101 server3.tch-20090101
 </pre>
     <p class="title">kumomergedbコマンドの実行例</p>
+    <br />
+    <h2>kumostat</h2>
+    <p>kumostatコマンドを使うとServerの状態を取得することができる。Rubyで書かれたスクリプト。実行するにはgemでmsgpackパッケージをインストールする。第1引数にServerのホスト名とポート番号を指定し、第2引数にコマンドを指定する。</p>
+    <pre>Usage: kumostat address[:port=19800] command [options]
+command:
+   pid                        get pid of server process
+   uptime                     get uptime
+   time                       get UNIX time
+   version                    get version
+   cmd_get                    get number of get requests
+   cmd_set                    get number of set requests
+   cmd_delete                 get number of delete requests
+   items                      get number of stored items
+</pre>
+    <h3>pid</h3>
+    <p>kumo-serverプロセスのpidを取得する</p>
+    <h3>uptime</h3>
+    <p>kumo-serverプロセスの起動時間を取得する。単位は秒。</p>
+    <h3>time</h3>
+    <p>kumo-serverプロセスが走っているホストのUNIXタイムを取得する。</p>
+    <h3>version</h3>
+    <p>バージョンを取得する。</p>
+    <h3>cmd_get / cmd_set / cmd_delete</h3>
+    <p>それぞれGatewayからのGetリクエスト、Setリクエスト、Deleteリクエストを処理した回数を取得する。</p>
+    <h3>items</h3>
+    <p>データベースに入っているエントリの数を取得する。</p>
+    <br />
     <br />
     <h2>ログ</h2>
     <p>kumo-manager, kumo-server, kumo-gatewayは、それぞれ2種類のログを出力する:</p>

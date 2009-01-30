@@ -51,24 +51,6 @@ try {
 		}
 		break;
 
-	case  protocol::STAT_CONNECTIONS:
-		{
-			// FIXME extreamly rough value
-			int pair[2];
-			int ret = ::pipe(pair);
-			if(ret < 0) {
-				response.error(msgpack::type::nil());
-			}
-			::close(pair[0]);
-			::close(pair[1]);
-			response.result(pair[0]);
-		}
-		break;
-
-	case  protocol::STAT_BYTES_READ:
-		// XXX not implemented
-	case protocol::STAT_BYTES_WRITE:
-		// XXX not implemented
 	default:
 		response.result(msgpack::type::nil());
 		break;

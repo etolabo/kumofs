@@ -69,9 +69,6 @@ enum status_type {
 	STAT_CMD_SET		= 5,
 	STAT_CMD_DELETE		= 6,
 	STAT_DB_ITEMS		= 7,
-	STAT_CONNECTIONS	= 8,
-	STAT_BYTES_READ		= 9,
-	STAT_BYTES_WRITE	= 10,
 };
 
 namespace type {
