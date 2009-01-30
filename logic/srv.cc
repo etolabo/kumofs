@@ -46,6 +46,7 @@ void Server::subsystem_dispatch(
 	RPC_DISPATCH(Get);
 	RPC_DISPATCH(Set);
 	RPC_DISPATCH(Delete);
+	RPC_DISPATCH(GetStatus);
 	default:
 		throw std::runtime_error("unknown method");
 	}

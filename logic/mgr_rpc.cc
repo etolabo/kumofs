@@ -78,9 +78,7 @@ void Manager::push_hash_space_clients(REQUIRE_HSLK)
 }
 
 RPC_REPLY(ResHashSpacePush, from, res, err, life)
-{
-	// FIXME retry
-}
+{ }
 
 
 void Manager::sync_hash_space_servers(REQUIRE_HSLK, REQUIRE_SSLK)

@@ -55,6 +55,9 @@ enum message_type {
 	Get						= 96,
 	Set						= 97,
 	Delete					= 98,
+
+	// Client -> Server
+	GetStatus				= 120,
 };
 
 
@@ -332,6 +335,10 @@ namespace type {
 		// failed: nil
 	};
 
+	struct GetStatus : define< tuple<uint32_t> > {
+		GetStatus() {}
+		uint32_t command() const	{ return get<0>(); }
+	};
 
 }  // namespace type
 

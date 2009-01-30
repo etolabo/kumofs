@@ -169,6 +169,11 @@ public:
 		}
 	}
 
+	uint64_t rnum()
+	{
+		return tchdbrnum(m_db);
+	}
+
 private:
 	static void finalize_xstr_del(void* xstr)
 	{

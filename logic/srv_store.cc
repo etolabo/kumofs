@@ -67,6 +67,8 @@ try {
 		LOG_DEBUG("key not found");
 		response.null();
 	}
+
+	++m_stat_num_get;
 }
 RPC_CATCH(Get, response)
 
@@ -130,6 +132,8 @@ try {
 	for(unsigned int i=0; i < copy_required; ++i) {
 		retry->call(repto[i], life, 10);
 	}
+
+	++m_stat_num_set;
 }
 RPC_CATCH(Set, response)
 
@@ -194,6 +198,8 @@ try {
 	for(unsigned int i=0; i < copy_required; ++i) {
 		retry->call(repto[i], life, 10);
 	}
+
+	++m_stat_num_delete;
 }
 RPC_CATCH(Delete, response)
 

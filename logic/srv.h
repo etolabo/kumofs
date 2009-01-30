@@ -48,6 +48,8 @@ public:
 	RPC_DECL(Set);
 	RPC_DECL(Delete);
 
+	RPC_DECL(GetStatus);
+
 public:
 	void keep_alive();
 
@@ -212,6 +214,11 @@ private:
 	const unsigned short m_cfg_replicate_set_retry_num;
 	const unsigned short m_cfg_replicate_delete_retry_num;
 
+	const time_t m_start_time;
+	volatile uint64_t m_stat_num_get;
+	volatile uint64_t m_stat_num_set;
+	volatile uint64_t m_stat_num_delete;
+
 private:
 	Server();
 	Server(const Server&);
@@ -230,10 +237,16 @@ Server::Server(Config& cfg) :
 	m_manager1(cfg.manager1),
 	m_manager2(cfg.manager2),
 	m_stream_addr(cfg.stream_addr),
+
 	m_cfg_offer_tmpdir(cfg.offer_tmpdir),
 	m_cfg_db_backup_basename(cfg.db_backup_basename),
 	m_cfg_replicate_set_retry_num(cfg.replicate_set_retry_num),
-	m_cfg_replicate_delete_retry_num(cfg.replicate_delete_retry_num)
+	m_cfg_replicate_delete_retry_num(cfg.replicate_delete_retry_num),
+
+	m_start_time(time(NULL)),
+	m_stat_num_get(0),
+	m_stat_num_set(0),
+	m_stat_num_delete(0)
 {
 	LOG_INFO("start server ",addr());
 	MLOGPACK("SS",1, "Server start",

@@ -21,6 +21,7 @@ kumo_manager_SOURCES = \
 		logic/mgr_cmd.cc
 
 kumo_server_SOURCES = \
+		logic/srv_stat.cc \
 		logic/srv_offer.cc \
 		logic/srv_replace.cc \
 		logic/srv_store.cc \
