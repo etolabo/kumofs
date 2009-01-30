@@ -10,11 +10,15 @@ fi
 CXXFLAGS="-O4 -Wall $CXXFLAGS"
 
 
+AC_CHECK_PROG(RUBY, ruby, ruby)
+if test "x$RUBY" = x; then
+	AC_MSG_ERROR([cannot find ruby. Ruby is needed to build.])
+fi
+
 AC_CHECK_PROG(ERB, erb, erb)
 if test "x$ERB" = x; then
 	AC_MSG_ERROR([cannot find erb. Ruby is needed to build.])
 fi
-
 
 AC_CHECK_PROG(RAGEL, ragel, ragel)
 if test "x$RAGEL" = x; then
@@ -26,18 +30,6 @@ AC_PROG_CXX
 
 AC_PROG_LIBTOOL
 AM_PROG_AS
-
-
-
-AC_ARG_WITH([mpio],
-	AS_HELP_STRING([--with-mpio=DIR],
-				   [specify the root directory for mpio library]),
-	[mpio_path="$withval"], [])
-if test "$mpio_path" != ""; then
-	CXXFLAGS="$CXXFLAGS -I$mpio_path/include"
-	CFLAGS="$CFLAGS -I$mpio_path/include"
-	LDFLAGS="$LDFLAGS -L$mpio_path/lib"
-fi
 
 
 AC_ARG_WITH([msgpack],
@@ -121,9 +113,6 @@ AC_CHECK_HEADERS(openssl/sha.h,,
 AC_CHECK_LIB(crypto,SHA1,,
 	AC_MSG_ERROR([Can't find openssl library]))
 
-AC_CHECK_LIB(mpio,main,,
-	AC_MSG_ERROR([Can't find mpio library]))
-
 AC_CHECK_LIB(msgpack,main,,
 	AC_MSG_ERROR([Can't find msgpack library]))
 
@@ -176,6 +165,8 @@ AC_MSG_RESULT($enable_trace)
 
 AC_OUTPUT([Makefile
 		   kazuhiki/Makefile
+		   mp/Makefile
+		   mpsrc/Makefile
 		   log/Makefile
 		   memproto/Makefile
 		   rpc/Makefile

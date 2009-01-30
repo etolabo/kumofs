@@ -1,6 +1,7 @@
 export ERB
+export RUBY
 export RAGEL
-SUBDIRS = log kazuhiki rpc memproto storage
+SUBDIRS = mp mpsrc log kazuhiki rpc memproto storage
 
 noinst_LIBRARIES = libkumo_logic.a
 
@@ -44,22 +45,25 @@ kumomergedb_SOURCES = \
 kumo_manager_LDADD  = \
 		libkumo_logic.a \
 		kazuhiki/libkazuhiki.a \
+		rpc/libkumo_cluster.a \
 		log/libkumo_log.a \
-		rpc/libkumo_cluster.a
+		mpsrc/libmpio.a
 
 kumo_server_LDADD  = \
 		libkumo_logic.a \
 		kazuhiki/libkazuhiki.a \
 		storage/libkumo_storage.a \
+		rpc/libkumo_cluster.a \
 		log/libkumo_log.a \
-		rpc/libkumo_cluster.a
+		mpsrc/libmpio.a
 
 kumo_gateway_LDADD  = \
 		libkumo_logic.a \
 		kazuhiki/libkazuhiki.a \
 		memproto/libkumo_memproto.a \
 		log/libkumo_log.a \
-		rpc/libkumo_rpc.a
+		rpc/libkumo_rpc.a \
+		mpsrc/libmpio.a
 
 kumomergedb_LDADD = \
 		log/libkumo_log.a

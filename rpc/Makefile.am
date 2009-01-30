@@ -12,17 +12,24 @@ libkumo_cluster_a_SOURCES = \
 
 noinst_HEADERS = \
 		address.h \
+		client.h \
+		client_tmpl.h \
 		cluster.h \
 		connection.h \
 		message.h \
 		protocol.h \
+		responder.h \
+		responder_impl.h \
+		rpc.h \
 		sbuffer.h \
-		client.h \
-		client_tmpl.h \
 		server.h \
 		session.h \
 		session_impl.h \
 		transport.h \
 		transport_impl.h \
-		vrefbuffer.h
+		types.h \
+		vrefbuffer.h \
+		wavy.h \
+		weak_responder.h \
+		weak_responder_impl.h
 
