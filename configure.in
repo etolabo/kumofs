@@ -58,16 +58,16 @@ if test "$tokyocabinet_path" != ""; then
 fi
 
 
-AC_ARG_WITH([luxio],
-	AS_HELP_STRING([--with-luxio@<:@=DIR@:>@],
-				   [use LuxIO for the backend storage (NOT IMPLEMENTED)]),
-	[luxio_path="$withval"], [])
-if test "$luxio_path" != ""; then
-	storage_type="luxio"
-	CXXFLAGS="$CXXFLAGS -I$luxio_path/include"
-	CFLAGS="$CFLAGS -I$luxio_path/include"
-	LDFLAGS="$LDFLAGS -L$luxio_path/lib"
-fi
+#AC_ARG_WITH([luxio],
+#	AS_HELP_STRING([--with-luxio@<:@=DIR@:>@],
+#				   [use LuxIO for the backend storage (NOT IMPLEMENTED)]),
+#	[luxio_path="$withval"], [])
+#if test "$luxio_path" != ""; then
+#	storage_type="luxio"
+#	CXXFLAGS="$CXXFLAGS -I$luxio_path/include"
+#	CFLAGS="$CFLAGS -I$luxio_path/include"
+#	LDFLAGS="$LDFLAGS -L$luxio_path/lib"
+#fi
 
 
 AC_MSG_CHECKING([if tcmalloc is enabled])
@@ -86,21 +86,21 @@ if test "$with_tcmalloc" != "no"; then
 fi
 
 
-AC_MSG_CHECKING([if libmemcached hook library is enabled])
-AC_ARG_WITH([libmemcached-hook],
-	AS_HELP_STRING([--with-libmemcached-hook@<:@=DIR@:>@],
-				   [build libmemcached hook library]),
-	[libmemcached_hook="$withval"], [libmemcached_hook="no"])
-AC_MSG_RESULT($libmemcached_hook)
-if test "$libmemcached_hook" != "no"; then
-	if test "$libmemcached_hook" != "yes"; then
-		CXXFLAGS="$CXXFLAGS -I$libmemcached_hook/include"
-		CFLAGS="$CFLAGS -I$libmemcached_hook/include"
-	fi
-	AC_CHECK_HEADERS(libmemcached/memcached.h,,
-		AC_MSG_ERROR([Can't find libmemcached/memcached.h header]))
-fi
-AM_CONDITIONAL(WITH_LIBMEMCACHED_HOOK, test "$libmemcached_hook" != "no")
+#AC_MSG_CHECKING([if libmemcached hook library is enabled])
+#AC_ARG_WITH([libmemcached-hook],
+#	AS_HELP_STRING([--with-libmemcached-hook@<:@=DIR@:>@],
+#				   [build libmemcached hook library]),
+#	[libmemcached_hook="$withval"], [libmemcached_hook="no"])
+#AC_MSG_RESULT($libmemcached_hook)
+#if test "$libmemcached_hook" != "no"; then
+#	if test "$libmemcached_hook" != "yes"; then
+#		CXXFLAGS="$CXXFLAGS -I$libmemcached_hook/include"
+#		CFLAGS="$CFLAGS -I$libmemcached_hook/include"
+#	fi
+#	AC_CHECK_HEADERS(libmemcached/memcached.h,,
+#		AC_MSG_ERROR([Can't find libmemcached/memcached.h header]))
+#fi
+#AM_CONDITIONAL(WITH_LIBMEMCACHED_HOOK, test "$libmemcached_hook" != "no")
 
 
 AC_CHECK_LIB(stdc++, main)
