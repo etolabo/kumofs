@@ -247,41 +247,45 @@ namespace type {
 	};
 
 
-	struct ReplicateSet : define< tuple<raw_ref, raw_ref, uint32_t> > {
+	struct ReplicateSet : define< tuple<uint32_t, uint32_t, raw_ref, raw_ref> > {
 		ReplicateSet() {}
 		ReplicateSet(
 				const char* raw_key, size_t raw_keylen,
 				const char* raw_val, size_t raw_vallen,
-				uint32_t clock) :
+				uint32_t clock, bool rhs) :
 			define_type(msgpack_type(
+						(rhs ? 0x01 : 0),
+						clock,
 						raw_ref(raw_key, raw_keylen),
-						raw_ref(raw_val, raw_vallen),
-						clock
+						raw_ref(raw_val, raw_vallen)
 						)) {}
 		DBKey dbkey() const
-			{ return DBKey(get<0>().ptr, get<0>().size); }
+			{ return DBKey(get<2>().ptr, get<2>().size); }
 		DBValue dbval() const
-			{ return DBValue(get<1>().ptr, get<1>().size); }
-		uint32_t clock() const			{ return get<2>(); }
+			{ return DBValue(get<3>().ptr, get<3>().size); }
+		uint32_t clock() const			{ return get<1>(); }
+		bool is_rhs() const				{ return get<0>() & 0x01; }
 		// success: true
 		// ignored: false
 	};
 
-	struct ReplicateDelete : define< tuple<raw_ref, uint64_t, uint32_t> > {
+	struct ReplicateDelete : define< tuple<uint32_t, uint32_t, uint64_t, raw_ref> > {
 		ReplicateDelete() {}
 		ReplicateDelete(
 				const char* raw_key, size_t raw_keylen,
 				uint64_t clocktime,
-				uint32_t clock) :
+				uint32_t clock, bool rhs) :
 			define_type(msgpack_type(
-						raw_ref(raw_key, raw_keylen),
+						(rhs ? 0x01 : 0),
+						clock,
 						clocktime,
-						clock
+						raw_ref(raw_key, raw_keylen)
 						)) {}
 		DBKey dbkey() const
-			{ return DBKey(get<0>().ptr, get<0>().size); }
-		uint64_t clocktime() const		{ return get<1>(); }
-		uint32_t clock() const			{ return get<2>(); }
+			{ return DBKey(get<3>().ptr, get<3>().size); }
+		uint64_t clocktime() const		{ return get<2>(); }
+		uint32_t clock() const			{ return get<1>(); }
+		bool is_rhs() const				{ return get<0>() & 0x01; }
 		// success: true
 		// ignored: false
 	};
@@ -334,12 +338,12 @@ namespace type {
 		// failed:  nil
 	};
 
-	struct Delete : define< tuple<DBKey, uint32_t> > {
+	struct Delete : define< tuple<uint32_t, DBKey> > {
 		Delete() {}
 		Delete(DBKey k, bool async) :
-			define_type(msgpack_type( k, (async ? 0x1 : 0) )) {}
-		const DBKey& dbkey() const		{ return get<0>(); }
-		bool is_async() const			{ return get<1>() & 0x01; }
+			define_type(msgpack_type( (async ? 0x1 : 0), k )) {}
+		const DBKey& dbkey() const		{ return get<1>(); }
+		bool is_async() const			{ return get<0>() & 0x01; }
 		// success: true
 		// not foud: false
 		// failed: nil

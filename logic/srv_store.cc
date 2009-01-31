@@ -114,7 +114,7 @@ try {
 			protocol::type::ReplicateSet(
 				key.raw_data(), key.raw_size(),
 				val.raw_data(), val.raw_size(),
-				ct.clock().get())
+				ct.clock().get(), false)
 			);
 
 	volatile unsigned int* pcr =
@@ -180,7 +180,7 @@ try {
 	RetryReplicateDelete* retry = z->allocate<RetryReplicateDelete>(
 			protocol::type::ReplicateDelete(
 				key.raw_data(), key.raw_size(),
-				ct.get(), m_clock.get_incr())
+				ct.get(), m_clock.get_incr(), false)
 			);
 
 	volatile unsigned int* pcr =
@@ -279,7 +279,10 @@ try {
 	protocol::type::DBValue val = param.dbval();
 	LOG_TRACE("ReplicateSet");
 
-	{
+	if(param.is_rhs()) {
+		pthread_scoped_rdlock rhlk(m_rhs_mutex);
+		check_replicator_assign(m_rhs, key.hash());
+	} else {
 		pthread_scoped_rdlock whlk(m_whs_mutex);
 		check_replicator_assign(m_whs, key.hash());
 	}
@@ -287,15 +290,6 @@ try {
 	m_clock.update(param.clock());
 
 	pthread_scoped_wrlock dblk(m_db.mutex());
-
-	bool success = m_db.setkeep(
-			key.raw_data(), key.raw_size(),
-			val.raw_data(), val.raw_size());
-	if(success) {
-		// key is not stored
-		response.result(true);
-		return;
-	}
 
 	uint64_t clocktime = 0;
 	bool stored = DBFormat::get_clocktime(m_db,
@@ -322,11 +316,13 @@ try {
 	protocol::type::DBKey key = param.dbkey();
 	LOG_TRACE("ReplicateDelete");
 
-	// FIXME check write-hash-space assignment?
-	//{
-	//	pthread_scoped_rdlock whlk(m_whs_mutex);
-	//	check_replicator_assign(m_whs, key.hash());
-	//}
+	if(param.is_rhs()) {
+		pthread_scoped_rdlock rhlk(m_rhs_mutex);
+		check_replicator_assign(m_rhs, key.hash());
+	} else {
+		pthread_scoped_rdlock whlk(m_whs_mutex);
+		check_replicator_assign(m_whs, key.hash());
+	}
 
 	m_clock.update(param.clock());
 
