@@ -64,7 +64,7 @@ while(1) {
 		memcached_return rc;
 		char* val = memcached_get(mc, kbuf, klen, &vallen, &flags, &rc);
 		if(!val || vallen != vlen || memcmp(val, vbuf, vlen) != 0) {
-			fprintf(stderr, "false negative get '%s'\n", kbuf);
+			fprintf(stderr, "false NEGATIVE get '%s'\n", kbuf);
 		}
 	}
 
@@ -81,7 +81,7 @@ while(1) {
 		memcached_return rc;
 		char* val = memcached_get(mc, kbuf, klen, &vallen, &flags, &rc);
 		if(val) {
-			fprintf(stderr, "false positive get '%s'\n", kbuf);
+			fprintf(stderr, "false POSITIVE get '%s'\n", kbuf);
 		}
 	}
 

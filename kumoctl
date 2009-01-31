@@ -172,7 +172,7 @@ class KumoManager < KumoRPC
 	end
 
 	def AttachNewServers(replace)
-		send_request_sync_ex(Protocol::ControlGetStatus, [replace])
+		send_request_sync_ex(Protocol::ControlAttachNewServers, [replace])
 	end
 
 	def DetachFaultServers(replace)
