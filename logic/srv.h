@@ -66,17 +66,31 @@ private:
 	void check_replicator_assign(HashSpace& hs, uint64_t h);
 	void check_coordinator_assign(HashSpace& hs, uint64_t h);
 
+	bool SetByRhsWhs(weak_responder response, auto_zone& z,
+			protocol::type::DBKey& key, protocol::type::DBValue& val,
+			bool is_async);
+	void SetByWhs(weak_responder response, auto_zone& z,
+			protocol::type::DBKey& key, protocol::type::DBValue& val,
+			bool is_async);
+
 	typedef RPC_RETRY(ReplicateSet) RetryReplicateSet;
 	RPC_REPLY_DECL(ResReplicateSet, from, res, err, life,
 			RetryReplicateSet* retry,
 			volatile unsigned int* copy_required,
 			rpc::weak_responder response, uint64_t clocktime);
 
+	bool DeleteByRhsWhs(weak_responder response, auto_zone& z,
+			protocol::type::DBKey& key,
+			bool is_async);
+	void DeleteByWhs(weak_responder response, auto_zone& z,
+			protocol::type::DBKey& key,
+			bool is_async);
+
 	typedef RPC_RETRY(ReplicateDelete) RetryReplicateDelete;
 	RPC_REPLY_DECL(ResReplicateDelete, from, res, err, life,
 			RetryReplicateDelete* retry,
 			volatile unsigned int* copy_required,
-			rpc::weak_responder response);
+			rpc::weak_responder response, bool deleted);
 
 	// srv_replace.cc
 	static bool test_replicator_assign(HashSpace& hs, uint64_t h, const address& target);
