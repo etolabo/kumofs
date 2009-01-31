@@ -308,7 +308,7 @@ bool Server::DeleteByRhsWhs(weak_responder response, auto_zone& z,
 		deleted = m_db.del(key.raw_data(), key.raw_size());
 	}
 	if(!deleted) {
-		response.result(false);
+		//response.result(false);
 		// the key is not stored
 		//return true;
 		wrep_num = 0;
