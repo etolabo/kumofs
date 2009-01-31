@@ -511,6 +511,10 @@ RPC_REPLY(ResReplicateDelete, from, res, err, life,
 	LOG_DEBUG("ReplicateDelete succeeded");
 
 	if(__sync_sub_and_fetch(copy_required, 1) == 0) {
+		if(!deleted && retry->param().is_rhs() &&
+				res.type == msgpack::type::BOOLEAN && res.via.boolean == true) {
+			deleted = true;
+		}
 		response.result(deleted);
 	}
 }
