@@ -1,6 +1,6 @@
 AMFLAGS = -I..
 
-lib_LIBRARIES = libmpio.a
+noinst_LIBRARIES = libmpio.a
 
 libmpio_a_SOURCES = \
 		wavy_core.cc \
