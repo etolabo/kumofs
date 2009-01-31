@@ -310,7 +310,8 @@ bool Server::DeleteByRhsWhs(weak_responder response, auto_zone& z,
 	if(!deleted) {
 		response.result(false);
 		// the key is not stored
-		return true;
+		//return true;
+		wrep_num = 0;
 	}
 
 	ClockTime ct(m_clock.now_incr());

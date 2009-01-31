@@ -47,8 +47,7 @@ int main(int argc, char* argv[])
 	char vbuf[strlen(VAL_PREFIX) + 11];
 
 while(1) {
-	printf(".");  fflush(stdout);
-
+	printf("s");  fflush(stdout);
 	uint32_t i;
 	for(i=0; i < num; ++i) {
 		int klen = sprintf(kbuf, KEY_PREFIX "%d", i);
@@ -56,6 +55,7 @@ while(1) {
 		memcached_set(mc, kbuf, klen, vbuf, vlen, 0, 0);
 	}
 
+	printf("g");  fflush(stdout);
 	for(i=0; i < num; ++i) {
 		int klen = sprintf(kbuf, KEY_PREFIX "%d", i);
 		int vlen = sprintf(vbuf, VAL_PREFIX "%d", i);
@@ -68,11 +68,13 @@ while(1) {
 		}
 	}
 
+	printf("d");  fflush(stdout);
 	for(i=0; i < num; ++i) {
 		int klen = sprintf(kbuf, KEY_PREFIX "%d", i);
 		memcached_delete(mc, kbuf, klen, 0);
 	}
 
+	printf("g");  fflush(stdout);
 	for(i=0; i < num; ++i) {
 		int klen = sprintf(kbuf, KEY_PREFIX "%d", i);
 		//int vlen = sprintf(vbuf, VAL_PREFIX "%d", i);
