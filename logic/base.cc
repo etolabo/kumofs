@@ -136,7 +136,7 @@ std::cout <<
 "  -TW <number="<<wthreads<<">    "             "--write-threads          number of threads for asynchronous writing\n"
 "  -TR <number="<<rthreads<<">    "             "--read-threads           number of threads for asynchronous reading\n"
 "  -o  <path.log>    "                          "--log                    output logs to the file\n"
-"  -g  <path.mpac>       "                      "--binary-log             enable binary log\n"
+"  -g  <path.mpac>   "                          "--binary-log             enable binary log\n"
 "  -v                "                          "--verbose\n"
 "  -d  <path.pid>    "                          "--daemon\n"
 << std::endl;
