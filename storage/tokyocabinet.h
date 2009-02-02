@@ -174,6 +174,11 @@ public:
 		return tchdbrnum(m_db);
 	}
 
+	std::string error()
+	{
+		return std::string(tchdberrmsg(tchdbecode(m_db)));
+	}
+
 private:
 	static void finalize_xstr_del(void* xstr)
 	{

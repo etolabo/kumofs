@@ -36,29 +36,35 @@ int main(int argc, char* argv[])
 	
 		std::auto_ptr<Storage> db(new Storage(dst));
 	
+		uint64_t total = 0;
+		uint64_t merged = 0;
 		for(unsigned int i=0; i < nsrc; ++i) {
 	
-			std::cout << "merging "<<psrc[i]<< "..." << std::endl;
+			std::cout << "merging "<<psrc[i]<< "..." << std::flush;
 			Storage::iterator kv;
 			srcs[i]->iterator_init(kv);
 			while(srcs[i]->iterator_next(kv)) {
+				++total;
+
 				if(kv.keylen() < DBFormat::KEY_META_SIZE) { continue; }
 				if(kv.vallen() < DBFormat::VALUE_META_SIZE) { continue; }
 	
-				protocol::type::DBKey key(kv.key(), kv.keylen());
-				protocol::type::DBValue val(kv.val(), kv.vallen());
+				ClockTime valtime = protocol::type::DBValue(kv.val(), kv.vallen()).clocktime();
 	
 				uint64_t clocktime = 0;
 				bool stored = DBFormat::get_clocktime(*db,
-						key.raw_data(), key.raw_size(), &clocktime);
+						kv.key(), kv.keylen(), &clocktime);
 	
-				if(!stored || ClockTime(clocktime) < ClockTime(val.clocktime())) {
+				if(!stored || ClockTime(clocktime) < valtime) {
 					db->set_async(
-							key.raw_data(), key.raw_size(),
-							val.raw_data(), val.raw_size());
+							kv.key(), kv.keylen(),
+							kv.val(), kv.vallen());
+					++merged;
 				}
 			}
-	
+			std::cout << srcs[i]->error() << std::endl;
+			std::cout << "  merged " << merged << " records of " << total << " records" << std::endl;
+
 		}
 
 		std::cout << "closing "<<dst<<"..." << std::endl;

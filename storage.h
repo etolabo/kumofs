@@ -100,9 +100,10 @@ namespace kumo {
 	inline bool DBFormat::get_clocktime(Storage& db,
 			const char* key, size_t keylen, uint64_t* result)
 	{
-		int32_t len = db.get_header(key, keylen, (char*)result, 8);
-		if(len < 8) { return false; }
-		*result = kumo_be64(*result);
+		char buf[8];
+		int32_t len = db.get_header(key, keylen, buf, sizeof(buf));
+		if(len < (int32_t)sizeof(buf)) { return false; }
+		*result = kumo_be64(*(uint64_t*)buf);
 		return true;
 	}
 }  // namespace kumo
