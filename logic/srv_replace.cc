@@ -106,7 +106,9 @@ void Server::replace_copy(const address& manager_addr, HashSpace& hs)
 	LOG_INFO("start replace copy for time(",replace_time.get(),")");
 
 	pthread_scoped_wrlock whlock(m_whs_mutex);
-	HashSpace srchs(m_whs);
+	pthread_scoped_wrlock rhlk(m_rhs_mutex);
+	HashSpace srchs(m_rhs);
+	whlock.unlock();
 	m_whs = hs;
 	whlock.unlock();
 
