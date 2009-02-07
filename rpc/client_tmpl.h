@@ -130,11 +130,11 @@ void client<Transport, Session>::connect_callback(
 		address addr, shared_session s, int fd, int err)
 {
 	if(fd >= 0) {
-		//int on = 1;
-		//if(::setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &on, sizeof(on)) < 0) {
-		//	::close(fd);
-		//	goto error;
-		//}
+#ifdef USE_TCP_NODELAY
+		// XXX
+		int on = 1;
+		::setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &on, sizeof(on));  // ignore error
+#endif
 		LOG_INFO("connect success ",addr," fd(",fd,")");
 		try {
 			basic_shared_session bs(mp::static_pointer_cast<basic_session>(s));
