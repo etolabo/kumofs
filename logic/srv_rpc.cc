@@ -115,16 +115,14 @@ try {
 
 	pthread_scoped_wrlock whlk(m_whs_mutex);
 
-	if(!param.wseed().empty() && (m_whs.empty() ||
-			m_whs.clocktime() <= ClockTime(param.wseed().clocktime()))) {
+	if(m_whs.clocktime() <= ClockTime(param.wseed().clocktime())) {
 		m_whs = HashSpace(param.wseed());
 		ret = true;
 	}
 
 	pthread_scoped_wrlock rhlk(m_rhs_mutex);
 
-	if(!param.rseed().empty() && (m_rhs.empty() ||
-			m_rhs.clocktime() <= ClockTime(param.rseed().clocktime()))) {
+	if(m_rhs.clocktime() <= ClockTime(param.rseed().clocktime())) {
 		m_rhs = HashSpace(param.rseed());
 		ret = true;
 	}

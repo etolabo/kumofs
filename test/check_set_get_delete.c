@@ -52,7 +52,10 @@ while(1) {
 	for(i=0; i < num; ++i) {
 		int klen = sprintf(kbuf, KEY_PREFIX "%d", i);
 		int vlen = sprintf(vbuf, VAL_PREFIX "%d", i);
-		memcached_set(mc, kbuf, klen, vbuf, vlen, 0, 0);
+		memcached_return ret = memcached_set(mc, kbuf, klen, vbuf, vlen, 0, 0);
+		if(ret != MEMCACHED_SUCCESS) {
+			fprintf(stderr, "set failed %d '%s'\n", ret, kbuf);
+		}
 	}
 
 	printf("g");  fflush(stdout);
@@ -71,7 +74,10 @@ while(1) {
 	printf("d");  fflush(stdout);
 	for(i=0; i < num; ++i) {
 		int klen = sprintf(kbuf, KEY_PREFIX "%d", i);
-		memcached_delete(mc, kbuf, klen, 0);
+		memcached_return ret = memcached_delete(mc, kbuf, klen, 0);
+		if(ret != MEMCACHED_SUCCESS) {
+			fprintf(stderr, "delete not performed %d '%s'\n", ret, kbuf);
+		}
 	}
 
 	printf("g");  fflush(stdout);

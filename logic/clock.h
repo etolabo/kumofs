@@ -122,7 +122,7 @@ private:
 	}
 
 private:
-	uint64_t m;
+	volatile uint64_t m;
 };
 
 
