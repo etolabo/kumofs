@@ -82,13 +82,64 @@ public:
 	bool update(const char* raw_key, uint32_t raw_keylen,
 			const char* raw_val, uint32_t raw_vallen);
 
-	bool del(const char* raw_key, uint32_t raw_keylen);
+	bool del(const char* raw_key, uint32_t raw_keylen,
+			ClockTime ct);
 
 	//void updatev()
 
 public:
 	void try_flush();
 	void flush();
+
+	uint64_t rnum();
+	void copy(const char* dstpath);
+	std::string error();
+
+public:
+	template <typename F>
+	void for_each(F f);
+
+	struct iterator {
+	public:
+		iterator(TCHDB* db);
+		~iterator();
+	public:
+		void remove(ClockTime ct);
+		bool next();
+
+	public:
+		const char* key()
+			{ return TCXSTRPTR(m_key); }
+		size_t keylen()
+			{ return TCXSTRSIZE(m_key); }
+		const char* val()
+			{ return TCXSTRPTR(m_val); }
+		size_t vallen()
+			{ return TCXSTRSIZE(m_val); }
+	public:
+		void release_key(msgpack::zone& z)
+		{
+			z.push_finalizer(&finalize_xstr_del, m_key);
+			m_key = NULL;
+		}
+		void release_val(msgpack::zone& z)
+		{
+			z.push_finalizer(&finalize_xstr_del, m_val);
+			m_val = NULL;
+		}
+	private:
+		TCXSTR* m_key;
+		TCXSTR* m_val;
+		TCHDB* m_db;
+		static void finalize_xstr_del(void* xstr)
+		{
+			tcxstrdel(reinterpret_cast<TCXSTR*>(xstr));
+		}
+
+	private:
+		iterator();
+		iterator(const iterator&);
+	};
 
 private:
 	struct const_db {
@@ -148,6 +199,7 @@ private:
 				bool* result_updated);
 
 		bool del(const char* raw_key, uint32_t raw_keylen,
+				ClockTime ct,
 				const_db cdb,
 				bool* result_deleted);
 
@@ -177,6 +229,40 @@ private:
 
 	volatile bool dirty_exist;
 };
+
+
+inline Storage::iterator::iterator(TCHDB* db) :
+	m_db(db)
+{
+	tchdbiterinit(m_db);
+}
+
+inline Storage::iterator::~iterator()
+{
+	if(m_key) { tcxstrdel(m_key); }
+	if(m_val) { tcxstrdel(m_val); }
+}
+
+bool Storage::iterator::next()
+{
+	if(!m_key) { m_key = tcxstrnew(); }
+	if(!m_val) { m_val = tcxstrnew(); }
+	return tchdbiternext3(m_db, m_key, m_val);
+}
+
+template <typename F>
+void Storage::for_each(F f)
+{
+	mp::pthread_scoped_wrlock lk(m_global_lock);
+
+	flush();
+	// FIXME clear
+
+	iterator it(m_db);
+	while(it.next()) {
+		f(it);
+	}
+}
 
 
 }  // namespace kumo

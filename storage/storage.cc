@@ -1,4 +1,5 @@
 #include "storage/storage.h"
+#include "log/mlogger.h"
 
 namespace kumo {
 
@@ -48,7 +49,10 @@ const char* Storage::get(const char* raw_key, uint32_t raw_keylen,
 				return val;
 			}
 		}
-		flush();
+		{
+			mp::pthread_scoped_wrlock lk(m_global_lock);
+			flush();
+		}
 	}
 }
 
@@ -74,11 +78,15 @@ bool Storage::update(const char* raw_key, uint32_t raw_keylen,
 				return updated;
 			}
 		}
-		flush();
+		{
+			mp::pthread_scoped_wrlock lk(m_global_lock);
+			flush();
+		}
 	}
 }
 
-bool Storage::del(const char* raw_key, uint32_t raw_keylen)
+bool Storage::del(const char* raw_key, uint32_t raw_keylen,
+		ClockTime ct)
 {
 	while(true) {
 		{
@@ -86,6 +94,7 @@ bool Storage::del(const char* raw_key, uint32_t raw_keylen)
 			bool deleted;
 			if( slot_of(raw_key, raw_keylen).del(
 						raw_key, raw_keylen,
+						ct,
 						const_db(m_db),
 						&deleted) ) {
 				if(deleted) {
@@ -94,7 +103,10 @@ bool Storage::del(const char* raw_key, uint32_t raw_keylen)
 				return deleted;
 			}
 		}
-		flush();
+		{
+			mp::pthread_scoped_wrlock lk(m_global_lock);
+			flush();
+		}
 	}
 }
 
@@ -163,6 +175,7 @@ bool Storage::slot::update(const char* raw_key, uint32_t raw_keylen,
 		if(e.dirty != CLEAN) { return false; }
 
 		if(e.buflen < raw_keylen + raw_vallen) {
+			// FIXME init size
 			e.ptr = (char*)m_buffer.allocate(raw_keylen + raw_vallen, &e.ref);
 		}
 
@@ -180,6 +193,7 @@ bool Storage::slot::update(const char* raw_key, uint32_t raw_keylen,
 }
 
 bool Storage::slot::del(const char* raw_key, uint32_t raw_keylen,
+		ClockTime ct,
 		const_db cdb,
 		bool* result_deleted)
 {
@@ -204,7 +218,8 @@ bool Storage::slot::del(const char* raw_key, uint32_t raw_keylen,
 		}
 	}
 
-	if(clocktime_of(e.ptr+e.keylen) < e.clocktime()) {
+	if(ct < e.clocktime()) {
+		// FIXME return true?
 		*result_deleted = false;
 		return true;
 	}
@@ -227,7 +242,7 @@ inline bool Storage::slot::get_clocktime(const_db cdb, const char* key, uint32_t
 
 bool Storage::slot::get_entry(entry& e, const_db cdb, const char* raw_key, uint32_t raw_keylen)
 {
-	m_buffer.reserve(1024);  // FIXME
+	m_buffer.reserve(1024);  // FIXME init size
 
 	char* buf;
 	int sz;
@@ -271,12 +286,12 @@ bool Storage::slot::get_entry(entry& e, const_db cdb, const char* raw_key, uint3
 void Storage::try_flush()
 {
 	if(!dirty_exist) { return; }
+	mp::pthread_scoped_wrlock lk(m_global_lock);
 	flush();
 }
 
 void Storage::flush()
 {
-	mp::pthread_scoped_wrlock lk(m_global_lock);
 	for(slot* s=m_slots, * const send(m_slots+m_slots_size);
 			s != send; ++s) {
 		s->flush(m_db);
@@ -306,6 +321,30 @@ inline void Storage::slot::flush(TCHDB* db)
 			break;
 		}
 	}
+}
+
+
+void Storage::copy(const char* dstpath)
+{
+	mp::pthread_scoped_wrlock lk(m_global_lock);
+
+	flush();
+
+	if(!tchdbcopy(m_db, dstpath)) {
+		LOG_ERROR("DB copy error: ",tchdberrmsg(tchdbecode(m_db)));
+		throw std::runtime_error("copy failed");
+	}
+}
+
+uint64_t Storage::rnum()
+{
+	mp::pthread_scoped_rdlock lk(m_global_lock);
+	return tchdbrnum(m_db);
+}
+
+std::string Storage::error()
+{
+	return std::string(tchdberrmsg(tchdbecode(m_db)));
 }
 
 
