@@ -16,6 +16,8 @@ noinst_HEADERS = \
 	pp.h \
 	pthread.h \
 	pthread_impl.h \
+	shared_buffer.h \
+	shared_buffer_impl.h \
 	stream_buffer.h \
 	stream_buffer_impl.h \
 	utility.h \

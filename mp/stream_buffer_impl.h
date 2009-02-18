@@ -46,12 +46,15 @@ private:
 			stream_buffer::decl_count(d);
 		}
 	};
+
+private:
+	reference(const reference&);
 };
 
 
 inline void stream_buffer::init_count(void* d)
 {
-	*(count_t*)d = 1;
+	*(volatile count_t*)d = 1;
 }
 
 inline void stream_buffer::decl_count(void* d)
@@ -79,19 +82,16 @@ inline stream_buffer::stream_buffer(size_t initial_buffer_size) :
 	m_used(0),
 	m_free(0),
 	m_off(0),
-	m_ref(new reference()),
-	m_initial_buffer_size(initial_buffer_size)
+	m_ref(new reference())
 {
-	if(m_initial_buffer_size < sizeof(count_t)) {
-		m_initial_buffer_size = sizeof(count_t);
-	}
+	const size_t initsz = std::max(initial_buffer_size, sizeof(count_t));
 
-	m_buffer = (char*)::malloc(m_initial_buffer_size);
+	m_buffer = (char*)::malloc(initsz);
 	if(!m_buffer) { throw std::bad_alloc(); }
 	init_count(m_buffer);
 
 	m_used = sizeof(count_t);
-	m_free = m_initial_buffer_size - m_used;
+	m_free = initsz - m_used;
 	m_off  = sizeof(count_t);
 }
 
@@ -147,7 +147,7 @@ inline stream_buffer::reference* stream_buffer::release()
 	return old.release();
 }
 
-inline void stream_buffer::reserve_buffer(size_t len)
+inline void stream_buffer::reserve_buffer(size_t len, size_t initial_buffer_size)
 {
 	if(m_used == m_off && get_count(m_buffer) == 1) {
 		// rewind buffer
@@ -156,11 +156,11 @@ inline void stream_buffer::reserve_buffer(size_t len)
 		m_off = sizeof(count_t);
 	}
 	if(m_free < len) {
-		expand_buffer(len);
+		expand_buffer(len, initial_buffer_size);
 	}
 }
 
-inline void stream_buffer::expand_buffer(size_t len)
+inline void stream_buffer::expand_buffer(size_t len, size_t initial_buffer_size)
 {
 	if(m_off == sizeof(count_t)) {
 		size_t next_size = (m_used + m_free) * 2;
@@ -173,9 +173,11 @@ inline void stream_buffer::expand_buffer(size_t len)
 		m_free = next_size - m_used;
 
 	} else {
-		size_t next_size = m_initial_buffer_size;  // include sizeof(count_t)
-		size_t not_parsed = m_used - m_off;
-		while(next_size < len + not_parsed + sizeof(count_t)) { next_size *= 2; }
+		const size_t initsz = std::max(initial_buffer_size, sizeof(count_t));
+
+		size_t next_size = initsz;  // include sizeof(count_t)
+		size_t not_used = m_used - m_off;
+		while(next_size < len + not_used + sizeof(count_t)) { next_size *= 2; }
 
 		char* tmp = (char*)::malloc(next_size);
 		if(!tmp) { throw std::bad_alloc(); }
@@ -185,10 +187,10 @@ inline void stream_buffer::expand_buffer(size_t len)
 			m_ref->push(m_buffer);
 		} catch (...) { free(tmp); throw; }
 
-		memcpy(tmp+sizeof(count_t), m_buffer+m_off, not_parsed);
+		memcpy(tmp+sizeof(count_t), m_buffer+m_off, not_used);
 
 		m_buffer = tmp;
-		m_used = not_parsed + sizeof(count_t);
+		m_used = not_used + sizeof(count_t);
 		m_free = next_size - m_used;
 		m_off = sizeof(count_t);
 	}

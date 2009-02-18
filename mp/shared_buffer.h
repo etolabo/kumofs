@@ -1,7 +1,7 @@
 //
-// mp::stream_buffer
+// mp::shared_buffer
 //
-// Copyright (C) 2008 FURUHASHI Sadayuki
+// Copyright (C) 2009 FURUHASHI Sadayuki
 //
 //    Licensed under the Apache License, Version 2.0 (the "License");
 //    you may not use this file except in compliance with the License.
@@ -16,49 +16,42 @@
 //    limitations under the License.
 //
 
-#ifndef MP_STREAM_BUFFER_H__
-#define MP_STREAM_BUFFER_H__
+#ifndef MP_SHARED_BUFFER_H__
+#define MP_SHARED_BUFFER_H__
 
 #include <memory>
 #include <stdlib.h>
-#include <vector>
-#include <algorithm>
 
-#ifndef MP_STREAM_BUFFER_INITIAL_BUFFER_SIZE
-#define MP_STREAM_BUFFER_INITIAL_BUFFER_SIZE 8*1024
+#ifndef MP_SHARED_BUFFER_INITIAL_BUFFER_SIZE
+#define MP_SHARED_BUFFER_INITIAL_BUFFER_SIZE 8*1024
 #endif
 
 namespace mp {
 
 
-class stream_buffer {
+class shared_buffer {
 public:
-	stream_buffer(size_t initial_buffer_size = MP_STREAM_BUFFER_INITIAL_BUFFER_SIZE);
-	~stream_buffer();
+	shared_buffer(size_t init_size = MP_SHARED_BUFFER_INITIAL_BUFFER_SIZE);
+	~shared_buffer();
 
 public:
-	void reserve_buffer(size_t len, size_t initial_buffer_size = MP_STREAM_BUFFER_INITIAL_BUFFER_SIZE);
+	void reserve(size_t len, size_t init_size = MP_SHARED_BUFFER_INITIAL_BUFFER_SIZE);
 
 	void* buffer();
 	size_t buffer_capacity() const;
-	void buffer_consumed(size_t len);
-
-	void* data();
-	size_t data_size() const;
-	void data_used(size_t len);
 
 	struct reference;
-	reference* release();
+
+	void* allocate(size_t size, reference* result_ref = NULL,
+			size_t init_size = MP_SHARED_BUFFER_INITIAL_BUFFER_SIZE);
 
 private:
 	char* m_buffer;
 	size_t m_used;
 	size_t m_free;
-	size_t m_off;
-	std::auto_ptr<reference> m_ref;
 
 private:
-	void expand_buffer(size_t len, size_t initial_buffer_size);
+	void expand_buffer(size_t len, size_t init_size);
 
 	typedef volatile unsigned int count_t;
 	static void init_count(void* d);
@@ -67,13 +60,13 @@ private:
 	static count_t get_count(void* d);
 
 private:
-	stream_buffer(const stream_buffer&);
+	shared_buffer(const shared_buffer&);
 };
 
 
 }  // namespace mp
 
-#include "mp/stream_buffer_impl.h"
+#include "mp/shared_buffer_impl.h"
 
-#endif /* mp/stream_buffer.h */
+#endif /* mp/shared_buffer.h */
 
