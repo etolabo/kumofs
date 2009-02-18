@@ -54,7 +54,7 @@ namespace kumo {
 
 class Storage {
 public:
-	Storage();
+	Storage(const char* path);
 	~Storage();
 
 	static const size_t VALUE_META_SIZE = 16;
@@ -83,7 +83,7 @@ public:
 			const char* raw_val, uint32_t raw_vallen);
 
 	bool del(const char* raw_key, uint32_t raw_keylen,
-			ClockTime ct);
+			ClockTime ct, ClockTime* result_clocktime);
 
 	//void updatev()
 
@@ -104,7 +104,8 @@ public:
 		iterator(TCHDB* db);
 		~iterator();
 	public:
-		bool remove(ClockTime ct);
+		bool del(ClockTime ct);
+		bool del_nocheck();
 		bool next();
 
 	public:
@@ -200,7 +201,7 @@ private:
 		bool del(const char* raw_key, uint32_t raw_keylen,
 				ClockTime ct,
 				const_db cdb,
-				bool* result_deleted);
+				bool* result_deleted, ClockTime* result_clocktime);
 
 		void flush(TCHDB* db);
 
@@ -258,7 +259,11 @@ void Storage::for_each(F f)
 
 	iterator it(m_db);
 	while(it.next()) {
-		f(it);
+		if(it.keylen() < KEY_META_SIZE || it.vallen() < VALUE_META_SIZE) {
+			it.del_nocheck();
+		} else {
+			f(it);
+		}
 	}
 }
 

@@ -44,6 +44,30 @@ inline int Storage::const_db::vsiz(const char* key, uint32_t keylen)
 }
 
 
+Storage::Storage(const char* path)
+{
+	m_db = tchdbnew();
+	if(!m_db) {
+		throw std::runtime_error("can't create tchdb");
+	}
+
+	//if(!tchdbsetmutex(m_db)) {
+	//	throw std::runtime_error("can't initialize tchdb mutex");
+	//}
+
+	if(!tchdbopen(m_db, path, HDBOWRITER|HDBOCREAT)) {
+		tchdbdel(m_db);
+		throw std::runtime_error("can't open tchdb");
+	}
+}
+
+Storage::~Storage()
+{
+	tchdbclose(m_db);
+	tchdbdel(m_db);
+}
+
+
 const char* Storage::get(const char* raw_key, uint32_t raw_keylen,
 		uint32_t* result_raw_vallen, msgpack::zone& z)
 {
@@ -95,7 +119,7 @@ bool Storage::update(const char* raw_key, uint32_t raw_keylen,
 }
 
 bool Storage::del(const char* raw_key, uint32_t raw_keylen,
-		ClockTime ct)
+		ClockTime ct, ClockTime* result_clocktime)
 {
 	while(true) {
 		{
@@ -105,7 +129,7 @@ bool Storage::del(const char* raw_key, uint32_t raw_keylen,
 						raw_key, raw_keylen,
 						ct,
 						const_db(m_db),
-						&deleted) ) {
+						&deleted, result_clocktime) ) {
 				if(deleted) {
 					dirty_exist = true;
 				}
@@ -204,7 +228,7 @@ bool Storage::slot::update(const char* raw_key, uint32_t raw_keylen,
 bool Storage::slot::del(const char* raw_key, uint32_t raw_keylen,
 		ClockTime ct,
 		const_db cdb,
-		bool* result_deleted)
+		bool* result_deleted, ClockTime* result_clocktime)
 {
 	mp::pthread_scoped_lock lk(m_mutex);
 
@@ -227,6 +251,7 @@ bool Storage::slot::del(const char* raw_key, uint32_t raw_keylen,
 		}
 	}
 
+	*result_clocktime = e.clocktime();
 	if(ct < e.clocktime()) {
 		// FIXME return true?
 		*result_deleted = false;
@@ -323,7 +348,7 @@ inline void Storage::slot::flush(TCHDB* db)
 }
 
 
-bool Storage::iterator::remove(ClockTime ct)
+bool Storage::iterator::del(ClockTime ct)
 {
 	ClockTime entry_time(0);
 	if( !const_db(m_db).get_clocktime(key(), keylen(), &entry_time) ) {
@@ -332,6 +357,11 @@ bool Storage::iterator::remove(ClockTime ct)
 	if(ct < entry_time) {
 		return false;
 	}
+	return del_nocheck();
+}
+
+bool Storage::iterator::del_nocheck()
+{
 	return tchdbout(m_db, key(), keylen());
 	// FIXME slotを無効化する
 }
