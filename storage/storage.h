@@ -104,7 +104,7 @@ public:
 		iterator(TCHDB* db);
 		~iterator();
 	public:
-		void remove(ClockTime ct);
+		bool remove(ClockTime ct);
 		bool next();
 
 	public:
@@ -148,10 +148,9 @@ private:
 		int get(const char* key, uint32_t keylen,
 				char* valbuf, uint32_t vallen);
 
-		int vsiz(const char* key, uint32_t keylen);
+		bool get_clocktime(const char* key, uint32_t keylen, ClockTime* result);
 
-		bool get_clocktime(const char* key, uint32_t keylen,
-				ClockTime* result);
+		int vsiz(const char* key, uint32_t keylen);
 
 	private:
 		TCHDB* m_db;
@@ -207,7 +206,6 @@ private:
 
 	private:
 		entry& entry_of(const char* raw_key);
-		bool get_clocktime(const_db cdb, const char* key, uint32_t keylen, ClockTime* result);
 		bool get_entry(entry& e, const_db cdb, const char* raw_key, uint32_t raw_keylen);
 
 	private:

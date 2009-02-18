@@ -29,6 +29,15 @@ inline int Storage::const_db::get(const char* key, uint32_t keylen,
 	return tchdbget3(m_db, key, keylen, valbuf, vallen);
 }
 
+inline bool Storage::const_db::get_clocktime(const char* key, uint32_t keylen, ClockTime* result)
+{
+	char buf[8];
+	int len = get(key, keylen, buf, sizeof(buf));
+	if(len < (int32_t)sizeof(buf)) { return false; }
+	*result = ClockTime( kumo_be64(*(uint64_t*)buf) );
+	return true;
+}
+
 inline int Storage::const_db::vsiz(const char* key, uint32_t keylen)
 {
 	return tchdbvsiz(m_db, key, keylen);
@@ -165,7 +174,7 @@ bool Storage::slot::update(const char* raw_key, uint32_t raw_keylen,
 	} else {
 
 		ClockTime ct(0);
-		if(get_clocktime(cdb, raw_key, raw_keylen, &ct)) {
+		if(cdb.get_clocktime(raw_key, raw_keylen, &ct)) {
 			if(clocktime_of(raw_val) < ct) {
 				*result_updated = false;
 				return true;
@@ -227,16 +236,6 @@ bool Storage::slot::del(const char* raw_key, uint32_t raw_keylen,
 	e.dirty = DIRTY_DELETE;
 	*result_deleted = true;
 
-	return true;
-}
-
-
-inline bool Storage::slot::get_clocktime(const_db cdb, const char* key, uint32_t keylen, ClockTime* result)
-{
-	char buf[8];
-	int len = cdb.get(key, keylen, buf, sizeof(buf));
-	if(len < (int32_t)sizeof(buf)) { return false; }
-	*result = ClockTime( kumo_be64(*(uint64_t*)buf) );
 	return true;
 }
 
@@ -321,6 +320,20 @@ inline void Storage::slot::flush(TCHDB* db)
 			break;
 		}
 	}
+}
+
+
+bool Storage::iterator::remove(ClockTime ct)
+{
+	ClockTime entry_time(0);
+	if( !const_db(m_db).get_clocktime(key(), keylen(), &entry_time) ) {
+		return false;
+	}
+	if(ct < entry_time) {
+		return false;
+	}
+	return tchdbout(m_db, key(), keylen());
+	// FIXME slotを無効化する
 }
 
 
