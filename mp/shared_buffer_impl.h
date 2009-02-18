@@ -51,9 +51,6 @@ public:
 
 private:
 	void* m;
-
-private:
-	reference(const reference&);
 };
 
 
