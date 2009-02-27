@@ -55,7 +55,7 @@ ManagerとServerを動作させるホストの時刻設定は、1秒以上ずれ
 ***コンパイル時に必要なもの
 -g++ >= 4.1
 -ragel >= 6.3
--bazaar >= 1.0
+-git >= XXX
 
 ***コンパイル時と実行時に必要なもの
 -ruby >= 1.8
@@ -66,9 +66,9 @@ ManagerとServerを動作させるホストの時刻設定は、1秒以上ずれ
 **コンパイル
 まず最新のMessagePackをインストールする。
 >|sh|
-$ bzr branch lp:msgpack
+$ git clone git://git.sourceforge.jp/gitroot/msgpack/msgpack.git
 $ cd msgpack
-$ ./configure && make
+$ ./bootstrap && ./configure && make
 $ sudo make install
 $ cd ruby
 $ ./gengem

@@ -167,8 +167,8 @@ inline HashSpace::node& operator>> (msgpack::object o, HashSpace::node& v)
 {
 	using namespace msgpack;
 	if(o.type != type::RAW) { throw type_error(); }
-	address addr(o.via.ref.ptr+1, o.via.ref.size-1);  // sie is checked in address::address
-	bool active = o.via.ref.ptr[0] != 0;
+	address addr(o.via.raw.ptr+1, o.via.raw.size-1);  // sie is checked in address::address
+	bool active = o.via.raw.ptr[0] != 0;
 	v = HashSpace::node(addr, active);
 	return v;
 }

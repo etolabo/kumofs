@@ -191,7 +191,7 @@ inline address& operator>> (msgpack::object o, address& v)
 {
 	using namespace msgpack;
 	if(o.type != type::RAW) { throw type_error(); }
-	v = address(o.via.ref.ptr, o.via.ref.size);
+	v = address(o.via.raw.ptr, o.via.raw.size);
 	return v;
 }
 
