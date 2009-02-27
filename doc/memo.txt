@@ -1,4 +1,4 @@
-?title Kumofs memo -- Kumo Fast Storage rev.736
+?title Kumofs memo -- Kumo Fast Storage rev.906
 ?author FURUHASHI Sadayuki
 
 
@@ -61,7 +61,7 @@ ManagerとServerを動作させるホストの時刻設定は、1秒以上ずれ
 -ruby >= 1.8
 -rubygems
 -libcrypto(openssl)
--Tokyo Cabinet >= 1.3.8
+-Tokyo Cabinet >= 1.4.9
 
 **コンパイル
 まず最新のMessagePackをインストールする。
