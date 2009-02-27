@@ -19,13 +19,13 @@ static void kumo_tchdb_free(void* data)
 	tchdbdel(db);
 }
 
-static const char* kumo_tchdb_open(void* data, int* argc, char** argv)
+//static const char* kumo_tchdb_open(void* data, int* argc, char** argv)
+static const char* kumo_tchdb_open(void* data, const char* path)
 {
 	TCHDB* db = (TCHDB*)data;
 
-	// FIXME
-	const char* path = argv[1];
-	*argc = 0;
+	//const char* path = argv[1];
+	//*argc = 0;
 
 	if(!tchdbsetmutex(db)) {
 		return tchdberrmsg(tchdbecode(db));
@@ -67,10 +67,10 @@ static const char* kumo_tchdb_get(void* data,
 }
 
 
-static void kumo_tchdb_timer(void* data)
-{
-	// FIXME garbage collect
-}
+//static void kumo_tchdb_timer(void* data)
+//{
+//	// FIXME garbage collect
+//}
 
 
 typedef struct {
@@ -165,6 +165,8 @@ typedef struct {
 static int kumo_tchdb_for_each(void* data,
 		void* user, int (*func)(void* user, void* iterator_data))
 {
+	// FIXME only one thread can use iterator. use mutex.
+
 	TCHDB* db = (TCHDB*)data;
 
 	tchdbiterinit(db);
@@ -175,6 +177,11 @@ static int kumo_tchdb_for_each(void* data,
 	it.db  = db;
 
 	while( tchdbiternext3(db, it.key, it.val) ) {
+		if(TCXSTRSIZE(it.val) < 16 || TCXSTRSIZE(it.key) < 8) {
+			// FIXME delete it?
+			continue;
+		}
+
 		int ret = (*func)(user, (void*)&it);
 		if(ret < 0) {
 			if(it.key != NULL) { tcxstrdel(it.key); }

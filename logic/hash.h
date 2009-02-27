@@ -62,7 +62,7 @@ private:
 public:
 	class iterator;
 
-	iterator find(uint64_t h);
+	iterator find(uint64_t h) const;
 
 	size_t active_node_count() const;
 	void get_active_nodes(std::vector<address>& result) const;
@@ -208,9 +208,9 @@ inline bool HashSpace::operator== (const Seed& other) const
 }
 
 
-inline HashSpace::iterator HashSpace::find(uint64_t h)
+inline HashSpace::iterator HashSpace::find(uint64_t h) const
 {
-	hashspace_t::iterator it(
+	hashspace_t::const_iterator it(
 			std::lower_bound(m_hashspace.begin(), m_hashspace.end(), virtual_node(h))
 			);
 	if(it == m_hashspace.end()) {

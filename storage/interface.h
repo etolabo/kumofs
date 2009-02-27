@@ -17,11 +17,12 @@ namespace kumo {
 
 class Storage {
 public:
-	Storage(int* argc, char** argv);
+	//Storage(int* argc, char** argv);
+	Storage(const char* path);
 	~Storage();
 
-	static const size_t VALUE_META_SIZE = 16;
 	static const size_t KEY_META_SIZE = 8;
+	static const size_t VALUE_META_SIZE = 16;
 
 
 	static ClockTime clocktime_of(const char* raw_val);
@@ -91,7 +92,7 @@ private:
 	};
 
 	template <typename F>
-	static void for_each_callback(void* user, void* iterator_data);
+	static int for_each_callback(void* user, void* iterator_data);
 };
 
 
@@ -111,7 +112,8 @@ inline uint64_t Storage::hash_of(const char* raw_key)
 }
 
 
-Storage::Storage(int* argc, char** argv)
+//Storage::Storage(int* argc, char** argv)
+Storage::Storage(const char* path)
 {
 	m_op = kumo_storage_init();
 
@@ -120,7 +122,8 @@ Storage::Storage(int* argc, char** argv)
 		throw std::runtime_error("failed to initialize storage module");
 	}
 
-	const char* msg = m_op.open(m_data, argc, argv);
+	//const char* msg = m_op.open(m_data, argc, argv);
+	const char* msg = m_op.open(m_data, path);
 	if(msg) {
 		m_op.free(m_data);
 		throw std::runtime_error(msg);
@@ -193,16 +196,25 @@ template <typename F>
 inline void Storage::for_each(F f)
 {
 	for_each_data<F> user = {&m_op, &f};
-	m_op.for_each(m_data,
+	int ret = m_op.for_each(m_data,
 			reinterpret_cast<void*>(&user),
 			&Storage::for_each_callback<F>);
+	if(ret < 0) {
+		throw std::runtime_error("error while iterating database");
+	}
 }
 
 template <typename F>
-void Storage::for_each_callback(void* user, void* iterator_data)
+int Storage::for_each_callback(void* user, void* iterator_data)
 {
 	iterator it(reinterpret_cast<for_each_data<F>*>(user)->op, iterator_data);
-	(*reinterpret_cast<for_each_data<F>*>(user)->func)(it);
+	try {
+		(*reinterpret_cast<for_each_data<F>*>(user)->func)(it);
+		return 0;
+	} catch (...) {
+		// FIXME log
+		return -1;
+	}
 }
 
 

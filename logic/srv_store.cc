@@ -69,9 +69,9 @@ try {
 	uint32_t raw_vallen;
 	const char* raw_val = m_db.get(
 			key.raw_data(), key.raw_size(),
-			&raw_vallen, z);
+			&raw_vallen, z.get());
 
-	if(val) {
+	if(raw_val) {
 		LOG_DEBUG("key found");
 		msgpack::type::raw_ref res(raw_val, raw_vallen);
 		response.result(res, z);
@@ -295,15 +295,15 @@ bool Server::DeleteByRhsWhs(weak_responder response, auto_zone& z,
 				})
 	}
 
-	bool deleted = m_db.del(key.raw_data(), key.raw_size());
+	ClockTime ct(m_clock.now_incr());
+
+	bool deleted = m_db.del(key.raw_data(), key.raw_size(), ct);
 	if(!deleted) {
 		//response.result(false);
 		// the key is not stored
 		//return true;
 		wrep_num = 0;
 	}
-
-	ClockTime ct(m_clock.now_incr());
 
 	LOG_DEBUG("delete copy required: ", wrep_num+rrep_num);
 	if((wrep_num == 0 && rrep_num == 0) || is_async) {
@@ -369,14 +369,14 @@ void Server::DeleteByWhs(weak_responder response, auto_zone& z,
 				})
 	}
 
-	bool deleted = m_db.del(key.raw_data(), key.raw_size());
+	ClockTime ct(m_clock.now_incr());
+
+	bool deleted = m_db.del(key.raw_data(), key.raw_size(), ct);
 	if(!deleted) {
 		response.result(false);
 		// the key is not stored
 		return;
 	}
-
-	ClockTime ct(m_clock.now_incr());
 
 	LOG_DEBUG("delete copy required: ", wrep_num);
 	if(wrep_num == 0 || is_async) {

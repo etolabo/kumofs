@@ -49,7 +49,8 @@ typedef struct {
 	void (*free)(void* data);
 
 	// success: NULL;  faied: message
-	const char* (*open)(void* data, int* argc, char** argv);
+	//const char* (*open)(void* data, int* argc, char** argv);
+	const char* (*open)(void* data, const char* path);
 
 	void (*close)(void* data);
 
