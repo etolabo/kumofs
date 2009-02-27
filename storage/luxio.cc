@@ -322,7 +322,7 @@ try {
 }
 
 
-static bool kumo_luxio_iterator_delete(void* iterator_data)
+static bool kumo_luxio_iterator_del(void* iterator_data)
 try {
 	kumo_luxio_iterator* it =
 		reinterpret_cast<kumo_luxio_iterator*>(iterator_data);
@@ -335,7 +335,8 @@ try {
 	return false;
 }
 
-static bool kumo_luxio_iterator_delete_if_older(void* iterator_data, uint64_t if_older)
+#if 0
+static bool kumo_luxio_iterator_del_if_older(void* iterator_data, uint64_t if_older)
 try {
 	kumo_luxio_iterator* it =
 		reinterpret_cast<kumo_luxio_iterator*>(iterator_data);
@@ -357,6 +358,7 @@ try {
 	set_error(e.what());
 	return false;
 }
+#endif
 
 
 static kumo_storage_op kumo_luxio_op =
@@ -380,8 +382,7 @@ static kumo_storage_op kumo_luxio_op =
 	kumo_luxio_iterator_vallen,
 	kumo_luxio_iterator_release_key,
 	kumo_luxio_iterator_release_val,
-	kumo_luxio_iterator_delete,
-	kumo_luxio_iterator_delete_if_older,
+	kumo_luxio_iterator_del,
 };
 
 extern "C"

@@ -73,7 +73,6 @@ public:
 		void release_key(msgpack::zone* z);
 		void release_val(msgpack::zone* z);
 		void del();
-		bool del_if_older(ClockTime if_older);
 
 	private:
 		void* m_data;
@@ -263,12 +262,7 @@ inline void Storage::iterator::release_val(msgpack::zone* z)
 
 inline void Storage::iterator::del()
 {
-	m_op->iterator_delete(m_data);
-}
-
-inline bool Storage::iterator::del_if_older(ClockTime if_older)
-{
-	return m_op->iterator_delete_if_older(m_data, if_older.get());
+	m_op->iterator_del(m_data);
 }
 
 

@@ -115,8 +115,7 @@ typedef struct {
 	bool (*iterator_release_val)(void* iterator_data, msgpack_zone* zone);
 
 	// deleted: true;  not-deleted: false
-	bool (*iterator_delete)(void* iterator_data);
-	bool (*iterator_delete_if_older)(void* iterator_data, uint64_t if_older);
+	bool (*iterator_del)(void* iterator_data);
 
 } kumo_storage_op;
 
