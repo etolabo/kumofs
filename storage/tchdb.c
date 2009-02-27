@@ -1,10 +1,10 @@
 #include "storage.h"  // FIXME
 #include <tchdb.h>
 
-typedef struct {
-	TCHDB* db;
-	TCLIST* garbage;
-} kumo_tchdb_ctx;
+//typedef struct {
+//	TCHDB* db;
+//	TCLIST* garbage;
+//} kumo_tchdb_ctx;
 
 
 static void* kumo_tchdb_create(void)
@@ -64,7 +64,11 @@ static const char* kumo_tchdb_get(void* data,
 	}
 	*result_vallen = len;
 
-	msgpack_zone_push_finalizer(zone, free, val);
+	if(!msgpack_zone_push_finalizer(zone, free, val)) {
+		free(val);
+		return NULL;
+	}
+
 	return val;
 }
 
@@ -174,7 +178,9 @@ static int kumo_tchdb_for_each(void* data,
 
 	TCHDB* db = (TCHDB*)data;
 
-	tchdbiterinit(db);
+	if(!tchdbiterinit(db)) {
+		return -1;
+	}
 
 	kumo_tchdb_iterator it = { NULL, NULL, NULL };
 	it.key = tcxstrnew(); if(!it.key) { return -1; }

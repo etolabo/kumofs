@@ -1,7 +1,8 @@
 
 noinst_LIBRARIES = libkumo_storage.a
 
-libkumo_storage_a_SOURCES = tokyocabinet.c
+libkumo_storage_a_SOURCES = tchdb.c
+#libkumo_storage_a_SOURCES = luxio.cc
 
 noinst_HEADERS = \
 	interface.h

@@ -1,204 +1,392 @@
-// FIXME __STDC_LIMIT_MACROS
+#include "storage.h"  // FIXME
+#include <memory>
+#include <pthread.h>
 #include <luxio/btree.h>
-#include "storage.h"
-#include "common.h"
-#include <algorithm>
 
-static Lux::IO::Btree* s_luxbt = NULL;
+static __thread std::string *s_error = NULL;
 
-void Storage::finalize_clean_data(void* val)
+static void set_error(const std::string& msg)
+try {
+	if(!s_error) {
+		s_error = new std::string;
+	}
+	*s_error = msg;
+
+} catch (...) { }
+
+static void* kumo_luxio_create(void)
+try {
+	Lux::IO::Btree* db = new Lux::IO::Btree(Lux::IO::CLUSTER);
+
+	// FIXME LOCK_NONE + rwlock
+	db->set_lock_type(Lux::IO::LOCK_THREAD);
+	return reinterpret_cast<void*>(db);
+
+} catch (std::exception& e) {
+	set_error(e.what());
+	return NULL;
+}
+
+static void kumo_luxio_free(void* data)
+try {
+	Lux::IO::Btree* db = reinterpret_cast<Lux::IO::Btree*>(data);
+
+	delete db;
+
+} catch (std::exception& e) {
+	set_error(e.what());
+}
+
+
+static bool kumo_luxio_open(void* data, const char* path)
+try {
+	Lux::IO::Btree* db = reinterpret_cast<Lux::IO::Btree*>(data);
+
+	return db->open(path, Lux::DB_CREAT);
+
+} catch (std::exception& e) {
+	set_error(e.what());
+	return false;
+}
+
+
+static void kumo_luxio_close(void* data)
+try {
+	Lux::IO::Btree* db = reinterpret_cast<Lux::IO::Btree*>(data);
+
+	db->close();
+
+} catch (std::exception& e) {
+	set_error(e.what());
+}
+
+
+
+static void kumo_luxio_clean_data(void* val)
 {
-	s_luxbt->clean_data(
+	// FIXME
+	reinterpret_cast<Lux::IO::Btree*>(NULL)->clean_data(
 			reinterpret_cast<Lux::IO::data_t*>(val));
 }
 
-Storage::Storage(const char* path)
-{
-	if(s_luxbt) {
-		throw std::logic_error("can't create multiple luxio db instance");
-	}
-	s_luxbt = new Lux::IO::Btree(Lux::IO::CLUSTER);
-	//s_luxbt->set_lock_type(Lux::IO::LOCK_THREAD);
-	s_luxbt->set_lock_type(Lux::IO::LOCK_PROCESS);
-	if(!s_luxbt->open(path, Lux::DB_CREAT)) {
-		delete s_luxbt;
-		s_luxbt = NULL;
-		throw std::runtime_error("can't open luxio db");
-	}
-}
-
-Storage::~Storage()
-{
-	s_luxbt->close();
-	delete s_luxbt;
-	s_luxbt = NULL;
-}
-
-const char* Storage::get(const char* key, uint32_t keylen,
+static const char* kumo_luxio_get(void* data,
+		const char* key, uint32_t keylen,
 		uint32_t* result_vallen,
-		mp::zone& z)
-{
-	/*
-	Lux::IO::data_t* v = s_luxbt->get(key, keylen, Lux::IO::SYSTEM);
-	if(v == NULL) { return NULL; }
-	try {
-		z.push_finalizer(&Storage::finalize_clean_data, v);
-	} catch (...) {
-		s_luxbt->clean_data(v);
-		throw;
-	}
-	*result_vallen = v->size;
-	return (const char*)v->data;
-	*/
-	LOG_ERROR("db ",(void*)s_luxbt);
-	LOG_ERROR("get ",keylen," ",key);
+		msgpack_zone* zone)
+try {
+	Lux::IO::Btree* db = reinterpret_cast<Lux::IO::Btree*>(data);
+
 	Lux::IO::data_t k = {key, keylen};
 	Lux::IO::data_t* v = NULL;
-	if(!s_luxbt->get(&k, &v, Lux::IO::SYSTEM) || v == NULL) {
-		LOG_WARN("get data failed ",(void*)v);
+	if(!db->get(&k, &v, Lux::IO::SYSTEM) || v == NULL) {
 		return NULL;
 	}
-	LOG_WARN("get data ",(void*)v);
-	try {
-		z.push_finalizer(&Storage::finalize_clean_data, v);
-	} catch (...) {
-		s_luxbt->clean_data(v);
-		throw;
+
+	if(!msgpack_zone_push_finalizer(
+				zone, kumo_luxio_clean_data, v)) {
+		db->clean_data(v);
+		return NULL;
 	}
+
 	*result_vallen = v->size;
 	return (const char*)v->data;
+
+} catch (std::exception& e) {
+	set_error(e.what());
+	return NULL;
 }
 
-int32_t Storage::get_header(const char* key, uint32_t keylen,
-		char* valbuf, uint32_t vallen)
-{
-	// FIXME
-	/*
-	Lux::IO::data_t* v = s_luxbt->get(key, keylen);
-	if(v == NULL) { return 0; }
-	uint32_t len = std::min(v->size, vallen);
-	memcpy(valbuf, v->data, len);
-	s_luxbt->clean_data(v);
-	return len;
-	*/
-	Lux::IO::data_t k = {key, keylen};
-	Lux::IO::data_t* v = NULL;
-	if(!s_luxbt->get(&k, &v, Lux::IO::SYSTEM) || v == NULL) {
-		return -1;
-	}
-	uint32_t len = std::min(v->size, vallen);
-	memcpy(valbuf, v->data, len);
-	s_luxbt->clean_data(v);
-	return len;
-}
 
-void Storage::set(const char* key, uint32_t keylen,
+static bool kumo_luxio_set(void* data,
+		const char* key, uint32_t keylen,
 		const char* val, uint32_t vallen)
+try {
+	Lux::IO::Btree* db = reinterpret_cast<Lux::IO::Btree*>(data);
+
+	return db->put(key, keylen, val, vallen);
+
+} catch (std::exception& e) {
+	set_error(e.what());
+	return false;
+}
+
+
+static bool kumo_luxio_update(void* data,
+		const char* key, uint32_t keylen,
+		const char* val, uint32_t vallen)
+try {
+	// FIXME
+	return kumo_luxio_set(data, key, keylen, val, vallen);
+
+} catch (std::exception& e) {
+	set_error(e.what());
+	return false;
+}
+
+static bool kumo_luxio_del(void* data,
+		const char* key, uint32_t keylen,
+		uint64_t clocktime)
+try {
+	Lux::IO::Btree* db = reinterpret_cast<Lux::IO::Btree*>(data);
+
+	Lux::IO::data_t k = {key, keylen};
+	// FIXME
+	return db->del(&k);
+
+} catch (std::exception& e) {
+	set_error(e.what());
+	return false;
+}
+
+
+static uint64_t kumo_luxio_rnum(void* data)
+try {
+	Lux::IO::Btree* db = reinterpret_cast<Lux::IO::Btree*>(data);
+
+	// FIXME
+	return 0;
+
+} catch (std::exception& e) {
+	set_error(e.what());
+	return 0;
+}
+
+
+static bool kumo_luxio_backup(void* data, const char* dstpath)
+try {
+	Lux::IO::Btree* db = reinterpret_cast<Lux::IO::Btree*>(data);
+
+	// FIXME
+	return false;
+
+} catch (std::exception& e) {
+	set_error(e.what());
+	return false;
+}
+
+
+static const char* kumo_luxio_error(void* data)
 {
-	LOG_ERROR("db ",(void*)s_luxbt);
-	LOG_ERROR("set ",keylen," ",key);
-	if(!s_luxbt->put(key, keylen, val, vallen)) {
-		throw std::runtime_error("store failed");
+	if(s_error) {
+		return s_error->c_str();
+	} else {
+		return "";
 	}
 }
 
-bool Storage::del(const char* key, uint32_t keylen)
-{
-	return s_luxbt->del(key, keylen);
+
+struct kumo_luxio_iterator {
+	kumo_luxio_iterator(Lux::IO::Btree* pdb) :
+		key(NULL), val(NULL), db(pdb) { }
+
+	~kumo_luxio_iterator()
+	{
+		if(key) { db->clean_data(key); }
+		if(val) { db->clean_data(val); }
+	}
+
+	Lux::IO::data_t* key;
+	Lux::IO::data_t* val;
+	Lux::IO::Btree* db;
+
+private:
+	kumo_luxio_iterator();
+	kumo_luxio_iterator(const kumo_luxio_iterator&);
+};
+
+static int kumo_luxio_for_each(void* data,
+		void* user, int (*func)(void* user, void* iterator_data))
+try {
+	Lux::IO::Btree* db = reinterpret_cast<Lux::IO::Btree*>(data);
+
+	kumo_luxio_iterator it(db);
+
+	std::auto_ptr<Lux::IO::cursor_t> cur( db->cursor_init() );
+
+	if(!db->first(cur.get())) {
+		return 0;
+	}
+
+	do {
+		if(!db->cursor_get(cur.get(), &it.key, &it.val, Lux::IO::SYSTEM)) {
+			continue;
+		}
+
+		if(it.val->size < 16 || it.key->size < 8) {
+			// FIXME delete it?
+			continue;
+		}
+
+		int ret = (*func)(user, reinterpret_cast<void*>(&it));
+		if(ret < 0) {
+			return ret;
+		}
+
+	} while(db->next(cur.get()));
+
+	return 0;
+
+} catch (std::exception& e) {
+	set_error(e.what());
+	return -1;
 }
 
-void Storage::iterator_init(iterator& it)
-{
-	it.reset();
+
+static const char* kumo_luxio_iterator_key(void* iterator_data)
+try {
+	kumo_luxio_iterator* it =
+		reinterpret_cast<kumo_luxio_iterator*>(iterator_data);
+
+	return (const char*)it->key->data;
+
+} catch (std::exception& e) {
+	set_error(e.what());
+	return NULL;
 }
 
-bool Storage::iterator_next(iterator& it)
-{
-	return it.next();
+
+static const char* kumo_luxio_iterator_val(void* iterator_data)
+try {
+	kumo_luxio_iterator* it =
+		reinterpret_cast<kumo_luxio_iterator*>(iterator_data);
+
+	return (const char*)it->val->data;
+
+} catch (std::exception& e) {
+	set_error(e.what());
+	return NULL;
 }
 
-void Storage::close()
-{
-	s_luxbt->close();
+
+static size_t kumo_luxio_iterator_keylen(void* iterator_data)
+try {
+	kumo_luxio_iterator* it =
+		reinterpret_cast<kumo_luxio_iterator*>(iterator_data);
+
+	return it->key->size;
+
+} catch (std::exception& e) {
+	set_error(e.what());
+	return NULL;
 }
 
 
-#define AS_DATA(d) reinterpret_cast<Lux::IO::data_t*>(d)
-#define AS_DATA_P(d) reinterpret_cast<Lux::IO::data_t**>(d)
-#define AS_CURSOR(c) reinterpret_cast<Lux::IO::cursor_t*>(c)
+static size_t kumo_luxio_iterator_vallen(void* iterator_data)
+try {
+	kumo_luxio_iterator* it =
+		reinterpret_cast<kumo_luxio_iterator*>(iterator_data);
 
-Storage::iterator::iterator() :
-	m_cursor(NULL), m_key(NULL), m_val(NULL) {}
+	return it->val->size;
 
-Storage::iterator::~iterator()
-{
-	clear();
+} catch (std::exception& e) {
+	set_error(e.what());
+	return NULL;
 }
 
-const char* Storage::iterator::key()
-{
-	return (const char*)AS_DATA(m_key)->data;
-}
 
-size_t Storage::iterator::keylen()
-{
-	return AS_DATA(m_key)->size;
-}
-const char* Storage::iterator::val()
-{
-	return (const char*)AS_DATA(m_val)->data;
-}
-size_t Storage::iterator::vallen()
-{
-	return AS_DATA(m_val)->size;
-}
+static bool kumo_luxio_iterator_release_key(void* iterator_data, msgpack_zone* zone)
+try {
+	kumo_luxio_iterator* it =
+		reinterpret_cast<kumo_luxio_iterator*>(iterator_data);
 
-void Storage::iterator::release_key(mp::zone& z)
-{
-	z.push_finalizer(&Storage::finalize_clean_data, m_key);
-	m_key = NULL;
-}
-
-void Storage::iterator::release_val(mp::zone& z)
-{
-	z.push_finalizer(&Storage::finalize_clean_data, m_val);
-	m_val = NULL;
-}
-
-void Storage::iterator::reset()
-{
-	clear();
-	m_cursor = (void*)s_luxbt->cursor_init();
-//	if(!s_luxbt->first(AS_CURSOR(m_cursor))) {
-//		throw std::runtime_error("can't initialize luxio cursor");
-//	}
-}
-
-bool Storage::iterator::next()
-{
-	if(s_luxbt->next(AS_CURSOR(m_cursor))) {
-		return s_luxbt->cursor_get(
-				AS_CURSOR(m_cursor),
-				AS_DATA_P(&m_key), AS_DATA_P(&m_val),
-				Lux::IO::SYSTEM);
-	} else {
+	if(!msgpack_zone_push_finalizer(
+				zone, kumo_luxio_clean_data, it->key)) {
 		return false;
 	}
+
+	it->key = NULL;
+	return true;
+
+} catch (std::exception& e) {
+	set_error(e.what());
+	return NULL;
 }
 
-void Storage::iterator::clear()
+
+static bool kumo_luxio_iterator_release_val(void* iterator_data, msgpack_zone* zone)
+try {
+	kumo_luxio_iterator* it =
+		reinterpret_cast<kumo_luxio_iterator*>(iterator_data);
+
+	if(!msgpack_zone_push_finalizer(
+				zone, kumo_luxio_clean_data, it->val)) {
+		return false;
+	}
+
+	it->val = NULL;
+	return true;
+
+} catch (std::exception& e) {
+	set_error(e.what());
+	return NULL;
+}
+
+
+static bool kumo_luxio_iterator_delete(void* iterator_data)
+try {
+	kumo_luxio_iterator* it =
+		reinterpret_cast<kumo_luxio_iterator*>(iterator_data);
+
+	Lux::IO::data_t k = {it->key->data, it->key->size};
+	return it->db->del(&k);
+
+} catch (std::exception& e) {
+	set_error(e.what());
+	return false;
+}
+
+static bool kumo_luxio_iterator_delete_if_older(void* iterator_data, uint64_t if_older)
+try {
+	kumo_luxio_iterator* it =
+		reinterpret_cast<kumo_luxio_iterator*>(iterator_data);
+
+	const char* val = (const char*)it->val->data;
+	size_t vallen = it->val->size;
+
+	if(vallen < 8 || kumo_clocktime_less(
+				kumo_storage_clocktime_of(val),
+				if_older)) {
+
+		Lux::IO::data_t k = {it->key->data, it->key->size};
+		return it->db->del(&k);
+	}
+
+	return false;
+
+} catch (std::exception& e) {
+	set_error(e.what());
+	return false;
+}
+
+
+static kumo_storage_op kumo_luxio_op =
 {
-	if(m_key) {
-		s_luxbt->clean_data(AS_DATA(m_key));
-		m_key = NULL;
-	}
-	if(m_val) {
-		s_luxbt->clean_data(AS_DATA(m_val));
-		m_val = NULL;
-	}
-	if(m_cursor) {
-		s_luxbt->cursor_fin(AS_CURSOR(m_cursor));
-		m_cursor = NULL;
-	}
+	kumo_luxio_create,
+	kumo_luxio_free,
+	kumo_luxio_open,
+	kumo_luxio_close,
+	kumo_luxio_get,
+	kumo_luxio_set,
+	kumo_luxio_update,
+	NULL,
+	kumo_luxio_del,
+	kumo_luxio_rnum,
+	kumo_luxio_backup,
+	kumo_luxio_error,
+	kumo_luxio_for_each,
+	kumo_luxio_iterator_key,
+	kumo_luxio_iterator_val,
+	kumo_luxio_iterator_keylen,
+	kumo_luxio_iterator_vallen,
+	kumo_luxio_iterator_release_key,
+	kumo_luxio_iterator_release_val,
+	kumo_luxio_iterator_delete,
+	kumo_luxio_iterator_delete_if_older,
+};
+
+extern "C"
+kumo_storage_op kumo_storage_init(void)
+{
+	return kumo_luxio_op;
 }
 
