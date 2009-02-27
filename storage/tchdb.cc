@@ -28,6 +28,9 @@ struct kumo_tchdb {
 
 	kumo_buffer_queue* garbage;
 	mp::pthread_mutex garbage_mutex;
+
+private:
+	kumo_tchdb(const kumo_tchdb&);
 };
 
 
@@ -178,15 +181,56 @@ static const char* kumo_tchdb_error(void* data)
 }
 
 
-typedef struct {
+struct kumo_tchdb_iterator {
+	kumo_tchdb_iterator(kumo_tchdb* pctx) :
+		ctx(pctx)
+	{
+		key = tcxstrnew();
+		if(!key) {
+			throw std::bad_alloc();
+		}
+		val = tcxstrnew();
+		if(!val) {
+			tcxstrdel(key);
+			throw std::bad_alloc();
+		}
+	}
+
+	~kumo_tchdb_iterator()
+	{
+		if(key != NULL) { tcxstrdel(key); }
+		if(val != NULL) { tcxstrdel(val); }
+	}
+
+	void reset()
+	{
+		if(!key) {
+			key = tcxstrnew();
+			if(!key) {
+				throw std::bad_alloc();
+			}
+		}
+
+		if(!val) {
+			val = tcxstrnew();
+			if(!val) {
+				throw std::bad_alloc();
+			}
+		}
+	}
+
 	TCXSTR* key;
 	TCXSTR* val;
 	kumo_tchdb* ctx;
-} kumo_tchdb_iterator;
+
+private:
+	kumo_tchdb_iterator();
+	kumo_tchdb_iterator(const kumo_tchdb_iterator&);
+};
 
 static int kumo_tchdb_for_each(void* data,
 		void* user, int (*func)(void* user, void* iterator_data))
-{
+try {
 	kumo_tchdb* ctx = reinterpret_cast<kumo_tchdb*>(data);
 
 	// only one thread can use iterator
@@ -196,10 +240,7 @@ static int kumo_tchdb_for_each(void* data,
 		return -1;
 	}
 
-	kumo_tchdb_iterator it = { NULL, NULL, NULL };
-	it.key = tcxstrnew(); if(!it.key) { return -1; }
-	it.val = tcxstrnew(); if(!it.val) { tcxstrdel(it.key); return -1; }
-	it.ctx  = ctx;
+	kumo_tchdb_iterator it(ctx);
 
 	while( tchdbiternext3(ctx->db, it.key, it.val) ) {
 		if(TCXSTRSIZE(it.val) < 16 || TCXSTRSIZE(it.key) < 8) {
@@ -209,61 +250,46 @@ static int kumo_tchdb_for_each(void* data,
 
 		int ret = (*func)(user, (void*)&it);
 		if(ret < 0) {
-			if(it.key != NULL) { tcxstrdel(it.key); }
-			if(it.val != NULL) { tcxstrdel(it.val); }
 			return ret;
 		}
 
-		if(it.key == NULL) {
-			it.key = tcxstrnew();
-			if(it.key == NULL) {
-				if(it.val != NULL) { tcxstrdel(it.val); }
-				return -1;
-			}
-		}
-
-		if(it.val == NULL) {
-			it.val = tcxstrnew();
-			if(it.val == NULL) {
-				tcxstrdel(it.key);
-				return -1;
-			}
-		}
+		it.reset();
 	}
 
-	if(it.key != NULL) { tcxstrdel(it.key); }
-	if(it.val != NULL) { tcxstrdel(it.val); }
 	return 0;
+
+} catch (...) {
+	return -1;
 }
 
 static const char* kumo_tchdb_iterator_key(void* iterator_data)
 {
-	kumo_tchdb_iterator* it = (kumo_tchdb_iterator*)iterator_data;
+	kumo_tchdb_iterator* it = reinterpret_cast<kumo_tchdb_iterator*>(iterator_data);
 	return TCXSTRPTR(it->key);
 }
 
 static const char* kumo_tchdb_iterator_val(void* iterator_data)
 {
-	kumo_tchdb_iterator* it = (kumo_tchdb_iterator*)iterator_data;
+	kumo_tchdb_iterator* it = reinterpret_cast<kumo_tchdb_iterator*>(iterator_data);
 	return TCXSTRPTR(it->val);
 }
 
 static size_t kumo_tchdb_iterator_keylen(void* iterator_data)
 {
-	kumo_tchdb_iterator* it = (kumo_tchdb_iterator*)iterator_data;
+	kumo_tchdb_iterator* it = reinterpret_cast<kumo_tchdb_iterator*>(iterator_data);
 	return TCXSTRSIZE(it->key);
 }
 
 static size_t kumo_tchdb_iterator_vallen(void* iterator_data)
 {
-	kumo_tchdb_iterator* it = (kumo_tchdb_iterator*)iterator_data;
+	kumo_tchdb_iterator* it = reinterpret_cast<kumo_tchdb_iterator*>(iterator_data);
 	return TCXSTRSIZE(it->val);
 }
 
 
 static bool kumo_tchdb_iterator_release_key(void* iterator_data, msgpack_zone* zone)
 {
-	kumo_tchdb_iterator* it = (kumo_tchdb_iterator*)iterator_data;
+	kumo_tchdb_iterator* it = reinterpret_cast<kumo_tchdb_iterator*>(iterator_data);
 
 	if(!msgpack_zone_push_finalizer(zone, (void (*)(void*))tcxstrdel, it->key)) {
 		return false;
@@ -275,7 +301,7 @@ static bool kumo_tchdb_iterator_release_key(void* iterator_data, msgpack_zone* z
 
 static bool kumo_tchdb_iterator_release_val(void* iterator_data, msgpack_zone* zone)
 {
-	kumo_tchdb_iterator* it = (kumo_tchdb_iterator*)iterator_data;
+	kumo_tchdb_iterator* it = reinterpret_cast<kumo_tchdb_iterator*>(iterator_data);
 
 	if(!msgpack_zone_push_finalizer(zone, (void (*)(void*))tcxstrdel, it->val)) {
 		return false;
@@ -287,7 +313,7 @@ static bool kumo_tchdb_iterator_release_val(void* iterator_data, msgpack_zone* z
 
 static bool kumo_tchdb_iterator_delete(void* iterator_data)
 {
-	kumo_tchdb_iterator* it = (kumo_tchdb_iterator*)iterator_data;
+	kumo_tchdb_iterator* it = reinterpret_cast<kumo_tchdb_iterator*>(iterator_data);
 
 	const char* key = TCXSTRPTR(it->key);
 	size_t keylen = TCXSTRSIZE(it->key);
@@ -297,7 +323,7 @@ static bool kumo_tchdb_iterator_delete(void* iterator_data)
 
 static bool kumo_tchdb_iterator_delete_if_older(void* iterator_data, uint64_t if_older)
 {
-	kumo_tchdb_iterator* it = (kumo_tchdb_iterator*)iterator_data;
+	kumo_tchdb_iterator* it = reinterpret_cast<kumo_tchdb_iterator*>(iterator_data);
 
 	const char* val = TCXSTRPTR(it->val);
 	size_t vallen = TCXSTRSIZE(it->val);
