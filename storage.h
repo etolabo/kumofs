@@ -41,6 +41,17 @@ void kumo_start_timer(const struct timespec* interval,
 		void (*func)(void* data), void* data);
 
 
+struct kumo_buffer_queue;
+typedef struct kumo_buffer_queue kumo_buffer_queue;
+
+kumo_buffer_queue* kumo_buffer_queue_new(void);
+              void kumo_buffer_queue_free(kumo_buffer_queue* bq);
+       bool kumo_buffer_queue_push(kumo_buffer_queue* bq, const void* buf, size_t buflen);
+const void* kumo_buffer_queue_front(kumo_buffer_queue* bq, size_t* result_buflen);
+       void kumo_buffer_queue_pop(kumo_buffer_queue* bq);
+     size_t kumo_buffer_queue_total_size(kumo_buffer_queue* bq);
+
+
 typedef struct {
 
 	// failed: NULL
