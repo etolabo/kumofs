@@ -24,6 +24,8 @@ struct kumo_tchdb {
 	}
 
 	TCHDB* db;
+	mp::pthread_mutex iterator_mutex;
+
 	kumo_buffer_queue* garbage;
 	mp::pthread_mutex garbage_mutex;
 };
@@ -185,9 +187,10 @@ typedef struct {
 static int kumo_tchdb_for_each(void* data,
 		void* user, int (*func)(void* user, void* iterator_data))
 {
-	// FIXME only one thread can use iterator. use mutex.
-
 	kumo_tchdb* ctx = reinterpret_cast<kumo_tchdb*>(data);
+
+	// only one thread can use iterator
+	mp::pthread_scoped_lock itlk(ctx->iterator_mutex);
 
 	if(!tchdbiterinit(ctx->db)) {
 		return -1;
