@@ -3,7 +3,7 @@
 
 #include "logic/cluster.h"
 #include "rpc/server.h"
-#include "storage.h"
+#include "storage/interface.h"
 
 namespace kumo {
 

@@ -1,6 +1,7 @@
 #ifndef LOGIC_CLOCK_H__
 #define LOGIC_CLOCK_H__
 
+#include "storage.h"
 #include <limits>
 #include <stdint.h>
 #include <time.h>
@@ -58,12 +59,7 @@ public:
 private:
 	static bool clock_less(uint32_t x, uint32_t y)
 	{
-		if((x < (((uint32_t)1)<<10) && (((uint32_t)1)<<22) < y) ||
-		   (y < (((uint32_t)1)<<10) && (((uint32_t)1)<<22) < x)) {
-			return x > y;
-		} else {
-			return x < y;
-		}
+		return kumo_clocktime_less(x, y);
 	}
 
 	friend class ClockTime;

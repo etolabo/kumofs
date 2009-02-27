@@ -3,6 +3,14 @@ AC_CONFIG_AUX_DIR(ac)
 AM_INIT_AUTOMAKE(kumofs, 0.1.0)
 AC_CONFIG_HEADER(config.h)
 
+
+AC_SUBST(CFLAGS)
+if test "" = "$CFLAGS"; then
+	CFLAGS="-O4"
+fi
+CFLAGS="-O4 -Wall $CFLAGS"
+
+
 AC_SUBST(CXXFLAGS)
 if test "" = "$CXXFLAGS"; then
 	CXXFLAGS="-O4"
@@ -26,6 +34,7 @@ if test "x$RAGEL" = x; then
 fi
 
 
+AC_PROG_CC
 AC_PROG_CXX
 
 AC_PROG_LIBTOOL
