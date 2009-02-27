@@ -66,6 +66,7 @@ kumo_gateway_LDADD  = \
 		mpsrc/libmpio.a
 
 kumomergedb_LDADD = \
+		storage/libkumo_storage.a \
 		log/libkumo_log.a
 
 

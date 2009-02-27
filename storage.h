@@ -48,9 +48,9 @@ typedef struct {
 
 	void (*free)(void* data);
 
-	// success: NULL;  faied: message
-	//const char* (*open)(void* data, int* argc, char** argv);
-	const char* (*open)(void* data, const char* path);
+	// success: true;  faied: false
+	//bool (*open)(void* data, int* argc, char** argv);
+	bool (*open)(void* data, const char* path);
 
 	void (*close)(void* data);
 
@@ -86,6 +86,8 @@ typedef struct {
 	// success: true;  not-success: false
 	bool (*backup)(void* data, const char* dstpath);
 
+	const char* (*error)(void* data);
+
 	// success >= 0;  failed < 0
 	int (*for_each)(void* data,
 			void* user,
@@ -108,7 +110,7 @@ typedef struct {
 } kumo_storage_op;
 
 
-kumo_storage_op kumo_storage_init();
+kumo_storage_op kumo_storage_init(void);
 
 
 

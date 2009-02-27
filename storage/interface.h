@@ -113,7 +113,7 @@ inline uint64_t Storage::hash_of(const char* raw_key)
 
 
 //Storage::Storage(int* argc, char** argv)
-Storage::Storage(const char* path)
+inline Storage::Storage(const char* path)
 {
 	m_op = kumo_storage_init();
 
@@ -122,15 +122,15 @@ Storage::Storage(const char* path)
 		throw std::runtime_error("failed to initialize storage module");
 	}
 
-	//const char* msg = m_op.open(m_data, argc, argv);
-	const char* msg = m_op.open(m_data, path);
-	if(msg) {
+	//if(!m_op.open(m_data, argc, argv)) {
+	if(!m_op.open(m_data, path)) {
+		std::string msg = error();
 		m_op.free(m_data);
 		throw std::runtime_error(msg);
 	}
 }
 
-Storage::~Storage()
+inline Storage::~Storage()
 {
 	m_op.close(m_data);
 	m_op.free(m_data);
@@ -191,6 +191,10 @@ inline void Storage::backup(const char* dstpath)
 	}
 }
 
+inline std::string Storage::error()
+{
+	return std::string( m_op.error(m_data) );
+}
 
 template <typename F>
 inline void Storage::for_each(F f)

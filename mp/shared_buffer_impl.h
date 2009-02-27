@@ -95,7 +95,7 @@ inline shared_buffer::~shared_buffer()
 	decl_count(m_buffer);
 }
 
-void* shared_buffer::buffer()
+inline void* shared_buffer::buffer()
 {
 	return m_buffer + m_used;
 }

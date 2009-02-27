@@ -19,8 +19,8 @@ static void kumo_tchdb_free(void* data)
 	tchdbdel(db);
 }
 
-//static const char* kumo_tchdb_open(void* data, int* argc, char** argv)
-static const char* kumo_tchdb_open(void* data, const char* path)
+//static bool kumo_tchdb_open(void* data, int* argc, char** argv)
+static bool kumo_tchdb_open(void* data, const char* path)
 {
 	TCHDB* db = (TCHDB*)data;
 
@@ -28,11 +28,11 @@ static const char* kumo_tchdb_open(void* data, const char* path)
 	//*argc = 0;
 
 	if(!tchdbsetmutex(db)) {
-		return tchdberrmsg(tchdbecode(db));
+		return false;
 	}
 
 	if(!tchdbopen(db, path, HDBOWRITER|HDBOCREAT)) {
-		return tchdberrmsg(tchdbecode(db));
+		return false;
 	}
 
 	/* FIXME
@@ -40,7 +40,7 @@ static const char* kumo_tchdb_open(void* data, const char* path)
 	kumo_start_timer(&interval, kumo_tchdb_timer, (void*)db);
 	*/
 
-	return NULL;
+	return true;
 }
 
 static void kumo_tchdb_close(void* data)
@@ -49,8 +49,9 @@ static void kumo_tchdb_close(void* data)
 	tchdbclose(db);
 }
 
+
 static const char* kumo_tchdb_get(void* data,
-		char* key, uint32_t keylen,
+		const char* key, uint32_t keylen,
 		uint32_t* result_vallen,
 		msgpack_zone* zone)
 {
@@ -106,7 +107,6 @@ static bool kumo_tchdb_set(void* data,
 		const char* val, uint32_t vallen)
 {
 	TCHDB* db = (TCHDB*)data;
-
 	return tchdbput(db, key, keylen, val, vallen);
 }
 
@@ -144,15 +144,19 @@ static bool kumo_tchdb_del(void* data,
 static uint64_t kumo_tchdb_rnum(void* data)
 {
 	TCHDB* db = (TCHDB*)data;
-
 	return tchdbrnum(db);
 }
 
 static bool kumo_tchdb_backup(void* data, const char* dstpath)
 {
 	TCHDB* db = (TCHDB*)data;
-
 	return tchdbcopy(db, dstpath);
+}
+
+static const char* kumo_tchdb_error(void* data)
+{
+	TCHDB* db = (TCHDB*)data;
+	return tchdberrmsg(tchdbecode(db));
 }
 
 
@@ -304,6 +308,7 @@ static kumo_storage_op kumo_tchdb_op =
 	kumo_tchdb_del,
 	kumo_tchdb_rnum,
 	kumo_tchdb_backup,
+	kumo_tchdb_error,
 	kumo_tchdb_for_each,
 	kumo_tchdb_iterator_key,
 	kumo_tchdb_iterator_val,
@@ -315,7 +320,7 @@ static kumo_storage_op kumo_tchdb_op =
 	kumo_tchdb_iterator_delete_if_older,
 };
 
-kumo_storage_op kumo_storage_init()
+kumo_storage_op kumo_storage_init(void)
 {
 	return kumo_tchdb_op;
 }
