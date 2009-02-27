@@ -41,14 +41,7 @@ try {
 		break;
 
 	case  protocol::STAT_DB_ITEMS:
-		{
-			uint64_t num;
-			{
-				pthread_scoped_rdlock dblk(m_db.mutex());
-				num = m_db.rnum();
-			}
-			response.result(num);
-		}
+		response.result( m_db.rnum() );
 		break;
 
 	default:

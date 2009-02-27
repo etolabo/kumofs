@@ -35,6 +35,10 @@ public:
 			const char* raw_key, uint32_t raw_keylen,
 			uint32_t* result_raw_vallen, msgpack::zone* z);
 
+	void set(
+			const char* raw_key, uint32_t raw_keylen,
+			const char* raw_val, uint32_t raw_vallen);
+
 	bool update(
 			const char* raw_key, uint32_t raw_keylen,
 			const char* raw_val, uint32_t raw_vallen);
@@ -138,6 +142,17 @@ inline const char* Storage::get(
 			raw_key, raw_keylen,
 			result_raw_vallen,
 			z);
+}
+
+inline void Storage::set(
+		const char* raw_key, uint32_t raw_keylen,
+		const char* raw_val, uint32_t raw_vallen)
+{
+	if(!m_op.set(m_data,
+			raw_key, raw_keylen,
+			raw_val, raw_vallen)) {
+		throw std::runtime_error("set failed");
+	}
 }
 
 inline bool Storage::update(

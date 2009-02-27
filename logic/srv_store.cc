@@ -67,14 +67,11 @@ try {
 	}
 
 	uint32_t raw_vallen;
-	const char* raw_val;
-	{
-		pthread_scoped_rdlock dblk(m_db.mutex());
-		raw_val = m_db.get(key.raw_data(), key.raw_size(),
-				&raw_vallen, *z);
-	}
+	const char* raw_val = m_db.get(
+			key.raw_data(), key.raw_size(),
+			&raw_vallen, z);
 
-	if(raw_val && raw_vallen >= DBFormat::VALUE_META_SIZE) {
+	if(val) {
 		LOG_DEBUG("key found");
 		msgpack::type::raw_ref res(raw_val, raw_vallen);
 		response.result(res, z);
@@ -171,11 +168,9 @@ bool Server::SetByRhsWhs(weak_responder response, auto_zone& z,
 		wretry->call(wrepto[i], life, 10);
 	}
 
-	{
-		pthread_scoped_wrlock dblk(m_db.mutex());
-		m_db.set(key.raw_data(), key.raw_size(),
-				 val.raw_data(), val.raw_size());
-	}
+	m_db.set(
+			key.raw_data(), key.raw_size(),
+			val.raw_data(), val.raw_size());
 
 	LOG_DEBUG("set copy required: ", wrep_num+rrep_num);
 	if((wrep_num == 0 && rrep_num == 0) || is_async) {
@@ -229,11 +224,9 @@ void Server::SetByWhs(weak_responder response, auto_zone& z,
 		retry->call(wrepto[i], life, 10);
 	}
 
-	{
-		pthread_scoped_wrlock dblk(m_db.mutex());
-		m_db.set(key.raw_data(), key.raw_size(),
-				 val.raw_data(), val.raw_size());
-	}
+	m_db.set(
+			key.raw_data(), key.raw_size(),
+			val.raw_data(), val.raw_size());
 
 	LOG_DEBUG("set copy required: ", wrep_num);
 	if(wrep_num == 0 || is_async) {
@@ -302,11 +295,7 @@ bool Server::DeleteByRhsWhs(weak_responder response, auto_zone& z,
 				})
 	}
 
-	bool deleted;
-	{
-		pthread_scoped_wrlock dblk(m_db.mutex());
-		deleted = m_db.del(key.raw_data(), key.raw_size());
-	}
+	bool deleted = m_db.del(key.raw_data(), key.raw_size());
 	if(!deleted) {
 		//response.result(false);
 		// the key is not stored
@@ -380,11 +369,7 @@ void Server::DeleteByWhs(weak_responder response, auto_zone& z,
 				})
 	}
 
-	bool deleted;
-	{
-		pthread_scoped_wrlock dblk(m_db.mutex());
-		deleted = m_db.del(key.raw_data(), key.raw_size());
-	}
+	bool deleted = m_db.del(key.raw_data(), key.raw_size());
 	if(!deleted) {
 		response.result(false);
 		// the key is not stored
@@ -536,25 +521,11 @@ try {
 
 	m_clock.update(param.clock());
 
-	pthread_scoped_wrlock dblk(m_db.mutex());
+	bool updated = m_db.update(
+			key.raw_data(), key.raw_size(),
+			val.raw_data(), val.raw_size());
 
-	uint64_t clocktime = 0;
-	bool stored = DBFormat::get_clocktime(m_db,
-			key.raw_data(), key.raw_size(), &clocktime);
-
-	if(!stored || ClockTime(clocktime) <= ClockTime(val.clocktime())) {
-		// stored key is old
-		m_db.set(key.raw_data(), key.raw_size(),
-				 val.raw_data(), val.raw_size());
-		dblk.unlock();
-		response.result(true);
-
-	} else {
-		// key is overwritten while replicating
-		// do nothing
-		dblk.unlock();
-		response.result(false);
-	}
+	response.result(updated);
 }
 RPC_CATCH(ReplicateSet, response)
 
@@ -573,30 +544,10 @@ try {
 
 	m_clock.update(param.clock());
 
-	pthread_scoped_wrlock dblk(m_db.mutex());
-	uint64_t clocktime;
-	bool stored = DBFormat::get_clocktime(m_db,
-			key.raw_data(), key.raw_size(), &clocktime);
+	bool deleted = m_db.del(key.raw_data(), key.raw_size(),
+			param.clocktime());
 
-	if(!stored) {
-		// key is not stored
-		// do nothing
-		dblk.unlock();
-		response.result(true);
-
-	} else if(ClockTime(clocktime) <= ClockTime(param.clocktime())) {
-		// stored key is old
-		m_db.del(key.raw_data(), key.raw_size());
-		dblk.unlock();
-		response.result(true);
-
-	} else {
-		// key is already deleted while replicating
-		// do nothing
-		dblk.unlock();
-		LOG_TRACE("obsolete replicate push");
-		response.result(false);
-	}
+	response.result(deleted);
 }
 RPC_CATCH(ReplicateDelete, response)
 

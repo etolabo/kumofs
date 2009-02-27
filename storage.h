@@ -59,6 +59,11 @@ typedef struct {
 			uint32_t* result_vallen,
 			msgpack_zone* zone);
 
+	// success: true;  failed: false
+	bool (*set)(void* data,
+			const char* key, uint32_t keylen,
+			const char* val, uint32_t vallen);
+
 	// updated: true;  not-updated: false
 	bool (*update)(void* data,
 			const char* key, uint32_t keylen,

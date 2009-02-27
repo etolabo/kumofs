@@ -101,6 +101,15 @@ static void* kumo_tchdb_update_proc(const void* vbuf, int vsiz, int *sp, void* o
 }
 
 
+static bool kumo_tchdb_set(void* data,
+		const char* key, uint32_t keylen,
+		const char* val, uint32_t vallen)
+{
+	TCHDB* db = (TCHDB*)data;
+
+	return tchdbput(db, key, keylen, val, vallen);
+}
+
 static bool kumo_tchdb_update(void* data,
 		const char* key, uint32_t keylen,
 		const char* val, uint32_t vallen)
@@ -282,6 +291,7 @@ static kumo_storage_op kumo_tchdb_op =
 	kumo_tchdb_open,
 	kumo_tchdb_close,
 	kumo_tchdb_get,
+	kumo_tchdb_set,
 	kumo_tchdb_update,
 	NULL,
 	kumo_tchdb_del,
