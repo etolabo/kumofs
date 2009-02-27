@@ -62,6 +62,7 @@ static const char* kumo_tchdb_get(void* data,
 	if(!val) {
 		return NULL;
 	}
+	*result_vallen = len;
 
 	msgpack_zone_push_finalizer(zone, free, val);
 	return val;
