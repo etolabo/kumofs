@@ -133,7 +133,7 @@ filterdb = conf["filter"].hmap {|name, hash|
 }
 
 do_parse(File.read(ARGV[0]), 1<<30) {|name, version, hash|
-	msg = hash["msg"] || msgdb[name] || name
+	msg = msgdb[name] || "#{name}.#{version}"
 
 	if filter = filterdb["#{name}.#{version}"]
 		filter.map {|key, proc|
@@ -146,7 +146,7 @@ do_parse(File.read(ARGV[0]), 1<<30) {|name, version, hash|
 		pv = v.pretty_inspect.rstrip
 		pv = v if pv[1..-2] == v
 		"#{k}=[#{pv}]"
-	}.join('  ')
+	}.sort_by{|kv| kv[0] }.join('  ')
 
 	puts "%s.%s  %-15s  %s" % [name, version, msg, vals]
 }
