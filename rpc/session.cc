@@ -10,11 +10,16 @@ inline bool basic_session::callback_table::out(
 		msgid_t msgid, callback_entry* result)
 {
 	pthread_scoped_lock lk(m_callbacks_mutex[msgid % PARTITION_NUM]);
+
 	callbacks_t& cbs(m_callbacks[msgid % PARTITION_NUM]);
 	callbacks_t::iterator it(cbs.find(msgid));
-	if(it == cbs.end()) { return false; }
+	if(it == cbs.end()) {
+		return false;
+	}
+
 	*result = it->second;
 	cbs.erase(it);
+
 	return true;
 }
 

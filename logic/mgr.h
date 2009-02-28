@@ -4,7 +4,6 @@
 #include "logic/cluster.h"
 #include "logic/mgr_control.h"
 #include "rpc/server.h"
-#include "rpc/sbuffer.h"
 
 namespace kumo {
 

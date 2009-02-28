@@ -1,11 +1,7 @@
 #ifndef RPC_RESPONDER_H__
 #define RPC_RESPONDER_H__
 
-#include "log/mlogger.h" //FIXME
 #include "rpc/types.h"
-#include "rpc/sbuffer.h"
-#include "rpc/vrefbuffer.h"
-#include "rpc/wavy.h"
 
 namespace rpc {
 

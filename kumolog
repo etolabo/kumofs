@@ -105,7 +105,7 @@ end
 
 class Hash
 	def hmap(&block)
-		m = self.dup
+		m = {}
 		each_pair {|k, v|
 			m[k] = block.call(k, v)
 		}
@@ -136,7 +136,7 @@ do_parse(File.read(ARGV[0]), 1<<30) {|name, version, hash|
 	msg = msgdb[name] || "#{name}.#{version}"
 
 	if filter = filterdb["#{name}.#{version}"]
-		filter.map {|key, proc|
+		filter.each_pair {|key, proc|
 			val = hash.delete(key)
 			hash[proc[0]] = proc[1].call(val)
 		}

@@ -118,10 +118,12 @@ void connection<IMPL>::process_message(msgobj msg, msgpack::zone* newz)
 try {
 	auto_zone z(newz);
 	rpc_message rpc(msg.convert());
+
 	if(rpc.is_request()) {
 		rpc_request<msgobj> msgreq(rpc);
 		static_cast<IMPL*>(this)->process_request(
 				msgreq.method(), msgreq.param(), msgreq.msgid(), z);
+
 	} else {
 		rpc_response<msgobj, msgobj> msgres(rpc);
 		static_cast<IMPL*>(this)->process_response(

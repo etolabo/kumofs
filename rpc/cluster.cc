@@ -178,7 +178,9 @@ void cluster::accepted(int fd)
 shared_node cluster::get_node(const address& addr)
 {
 	shared_node n( get_session(addr) );
-	if(!n->addr().connectable()) { n->m_addr = addr; }
+	if(!n->addr().connectable()) {
+		n->m_addr = addr;
+	}
 	return n;
 }
 

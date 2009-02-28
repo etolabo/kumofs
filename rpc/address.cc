@@ -31,11 +31,18 @@ address::address(const struct sockaddr_in6& addr)
 address::address(const char* ptr, unsigned int len)
 {
 #ifdef KUMO_IPV6
-	if(len != 6 && len != 22) { throw std::runtime_error("unknown address type"); }
+	if(len != 6 && len != 22) {
+		throw std::runtime_error("unknown address type");
+	}
+
 	memcpy(m_serial_address, ptr, len);
 	m_serial_length = len;
+
 #else
-	if(len != 6) { throw std::runtime_error("unknown address type"); }
+	if(len != 6) {
+		throw std::runtime_error("unknown address type");
+	}
+
 	m_serial = 0;
 	memcpy(&m_serial, ptr, len);  // FIXME
 #endif
@@ -47,20 +54,25 @@ void address::getaddr(sockaddr* addrbuf) const
 #ifdef KUMO_IPV6
 	if(m_serial_length == 6) {
 		sockaddr_in* addr = reinterpret_cast<sockaddr_in*>(addrbuf);
+
 		memset(addr, 0, sizeof(sockaddr_in));
 		addr->sin_family = AF_INET;
 		addr->sin_port = raw_port();
 		addr->sin_addr.s_addr = *((uint32_t*)&m_serial_address[2]);
+
 	} else {
 		sockaddr_in6* addr = reinterpret_cast<sockaddr_in6*>(addrbuf);
+
 		memset(addr, 0, sizeof(sockaddr_in6));
 		addr->sin6_family = AF_INET6;
 		addr->sin6_port = raw_port();
 		memcpy(addr->sin6_addr.s6_addr, &m_serial_address[2], 16);
 		addr->sin6_scope_id = *((uint32_t*)&m_serial_address[18]);
 	}
+
 #else
 	sockaddr_in* addr = reinterpret_cast<sockaddr_in*>(addrbuf);
+
 	memset(addr, 0, sizeof(sockaddr_in));
 	addr->sin_family = AF_INET;
 	addr->sin_port = raw_port();

@@ -83,5 +83,8 @@ when "items"
 	usage if ARGV.length != 0
 	p KumoServer.new(host, port).GetStatus(KumoServer::STAT_DB_ITEMS)
 
+else
+	usage
+
 end
 

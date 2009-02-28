@@ -71,15 +71,15 @@ public:
 std::ostream& operator<< (std::ostream& stream, const address& addr);
 
 
-#ifdef KUMO_IPV6
 inline address::address() :
+#ifdef KUMO_IPV6
 	m_serial_length(0)
 {
 	*((uint16_t*)&m_serial_address[0]) = 0;
 }
 #else
-inline address::address() :
-	m_serial(0) { }
+	m_serial(0)
+{ }
 #endif
 
 //inline address::address(const address& o) :

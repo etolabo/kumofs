@@ -2,7 +2,6 @@
 #define LOGIC_GW_H__
 
 #include "logic/rpc.h"
-#include "rpc/sbuffer.h"
 
 namespace kumo {
 

@@ -57,11 +57,19 @@ private:
 	void expand_buffer(size_t req)
 	{
 		size_t nsize;
-		if(!m_storage) { nsize = INITIAL_ALLOCATION_SIZE; }
-		else { nsize = (m_free + m_used) * 2; }
+		if(!m_storage) {
+			nsize = INITIAL_ALLOCATION_SIZE;
+		} else {
+			nsize = (m_free + m_used) * 2;
+		}
+
 		while(nsize < m_used + req) { nsize *= 2; }
+
 		char* tmp = (char*)realloc(m_storage, nsize);
-		if(!tmp) { throw std::bad_alloc(); }
+		if(!tmp) {
+			throw std::bad_alloc();
+		}
+
 		m_storage = tmp;
 		m_free = nsize - m_used;
 	}
