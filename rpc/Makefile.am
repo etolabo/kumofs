@@ -21,7 +21,6 @@ noinst_HEADERS = \
 		responder.h \
 		responder_impl.h \
 		rpc.h \
-		sbuffer.h \
 		server.h \
 		session.h \
 		session_impl.h \

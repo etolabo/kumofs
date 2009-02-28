@@ -2,7 +2,6 @@
 #define RPC_RESPONDER_IMPL_H__
 
 #include <mp/object_callback.h>
-#include "rpc/sbuffer.h"
 #include "rpc/vrefbuffer.h"
 #include "rpc/wavy.h"
 
@@ -52,12 +51,12 @@ inline void responder::null()
 template <typename Result, typename Error>
 inline void responder::call(Result& res, Error& err)
 {
-	rpc::sbuffer buf;  // FIXME use vrefbuffer?
+	msgpack::sbuffer buf;  // FIXME use vrefbuffer?
 	rpc_response<Result&, Error> msgres(res, err, m_msgid);
 	msgpack::pack(buf, msgres);
 
 	wavy::request req(&::free, buf.data());
-	wavy::write(m_fd, (char*)buf.data(), buf.size(), req);
+	wavy::write(m_fd, buf.data(), buf.size(), req);
 	buf.release();
 }
 

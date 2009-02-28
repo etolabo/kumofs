@@ -1,5 +1,4 @@
 #include "rpc/cluster.h"
-#include "rpc/sbuffer.h"
 
 namespace rpc {
 
@@ -39,14 +38,14 @@ void cluster_transport::rebind(basic_shared_session s)
 
 void cluster_transport::send_init()
 {
-	sbuffer buf;
+	msgpack::sbuffer buf;
 	rpc_initmsg param(
 			get_server()->m_self_addr,
 			get_server()->m_self_id);
 	msgpack::pack(buf, param);
 
 	wavy::request req(&::free, buf.data());
-	wavy::write(fd(), (char*)buf.data(), buf.size(), req);
+	wavy::write(fd(), buf.data(), buf.size(), req);
 	buf.release();
 	LOG_TRACE("sent init message");
 }

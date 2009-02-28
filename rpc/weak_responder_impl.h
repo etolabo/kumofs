@@ -85,7 +85,7 @@ namespace detail {
 template <typename Result, typename Error>
 void weak_responder::call(Result& res, Error& err)
 {
-	rpc::sbuffer buf;  // FIXME use vrefbuffer?
+	msgpack::sbuffer buf;  // FIXME use vrefbuffer?
 	rpc_response<Result, Error> msgres(res, err, m_msgid);
 	msgpack::pack(buf, msgres);
 
