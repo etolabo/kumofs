@@ -446,8 +446,7 @@ RPC_REPLY(ResReplicateSet, from, res, err, life,
 		}
 		if(!retry->param().is_rhs()) {  // FIXME ?
 			response.null();
-			MLOGPACK("ers",1, "Replicate set failed",
-					"msg",std::string("ReplicateSet failed"),
+			LOGPACK("ers",2,
 					"key",msgtype::raw_ref(
 						retry->param().dbkey().data(),
 						retry->param().dbkey().size()),
@@ -483,8 +482,7 @@ RPC_REPLY(ResReplicateDelete, from, res, err, life,
 		}
 		if(!retry->param().is_rhs()) {  // FIXME ?
 			response.null();
-			MLOGPACK("erd",1, "Replicate delete failed",
-					"msg",std::string("ReplicateDelete failed"),
+			LOGPACK("erd",2,
 					"key",msgtype::raw_ref(
 						retry->param().dbkey().data(),
 						retry->param().dbkey().size()));

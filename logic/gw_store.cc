@@ -180,7 +180,7 @@ try {
 		ret.vallen    = 0;
 		ret.clocktime = 0;
 		try { (*callback)(user, ret); } catch (...) { }
-		MLOGPACK("eg",1, "Get failed",
+		LOGPACK("eg",2,
 				"key",msgtype::raw_ref(key.data(),key.size()),
 				"err",err.via.u64);
 		LOG_ERROR("Get error: ", err);
@@ -235,7 +235,7 @@ try {
 		ret.vallen    = val.size();
 		ret.clocktime = 0;
 		try { (*callback)(user, ret); } catch (...) { }
-		MLOGPACK("es",1, "Set failed",
+		LOGPACK("es",2,
 				"key",msgtype::raw_ref(key.data(),key.size()),
 				"val",msgtype::raw_ref(val.data(),val.size()),
 				"err",err.via.u64);
@@ -286,7 +286,7 @@ try {
 		ret.hash      = key.hash();
 		ret.deleted   = false;
 		try { (*callback)(user, ret); } catch (...) { }
-		MLOGPACK("ed",1, "Delete failed",
+		LOGPACK("ed",2,
 				"key",msgtype::raw_ref(key.data(),key.size()),
 				"err",err.via.u64);
 		LOG_ERROR("Delete error: ",err);

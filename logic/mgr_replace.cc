@@ -7,7 +7,7 @@ namespace kumo {
 void Manager::add_server(const address& addr, shared_node& s)
 {
 	LOG_INFO("server connected ",s->addr());
-	MLOGPACK("nS",1, "New server",
+	LOGPACK("nS",2,
 			"addr", addr);
 
 	//if(!m_whs.server_is_fault(addr)) {
@@ -24,7 +24,7 @@ void Manager::add_server(const address& addr, shared_node& s)
 void Manager::remove_server(const address& addr)
 {
 	LOG_INFO("server lost ",addr);
-	MLOGPACK("lS",1, "Lost server",
+	LOGPACK("lS",2,
 			"addr", addr);
 
 	ClockTime ct = m_clock.now_incr();

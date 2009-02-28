@@ -4,6 +4,7 @@ begin
 rescue LoadError
 end
 require 'msgpack'
+require 'yaml'
 require 'pp'
 
 def fixstr(code)
@@ -102,44 +103,110 @@ def do_parse(src, count, &block)
 	end
 end
 
+class Hash
+	def hmap(&block)
+		m = self.dup
+		each_pair {|k, v|
+			m[k] = block.call(k, v)
+		}
+		m
+	end
+end
+
+
 if ARGV.length == 0
 	puts "usage: #{File.basename($0)} <logfile.mpac>"
 	exit 1
 end
 
-do_parse(File.read(ARGV[0]), 1<<30) {|name, version, hash|
-	puts "#{name}.#{version}: #{hash.pretty_inspect}"
+
+conf = YAML.load DATA.read.gsub(/(^\t+)/) {
+	'  ' * $+.length
 }
+
+msgdb = conf["message"]
+
+filterdb = conf["filter"].hmap {|name, hash|
+	hash.hmap {|key, proc|
+		[ proc[0], eval("lambda{|val|#{proc[1]}}") ]
+	}
+}
+
+do_parse(File.read(ARGV[0]), 1<<30) {|name, version, hash|
+	msg = hash["msg"] || msgdb[name] || name
+
+	if filter = filterdb["#{name}.#{version}"]
+		filter.map {|key, proc|
+			val = hash.delete(key)
+			hash[proc[0]] = proc[1].call(val)
+		}
+	end
+
+	vals = hash.map {|k, v|
+		pv = v.pretty_inspect.rstrip
+		pv = v if pv[1..-2] == v
+		"#{k}=[#{pv}]"
+	}.join('  ')
+
+	puts "%s.%s  %-15s  %s" % [name, version, msg, vals]
+}
+
 
 __END__
-if ARGV.length != 3
-	prog = File.basename($0)
-puts <<EOF
-usage:  #{prog} <logfile.mpac> <map> <reduce>
-example:
-  - show logs whose "length" parameter is larger than 3
-     #{prog} log.mpack  'self if self[\"length\"] > 3'  'self'
+proc:
+	- &addr |
+		require 'socket'
+		if val.length == 6
+			addr = Socket.pack_sockaddr_in(0, '0.0.0.0')
+			addr[2,6] = val[0,6]
+		else
+			addr = Socket.pack_sockaddr_in(0, '::')
+			addr[2,2]  = val[0,2]
+			addr[8,20] = val[2,20]
+		end
+		Socket.unpack_sockaddr_in(addr).reverse.join(':')
 
-  - count logs whose "msg" parameter is "target":
-     #{prog} log.mpack  '1 if self[\"msg\"] == \"target\"'  'count'
-EOF
-	exit 1
-end
+	- &time |
+		Time.at(val).strftime("%Y-%m-%d %H:%M:%S")
 
-map = eval("Proc.new{#{ARGV[1]}}")
-reduce = eval("Proc.new{#{ARGV[2]}}")
-src = File.read(ARGV[0])
+	- &clocktime |
+		Time.at(val>>32).strftime("%Y-%m-%d %H:%M:%S") + " clock #{val & 0xffffffff}"
 
-result = []
+message:
+	SM: Manager start
+	SS: Server start
+	SW: Gateway start
+	eP: unknown partner
+	nS: new server
+	lS: lost server
+	ers: replicate-set failed
+	erd: replicate-delete failed
+	eg: Get failed
+	es: Set failed
+	ed: Delete failed
 
-do_parse(src, 1<<30) {|name, hash|
-	puts "#{name}: #{hash.inspect}"
-	hash.instance_eval { @name = name }
-	def hash.name; @name; end
-	def hash.method_missing(name); self[name.to_s]; end
-	o = hash.instance_eval(&map)
-	result << o unless o.nil?
-}
-pp result.instance_eval(&reduce)
-
+filter:
+	SM.2:
+		time: [time, *time]
+		addr: [address, *addr]
+		Padd: [partner, *addr]
+	SS.2:
+		time: [time, *time]
+		addr: [address, *addr]
+		db:   [database, val]
+		mgr1: [manager1, *addr]
+		mgr2: [manager2, *addr]
+		sadd: [stream_listen, *addr]
+		tmpd: [tmp_dir, val]
+		bkup: [backup_prefix, val]
+	SW.2:
+		time: [time, *time]
+		mgr1: [manager1, *addr]
+		mgr2: [manager2, *addr]
+	eP.2:
+		addr: [address, *addr]
+	nS.2:
+		addr: [address, *addr]
+	lS.2:
+		addr: [address, *addr]
 

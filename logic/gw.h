@@ -178,7 +178,7 @@ Gateway::Gateway(Config& cfg) :
 	m_cfg_delete_retry_num(cfg.delete_retry_num),
 	m_cfg_renew_threshold(cfg.renew_threshold)
 {
-	MLOGPACK("SW",1, "Gateway start",
+	LOGPACK("SW",2,
 			"time", time(NULL),
 			"mgr1", m_manager1,
 			"mgr2", m_manager2);

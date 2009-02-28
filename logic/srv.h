@@ -263,7 +263,7 @@ Server::Server(Config& cfg) :
 	m_stat_num_delete(0)
 {
 	LOG_INFO("start server ",addr());
-	MLOGPACK("SS",1, "Server start",
+	LOGPACK("SS",2,
 			"time", time(NULL),
 			"addr", cfg.cluster_addr,
 			"db",cfg.dbpath,

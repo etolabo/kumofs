@@ -97,6 +97,7 @@ int main(int argc, char* argv[])
 	// initialize logger first
 	mlogger::level loglevel = (arg.verbose ? mlogger::TRACE : mlogger::WARN);
 	if(arg.logfile_set) {
+		// log to file
 		if(arg.logfile == "-") {
 			mlogger::reset(new mlogger_ostream(loglevel, std::cout));
 		} else {

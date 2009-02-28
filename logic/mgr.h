@@ -153,7 +153,7 @@ Manager::Manager(Config& cfg) :
 	m_delayed_replace_clock(0)
 {
 	LOG_INFO("start manager ",addr());
-	MLOGPACK("SM",1, "Manager start",
+	LOGPACK("SM",2,
 			"time", time(NULL),
 			"addr", cfg.cluster_addr,
 			"Padd", m_partner);
