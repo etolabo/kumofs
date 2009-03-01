@@ -19,7 +19,6 @@ Storage::Storage(const char* path,
 		throw std::runtime_error("failed to initialize storage module");
 	}
 
-	//if(!m_op.open(m_data, argc, argv)) {
 	if(!m_op.open(m_data, path)) {
 		std::string msg = error();
 		m_op.free(m_data);

@@ -26,6 +26,10 @@ struct arg_t : rpc_cluster_args {
 	unsigned short replicate_set_retry_num;
 	unsigned short replicate_delete_retry_num;
 
+	unsigned int garbage_min_time_sec;
+	unsigned int garbage_max_time_sec;
+	size_t garbage_mem_limit_kb;
+
 	virtual void convert()
 	{
 		cluster_addr = rpc::address(cluster_addr_in);
@@ -47,7 +51,10 @@ struct arg_t : rpc_cluster_args {
 	arg_t(int argc, char** argv) :
 		stream_port(SERVER_STREAM_DEFAULT_PORT),
 		replicate_set_retry_num(20),
-		replicate_delete_retry_num(20)
+		replicate_delete_retry_num(20),
+		garbage_min_time_sec(60),
+		garbage_max_time_sec(60*60),
+		garbage_mem_limit_kb(2*1024)
 	{
 		clock_interval = 8.0;
 
@@ -67,8 +74,14 @@ struct arg_t : rpc_cluster_args {
 				type::connectable(&manager2_in, MANAGER_DEFAULT_PORT));
 		on("-S", "--replicate-set-retry",
 				type::numeric(&replicate_set_retry_num, replicate_set_retry_num));
-		on("-G", "--replicate-delete-retry",
+		on("-D", "--replicate-delete-retry",
 				type::numeric(&replicate_delete_retry_num, replicate_delete_retry_num));
+		on("-gN", "--garbage-min-time",
+				type::numeric(&garbage_min_time_sec, garbage_min_time_sec));
+		on("-gX", "--garbage-max-time",
+				type::numeric(&garbage_max_time_sec, garbage_max_time_sec));
+		on("-gS", "--garbage-mem-limit",
+				type::numeric(&garbage_mem_limit_kb, garbage_mem_limit_kb));
 		parse(argc, argv);
 	}
 
@@ -83,8 +96,11 @@ std::cout <<
 "  -s  <path.tch>            "                            "--store          path to database\n"
 "  -m  <addr[:port="<<MANAGER_DEFAULT_PORT<<"]>   "       "--manager1       address of manager 1\n"
 "  -p  <addr[:port="<<MANAGER_DEFAULT_PORT<<"]>   "       "--manager2       address of manager 2\n"
-"  -S  <number="<<replicate_set_retry_num<<">   "         "--replicate-set-retry    replicate set retry limit\n"
-"  -D  <number="<<replicate_delete_retry_num<<">   "      "--replicate-delete-retry replicate delete retry limit\n"
+"  -S  <number="<<replicate_set_retry_num<<">        "    "--replicate-set-retry    replicate set retry limit\n"
+"  -D  <number="<<replicate_delete_retry_num<<">        " "--replicate-delete-retry replicate delete retry limit\n"
+"  -gN <seconds="<<garbage_min_time_sec<<">       "       "--garbage-min-time       minimum time to maintenance deleted key\n"
+"  -gX <seconds="<<garbage_max_time_sec<<">     "         "--garbage-max-time       maximum time to maintenance deleted key\n"
+"  -gS <kilobytes="<<garbage_mem_limit_kb<<">   "         "--garbage-mem-limit      maximum memory usage to memory deleted key\n"
 ;
 rpc_cluster_args::show_usage();
 	}
@@ -123,8 +139,10 @@ int main(int argc, char* argv[])
 	}
 
 	// open database
-	// FIXME garbage_{min,max}_time, garbage_mem_limit
-	std::auto_ptr<Storage> db(new Storage(arg.dbpath.c_str(), 5, 10, 32*1024));
+	std::auto_ptr<Storage> db(new Storage(arg.dbpath.c_str(),
+				arg.garbage_min_time_sec,
+				arg.garbage_max_time_sec,
+				arg.garbage_mem_limit_kb*1024));
 	arg.db = db.get();
 
 	// run server
