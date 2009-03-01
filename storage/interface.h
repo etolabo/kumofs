@@ -184,10 +184,14 @@ inline const char* Storage::get(
 		const char* raw_key, uint32_t raw_keylen,
 		uint32_t* result_raw_vallen, msgpack::zone* z)
 {
-	return m_op.get(m_data,
+	const char* raw_val = m_op.get(m_data,
 			raw_key, raw_keylen,
 			result_raw_vallen,
 			z);
+	if(raw_val && *result_raw_vallen < VALUE_META_SIZE) {
+		return NULL;
+	}
+	return raw_val;
 }
 
 

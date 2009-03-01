@@ -59,14 +59,14 @@ node_found:
 
 // FIXME submit callback?
 #define GATEWAY_CATCH(NAME, response_type) \
-catch (std::runtime_error& e) { \
-	LOG_WARN(#NAME " FAILED: ",e.what()); \
+catch (msgpack::type_error& e) { \
+	LOG_WARN(#NAME " FAILED: type error"); \
 	response_type res; \
 	res.life = life; \
 	res.error = 1; \
 	wavy::submit(*callback, user, res); \
-} catch (std::bad_alloc& e) { \
-	LOG_WARN(#NAME " FAILED: bad alloc"); \
+} catch (std::exception& e) { \
+	LOG_WARN(#NAME " FAILED: ",e.what()); \
 	response_type res; \
 	res.life = life; \
 	res.error = 1; \

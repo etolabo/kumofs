@@ -36,18 +36,24 @@ class Server::OfferStorage::mmap_stream {
 public:
 	mmap_stream(int fd);
 	~mmap_stream();
-	void write(const void* buf, size_t len);
 	size_t size() const;
+
+	void write(const void* buf, size_t len);
+	void flush();
+
 private:
 	size_t m_free;
 	char* m_head;
 	char* m_map;
 	int m_fd;
 	void expand_map(size_t req);
+
 private:
-	msgpack::packer<mmap_stream> m_pk;
+	msgpack::packer<mmap_stream> m_mpk;
+
 public:
-	msgpack::packer<mmap_stream>& get() { return m_pk; }
+	msgpack::packer<mmap_stream>& get() { return m_mpk; }
+
 private:
 	mmap_stream();
 	mmap_stream(const mmap_stream&);
@@ -56,7 +62,7 @@ private:
 Server::OfferStorage::mmap_stream::mmap_stream(int fd) :
 	m_free(KUMO_OFFER_INITIAL_MAP_SIZE),
 	m_fd(fd),
-	m_pk(*this)
+	m_mpk(*this)
 {
 	if(::ftruncate(m_fd, m_free) < 0) {
 		throw mp::system_error(errno, "failed to truncate offer storage");
@@ -85,10 +91,30 @@ size_t Server::OfferStorage::mmap_stream::size() const
 
 void Server::OfferStorage::mmap_stream::write(const void* buf, size_t len)
 {
-	if(m_free < len) { expand_map(len); }
+	if(m_free < len) {
+		expand_map(len);
+	}
 	memcpy(m_head, buf, len);
 	m_free -= len;
 	m_head += len;
+
+	/*
+	m_z.next_in = buf;
+	m_z.avail_in = len;
+	while(true) {
+		if(deflate(&m_z, Z_NO_FLUSH) != Z_OK) {
+			throw std::runtime_error("deflate failed");
+		}
+
+		if(m_z.avail_in > 0) {
+			expand_map(len);
+		}
+	}
+	*/
+}
+
+void Server::OfferStorage::mmap_stream::flush()
+{
 }
 
 void Server::OfferStorage::mmap_stream::expand_map(size_t req)
@@ -214,6 +240,7 @@ Server::OfferStorage::OfferStorage(const std::string& basename,
 
 Server::OfferStorage::~OfferStorage() { }
 
+
 void Server::OfferStorage::add(
 		const char* key, size_t keylen,
 		const char* val, size_t vallen)
@@ -228,6 +255,7 @@ void Server::OfferStorage::add(
 
 void Server::OfferStorage::send(int sock)
 {
+	m_mmap->flush();
 	size_t size = m_mmap->size();
 	//m_mmap.reset(NULL);  // FIXME needed?
 	while(size > 0) {

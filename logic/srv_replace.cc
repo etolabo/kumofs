@@ -296,6 +296,7 @@ try {
 			(sockaddr*)addrbuf, sizeof(addrbuf),
 			m_connect_timeout_msec,
 			mp::bind(&Server::stream_connected, this, _1, _2));
+
 	// Note: don't return any result
 	LOG_TRACE("connect replace offer to ",from->addr()," with stream port ",param.port());
 }
@@ -306,9 +307,14 @@ RPC_REPLY(ResReplaceOffer, from, res, err, life,
 {
 	LOG_TRACE("ResReplaceOffer from ",addr," res:",res," err:",err);
 	// Note: this request always timed out
+
 	pthread_scoped_lock oflk(m_offer_map_mutex);
+
 	SharedOfferMap::iterator it = find_offer_map(m_offer_map, addr);
-	if(it == m_offer_map.end()) { return; }
+	if(it == m_offer_map.end()) {
+		return;
+	}
+
 	m_offer_map.erase(it);
 }
 

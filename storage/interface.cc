@@ -140,7 +140,7 @@ bool Storage::remove(
 		const char* raw_key, uint32_t raw_keylen,
 		ClockTime update_clocktime)
 {
-	char clockbuf[8];
+	char clockbuf[VALUE_CLOCKTIME_SIZE];
 	clocktime_to(update_clocktime, clockbuf);
 
 	bool removed = update(raw_key, raw_keylen, clockbuf, sizeof(clockbuf));
@@ -158,6 +158,7 @@ bool Storage::remove(
 		gclk.relock(m_garbage_mutex);
 
 		m_garbage.push(clock_key.data(), clock_key.size(raw_keylen));
+//LOG_ERROR("push garbage '",std::string(raw_key, raw_keylen),"' ",update_clocktime.get(),"  ",m_garbage.total_size());
 	}
 
 	while(true) {
@@ -170,6 +171,7 @@ bool Storage::remove(
 		scoped_clock_key::wrap garbage_key(data, size);
 
 		if(m_garbage.total_size() > m_garbage_mem_limit) {
+//LOG_ERROR("over memory '",std::string(garbage_key.key(), garbage_key.keylen()),"' ",update_clocktime.get(),"  ",m_garbage.total_size());
 			// over usage over, pop garbage
 			if(garbage_key.clocktime() <
 					update_clocktime.before_sec(m_garbage_min_time)) {  // min check
@@ -182,6 +184,7 @@ bool Storage::remove(
 
 		} else if(garbage_key.clocktime() <
 				update_clocktime.before_sec(m_garbage_max_time)) {  // max check
+//LOG_ERROR("garbage collect '",std::string(garbage_key.key(), garbage_key.keylen()),"' ",update_clocktime.get(),"  ",m_garbage.total_size());
 			m_op.del(m_data,
 					garbage_key.key(), garbage_key.keylen(),
 					&storage_casproc,
@@ -227,6 +230,7 @@ try {
 				// garbage
 				ClockTime garbage_clocktime = Storage::clocktime_of(val);
 				if(garbage_clocktime < data->clocktime_limit) {
+//LOG_ERROR("iterator garbage collect '",std::string(val, vallen),"' ",data->clocktime_limit.get());
 					data->op->iterator_del(iterator_data,
 						&storage_casproc,
 						reinterpret_cast<void*>(&data->clocktime_limit));

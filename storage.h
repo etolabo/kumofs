@@ -71,8 +71,8 @@ typedef struct {
 	const char* (*iterator_key)(void* iterator_data);
 	const char* (*iterator_val)(void* iterator_data);
 
-	size_t (*iterator_vallen)(void* iterator_data);
 	size_t (*iterator_keylen)(void* iterator_data);
+	size_t (*iterator_vallen)(void* iterator_data);
 
 	// success: true;  failed: false
 	bool (*iterator_release_key)(void* iterator_data, msgpack_zone* zone);

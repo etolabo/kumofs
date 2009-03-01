@@ -2,7 +2,6 @@
 #include <tchdb.h>
 #include <mp/pthread.h>
 
-#include "log/mlogger.h"
 
 struct kumo_tchdb {
 	kumo_tchdb()
@@ -230,11 +229,6 @@ try {
 	kumo_tchdb_iterator it(ctx);
 
 	while( tchdbiternext3(ctx->db, it.key, it.val) ) {
-		if(TCXSTRSIZE(it.val) < 16 || TCXSTRSIZE(it.key) < 8) {
-			// FIXME delete it?
-			continue;
-		}
-
 		int ret = (*func)(user, (void*)&it);
 		if(ret < 0) {
 			return ret;
