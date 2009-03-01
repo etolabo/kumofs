@@ -5,7 +5,7 @@
     <meta content="application/xhtml+xml; charset=UTF-8" http-equiv="content-type" />
     <meta content="text/css" http-equiv="content-style-type" />
     <meta content="text/javascript" http-equiv="content-script-type" />
-    <title>Kumofs memo -- Kumo Fast Storage rev.906</title>
+    <title>Kumofs memo -- Kumo Fast Storage rev.923</title>
     <meta name="author" content="FURUHASHI Sadayuki" />
   </head>
   <body>
@@ -38,6 +38,7 @@
     <h4>delete(key)</h4>
     <p>keyを削除する。</p>
     <p>再配置処理を行っている間にdeleteを行うと、削除されないことがある。また同じkeyに対してdeleteとsetをほぼ同時に行うと、削除されないことがある。これはレプリケーションを行うServer同士のやりとりが、Gatewayが送出したdeleteリクエストと入れ違う可能性があるため。</p>
+    <p>Serverの引数を調整することで、deleteが一貫性を保たない確率を減らすことができる。</p>
     <br />
     <h3>動作環境と制限</h3>
     <h4>サーバーの時刻設定</h4>
@@ -178,6 +179,12 @@ $ sudo gem install gem/pkg/msgpack-*.gem
       <dd>データを保存するデータベースファイルのパスを指定する</dd>
       <dt>-f &lt;dir&gt;</dt>
       <dd>レプリケーションの再配置に使う一時ファイルを保存するディレクトリを指定する。データベースファイルのサイズに応じて十分な空き容量が必要</dd>
+      <dt>-gS &lt;seconds&gt;</dt>
+      <dd>deleteしたエントリのクロックを保持しておくメモリ使用量の上限をKB単位で指定する</dd>
+      <dt>-gN &lt;seconds&gt;</dt>
+      <dd>deleteしたエントリのクロックを保持しておく最小時間を指定する。メモリ使用量が上限に達していると、最大時間に満たなくても最小時間を過ぎていれば削除される。</dd>
+      <dt>-gX &lt;seconds&gt;</dt>
+      <dd>deleteしたエントリのクロックを保持しておく最大時間を指定する</dd>
     </dl>
     <h4>kumo-gateway</h4>
     <dl>
@@ -187,6 +194,12 @@ $ sudo gem install gem/pkg/msgpack-*.gem
       <dd>もし存在するなら、もう一台のkumo-managerのホスト名とポート番号を指定する</dd>
       <dt>-t &lt;port&gt;</dt>
       <dd>memcachedテキストプロトコルを待ち受けるポート番号を指定する</dd>
+      <dt>-G &lt;number&gt;</dt>
+      <dd>getの最大リトライ回数を指定する</dd>
+      <dt>-S &lt;number&gt;</dt>
+      <dd>setの最大リトライ回数を指定する</dd>
+      <dt>-D &lt;number&gt;</dt>
+      <dd>deleteの最大リトライ回数を指定する</dd>
       <dt>-As</dt>
       <dd>set操作でレプリケーションするとき、レプリケーション完了の応答を待たずに成功を返すようにする</dd>
       <dt>-Ad</dt>
