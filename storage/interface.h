@@ -2,6 +2,7 @@
 #define STORAGE_INTERFACE_H__
 
 #include "storage.h"
+#include "storage/buffer_queue.h"
 #include "logic/clock.h"
 #include <mp/pthread.h>
 #include <mp/shared_buffer.h>
@@ -9,27 +10,76 @@
 #include <msgpack.hpp>
 #include <arpa/inet.h>
 
-#include <tchdb.h>
+#ifdef __LITTLE_ENDIAN__
+#if defined(__bswap_64)
+#  define kumo_be64(x) __bswap_64(x)
+#elif defined(__DARWIN_OSSwapInt64)
+#  define kumo_be64(x) __DARWIN_OSSwapInt64(x)
+#else
+static inline uint64_t kumo_be64(uint64_t x) {
+	return	((x << 56) & 0xff00000000000000ULL ) |
+			((x << 40) & 0x00ff000000000000ULL ) |
+			((x << 24) & 0x0000ff0000000000ULL ) |
+			((x <<  8) & 0x000000ff00000000ULL ) |
+			((x >>  8) & 0x00000000ff000000ULL ) |
+			((x >> 24) & 0x0000000000ff0000ULL ) |
+			((x >> 40) & 0x000000000000ff00ULL ) |
+			((x >> 56) & 0x00000000000000ffULL ) ;
+}
+#endif
+#else
+#define kumo_be64(x) (x)
+#endif
 
+/* Big endian
+ *
+ * key:
+ * +--------+-----------------+
+ * |   64   |       ...       |
+ * +--------+-----------------+
+ * hash
+ *          key
+ *
+ * value:
+ * +--------+--------+-----------------+
+ * |   64   |   64   |       ...       |
+ * +--------+--------+-----------------+
+ * clocktime
+ *          meta
+ *                   data
+ *
+ * value (garbage):
+ * +--------+
+ * |   64   |
+ * +--------+
+ * clocktime
+ */
 
 namespace kumo {
 
 
 class Storage {
 public:
-	//Storage(int* argc, char** argv);
-	Storage(const char* path);
+	Storage(const char* path,
+			uint32_t garbage_min_time,
+			uint32_t garbage_max_time,
+			size_t garbage_mem_limit);
+
 	~Storage();
 
 	static const size_t KEY_META_SIZE = 8;
-	static const size_t VALUE_META_SIZE = 16;
+	static const size_t VALUE_CLOCKTIME_SIZE = 8;
+	static const size_t VALUE_META_SIZE = VALUE_CLOCKTIME_SIZE + 8;
 
 
 	static ClockTime clocktime_of(const char* raw_val);
+	static void clocktime_to(ClockTime clocktime, char* raw_val);
 
 	static uint64_t meta_of(const char* raw_val);
+	static void meta_to(uint64_t meta, char* raw_val);
 
 	static uint64_t hash_of(const char* raw_key);
+	static void hash_to(uint64_t hash, char* raw_key);
 
 public:
 	const char* get(
@@ -44,9 +94,9 @@ public:
 			const char* raw_key, uint32_t raw_keylen,
 			const char* raw_val, uint32_t raw_vallen);
 
-	bool del(
+	bool remove(
 			const char* raw_key, uint32_t raw_keylen,
-			ClockTime clocktime);
+			ClockTime update_clocktime);
 
 	// FIXME
 	//void updatev()
@@ -58,7 +108,7 @@ public:
 	std::string error();
 
 	template <typename F>
-	void for_each(F f);
+	void for_each(F f, ClockTime clocktime);
 
 	struct iterator {
 	public:
@@ -83,21 +133,30 @@ private:
 	void* m_data;
 	kumo_storage_op m_op;
 
+	mp::pthread_mutex m_garbage_mutex;
+	buffer_queue m_garbage;
+
+	uint32_t m_garbage_min_time;
+	uint32_t m_garbage_max_time;
+	size_t m_garbage_mem_limit;
+
 private:
 	template <typename F>
-	struct for_each_data {
-		kumo_storage_op* op;
-		F* func;
-	};
+	static void for_each_callback(void* obj, iterator& it);
 
-	template <typename F>
-	static int for_each_callback(void* user, void* iterator_data);
+	void for_each_impl(void* obj, void (*callback)(void* obj, iterator& it),
+			ClockTime clocktime);
 };
 
 
 inline ClockTime Storage::clocktime_of(const char* raw_val)
 {
-	return ClockTime( kumo_storage_clocktime_of(raw_val) );
+	return ClockTime( kumo_be64(*(uint64_t*)raw_val) );
+}
+
+inline void Storage::clocktime_to(ClockTime clocktime, char* raw_val)
+{
+	*(uint64_t*)raw_val = kumo_be64(clocktime.get());
 }
 
 inline uint64_t Storage::meta_of(const char* raw_val)
@@ -105,34 +164,19 @@ inline uint64_t Storage::meta_of(const char* raw_val)
 	return kumo_be64(*(uint64_t*)(raw_val+8));
 }
 
+inline void Storage::meta_to(uint64_t meta, char* raw_val)
+{
+	*((uint64_t*)(raw_val+8)) = kumo_be64(meta);
+}
+
 inline uint64_t Storage::hash_of(const char* raw_key)
 {
-	return kumo_storage_hash_of(raw_key);
+	return kumo_be64(*(uint64_t*)raw_key);
 }
 
-
-//Storage::Storage(int* argc, char** argv)
-inline Storage::Storage(const char* path)
+inline void Storage::hash_to(uint64_t hash, char* raw_key)
 {
-	m_op = kumo_storage_init();
-
-	m_data = m_op.create();
-	if(!m_data) {
-		throw std::runtime_error("failed to initialize storage module");
-	}
-
-	//if(!m_op.open(m_data, argc, argv)) {
-	if(!m_op.open(m_data, path)) {
-		std::string msg = error();
-		m_op.free(m_data);
-		throw std::runtime_error(msg);
-	}
-}
-
-inline Storage::~Storage()
-{
-	m_op.close(m_data);
-	m_op.free(m_data);
+	*(uint64_t*)raw_key = kumo_be64(hash);
 }
 
 
@@ -146,78 +190,20 @@ inline const char* Storage::get(
 			z);
 }
 
-inline void Storage::set(
-		const char* raw_key, uint32_t raw_keylen,
-		const char* raw_val, uint32_t raw_vallen)
-{
-	if(!m_op.set(m_data,
-			raw_key, raw_keylen,
-			raw_val, raw_vallen)) {
-		throw std::runtime_error("set failed");
-	}
-}
 
-inline bool Storage::update(
-		const char* raw_key, uint32_t raw_keylen,
-		const char* raw_val, uint32_t raw_vallen)
+template <typename F>
+inline void Storage::for_each(F f, ClockTime clocktime)
 {
-	return m_op.update(m_data,
-			raw_key, raw_keylen,
-			raw_val, raw_vallen);
-}
-
-// FIXME
-//void Storage::updatev()
-
-inline bool Storage::del(
-		const char* raw_key, uint32_t raw_keylen,
-		ClockTime clocktime)
-{
-	return m_op.del(m_data,
-			raw_key, raw_keylen,
-			clocktime.get());
-}
-
-inline uint64_t Storage::rnum()
-{
-	return m_op.rnum(m_data);
-}
-
-inline void Storage::backup(const char* dstpath)
-{
-	if(!m_op.backup(m_data, dstpath)) {
-		throw std::runtime_error("backup failed");
-	}
-}
-
-inline std::string Storage::error()
-{
-	return std::string( m_op.error(m_data) );
+	for_each_impl(
+			reinterpret_cast<void*>(&f),
+			&Storage::for_each_callback<F>,
+			clocktime);
 }
 
 template <typename F>
-inline void Storage::for_each(F f)
+void Storage::for_each_callback(void* obj, iterator& it)
 {
-	for_each_data<F> user = {&m_op, &f};
-	int ret = m_op.for_each(m_data,
-			reinterpret_cast<void*>(&user),
-			&Storage::for_each_callback<F>);
-	if(ret < 0) {
-		throw std::runtime_error("error while iterating database");
-	}
-}
-
-template <typename F>
-int Storage::for_each_callback(void* user, void* iterator_data)
-{
-	iterator it(reinterpret_cast<for_each_data<F>*>(user)->op, iterator_data);
-	try {
-		(*reinterpret_cast<for_each_data<F>*>(user)->func)(it);
-		return 0;
-	} catch (...) {
-		// FIXME log
-		return -1;
-	}
+	(*reinterpret_cast<F*>(obj))(it);
 }
 
 
@@ -262,7 +248,7 @@ inline void Storage::iterator::release_val(msgpack::zone* z)
 
 inline void Storage::iterator::del()
 {
-	m_op->iterator_del(m_data);
+	m_op->iterator_del_force(m_data);
 }
 
 

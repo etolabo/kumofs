@@ -123,7 +123,8 @@ int main(int argc, char* argv[])
 	}
 
 	// open database
-	std::auto_ptr<Storage> db(new Storage(arg.dbpath.c_str()));
+	// FIXME garbage_{min,max}_time, garbage_mem_limit
+	std::auto_ptr<Storage> db(new Storage(arg.dbpath.c_str(), 5, 10, 32*1024));
 	arg.db = db.get();
 
 	// run server

@@ -2,6 +2,8 @@
 #include <tchdb.h>
 #include <mp/pthread.h>
 
+#include "log/mlogger.h"
+
 struct kumo_tchdb {
 	kumo_tchdb()
 	{
@@ -9,25 +11,15 @@ struct kumo_tchdb {
 		if(!db) {
 			throw std::bad_alloc();
 		}
-
-		garbage = kumo_buffer_queue_new();
-		if(!garbage) {
-			tchdbdel(db);
-			throw std::bad_alloc();
-		}
 	}
 
 	~kumo_tchdb()
 	{
 		tchdbdel(db);
-		kumo_buffer_queue_free(garbage);
 	}
 
 	TCHDB* db;
 	mp::pthread_mutex iterator_mutex;
-
-	kumo_buffer_queue* garbage;
-	mp::pthread_mutex garbage_mutex;
 
 private:
 	kumo_tchdb(const kumo_tchdb&);
@@ -93,21 +85,40 @@ static const char* kumo_tchdb_get(void* data,
 	return val;
 }
 
+static bool kumo_tchdb_set(void* data,
+		const char* key, uint32_t keylen,
+		const char* val, uint32_t vallen)
+{
+	kumo_tchdb* ctx = reinterpret_cast<kumo_tchdb*>(data);
+	return tchdbput(ctx->db, key, keylen, val, vallen);
+}
+
+
+static bool kumo_tchdb_del(void* data,
+		const char* key, uint32_t keylen,
+		kumo_storage_casproc proc, void* casdata)
+{
+	// FIXME tchdboutproc
+	kumo_tchdb* ctx = reinterpret_cast<kumo_tchdb*>(data);
+	return tchdbout(ctx->db, key, keylen);
+}
+
 
 typedef struct {
 	const char* val;
 	uint32_t vallen;
+	kumo_storage_casproc proc;
+	void* casdata;
 } kumo_tchdb_update_ctx;
 
 static void* kumo_tchdb_update_proc(const void* vbuf, int vsiz, int *sp, void* op)
 {
 	kumo_tchdb_update_ctx* upctx = (kumo_tchdb_update_ctx*)op;
 
-	if(vsiz < 8 || kumo_clocktime_less(
-			kumo_storage_clocktime_of((const char*)vbuf),
-			kumo_storage_clocktime_of(upctx->val))) {
+	if( upctx->proc(upctx->casdata, (const char*)vbuf, vsiz) ) {
+		// update
 
-		void* mem = malloc(upctx->vallen);
+		void* mem = ::malloc(upctx->vallen);
 		if(!mem) {
 			return NULL;  // FIXME
 		}
@@ -117,26 +128,19 @@ static void* kumo_tchdb_update_proc(const void* vbuf, int vsiz, int *sp, void* o
 		return mem;
 
 	} else {
+		// don't update
 		return NULL;
 	}
 }
 
-
-static bool kumo_tchdb_set(void* data,
-		const char* key, uint32_t keylen,
-		const char* val, uint32_t vallen)
-{
-	kumo_tchdb* ctx = reinterpret_cast<kumo_tchdb*>(data);
-	return tchdbput(ctx->db, key, keylen, val, vallen);
-}
-
 static bool kumo_tchdb_update(void* data,
-		const char* key, uint32_t keylen,
-		const char* val, uint32_t vallen)
+			const char* key, uint32_t keylen,
+			const char* val, uint32_t vallen,
+			kumo_storage_casproc proc, void* casdata)
 {
 	kumo_tchdb* ctx = reinterpret_cast<kumo_tchdb*>(data);
 
-	kumo_tchdb_update_ctx upctx = { val, vallen };
+	kumo_tchdb_update_ctx upctx = { val, vallen, proc, casdata };
 
 	return tchdbputproc(ctx->db,
 			key, keylen,
@@ -144,126 +148,6 @@ static bool kumo_tchdb_update(void* data,
 			kumo_tchdb_update_proc, &upctx);
 }
 
-
-struct scoped_clock_key {
-	scoped_clock_key(const char* key, uint32_t keylen, uint64_t clocktime)
-	{
-		m_data = (char*)::malloc(keylen+8);
-		if(!m_data) {
-			throw std::bad_alloc();
-		}
-
-		*(uint64_t*)m_data = clocktime;
-		memcpy(m_data+8, key, keylen);
-	}
-
-	~scoped_clock_key()
-	{
-		::free(m_data);
-	}
-
-	void* data()
-	{
-		return m_data;
-	}
-
-	size_t size(size_t keylen)
-	{
-		return keylen + 8;
-	}
-
-	struct wrap {
-		wrap(const char* buf, size_t buflen) :
-			m_buf(buf),
-			m_buflen(buflen)
-		{ }
-	
-		const char* key() const
-		{
-			return m_buf + 8;
-		}
-
-		size_t keylen() const {
-			return m_buflen - 8;
-		}
-
-		uint64_t clocktime() const {
-			return *(uint64_t*)m_buf;
-		}
-	
-	private:
-		const char* m_buf;
-		size_t m_buflen;
-		wrap();
-	};
-
-private:
-	char* m_data;
-	scoped_clock_key();
-	scoped_clock_key(const scoped_clock_key&);
-};
-
-static bool kumo_tchdb_del(void* data,
-		const char* key, uint32_t keylen,
-		uint64_t clocktime)
-{
-	kumo_tchdb* ctx = reinterpret_cast<kumo_tchdb*>(data);
-
-	char clockbuf[8];
-	kumo_storage_clocktime_to(clocktime, clockbuf);
-
-	kumo_tchdb_update_ctx upctx = { clockbuf, 8 };
-
-	bool deleted = tchdbputproc(ctx->db,
-			key, keylen,
-			clockbuf, 8,
-			kumo_tchdb_update_proc, &upctx);
-
-	if(!deleted) {
-		return deleted;
-	}
-
-	try {
-		mp::pthread_scoped_lock gclk;
-
-		// push garbage
-		{
-			scoped_clock_key clock_key(key, keylen, clocktime);
-	
-			gclk.relock(ctx->garbage_mutex);
-
-			if(!kumo_buffer_queue_push(
-						ctx->garbage, clock_key.data(), clock_key.size(keylen))) {
-				goto out;
-			}
-		}
-	
-		// try collect garbage
-		while(true) {
-			size_t size;
-			const char* data =
-				(const char*)kumo_buffer_queue_front(ctx->garbage, &size);
-			if(!data) {
-				break;
-			}
-
-			scoped_clock_key::wrap clock_key(data, size);
-	
-			if( clock_key.clocktime() < (clocktime + (60ULL<<32)) ) {  // FIXME 60 sec.
-				// collect the sufficiently old garbage
-				tchdbout(ctx->db, clock_key.key(), clock_key.keylen());
-				kumo_buffer_queue_pop(ctx->garbage);
-
-			} else {
-				break;
-			}
-		}
-
-	} catch (...) { }
-
-out:
-	return deleted;
-}
 
 static uint64_t kumo_tchdb_rnum(void* data)
 {
@@ -414,8 +298,10 @@ static bool kumo_tchdb_iterator_release_val(void* iterator_data, msgpack_zone* z
 	return true;
 }
 
-static bool kumo_tchdb_iterator_del(void* iterator_data)
+static bool kumo_tchdb_iterator_del(void* iterator_data,
+		kumo_storage_casproc proc, void* casdata)
 {
+	// FIXME tchdboutproc
 	kumo_tchdb_iterator* it = reinterpret_cast<kumo_tchdb_iterator*>(iterator_data);
 
 	const char* key = TCXSTRPTR(it->key);
@@ -424,27 +310,15 @@ static bool kumo_tchdb_iterator_del(void* iterator_data)
 	return tchdbout(it->ctx->db, key, keylen);
 }
 
-#if 0
-static bool kumo_tchdb_iterator_del_if_older(void* iterator_data, uint64_t if_older)
+static bool kumo_tchdb_iterator_del_force(void* iterator_data)
 {
 	kumo_tchdb_iterator* it = reinterpret_cast<kumo_tchdb_iterator*>(iterator_data);
 
-	const char* val = TCXSTRPTR(it->val);
-	size_t vallen = TCXSTRSIZE(it->val);
+	const char* key = TCXSTRPTR(it->key);
+	size_t keylen = TCXSTRSIZE(it->key);
 
-	if(vallen < 8 || kumo_clocktime_less(
-				kumo_storage_clocktime_of(val),
-				if_older)) {
-
-		const char* key = TCXSTRPTR(it->key);
-		size_t keylen = TCXSTRSIZE(it->key);
-
-		return tchdbout(it->ctx->db, key, keylen);
-	}
-
-	return false;
+	return tchdbout(it->ctx->db, key, keylen);
 }
-#endif
 
 
 static kumo_storage_op kumo_tchdb_op =
@@ -455,9 +329,9 @@ static kumo_storage_op kumo_tchdb_op =
 	kumo_tchdb_close,
 	kumo_tchdb_get,
 	kumo_tchdb_set,
+	kumo_tchdb_del,
 	kumo_tchdb_update,
 	NULL,
-	kumo_tchdb_del,
 	kumo_tchdb_rnum,
 	kumo_tchdb_backup,
 	kumo_tchdb_error,
@@ -469,6 +343,7 @@ static kumo_storage_op kumo_tchdb_op =
 	kumo_tchdb_iterator_release_key,
 	kumo_tchdb_iterator_release_val,
 	kumo_tchdb_iterator_del,
+	kumo_tchdb_iterator_del_force,
 };
 
 kumo_storage_op kumo_storage_init(void)

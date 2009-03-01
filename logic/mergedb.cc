@@ -58,18 +58,20 @@ int main(int argc, char* argv[])
 		// init src databases
 		auto_array< std::auto_ptr<Storage> > srcdbs(new std::auto_ptr<Storage>[nsrcs]);
 		for(unsigned int i=0; i < nsrcs; ++i) {
-			srcdbs[i].reset(new Storage(psrcs[i]));
+			srcdbs[i].reset(new Storage(psrcs[i], 0, 0, 0));
 		}
 	
 		// init dst database
-		std::auto_ptr<Storage> dstdb(new Storage(dst));
+		std::auto_ptr<Storage> dstdb(new Storage(dst, 0, 0, 0));
 	
 		uint64_t total = 0;
 		uint64_t merged = 0;
 		for(unsigned int i=0; i < nsrcs; ++i) {
 			std::cout << "merging "<<psrcs[i]<< "..." << std::flush;
 
-			srcdbs[i]->for_each( for_each_update(dstdb.get(), &total, &merged) );
+			srcdbs[i]->for_each(
+					for_each_update(dstdb.get(), &total, &merged),
+					ClockTime(0) );
 
 			//std::cout << srcdbs[i]->error() << std::endl;  // FIXME
 			std::cout << "  merged " << merged << " records of " << total << " records" << std::endl;

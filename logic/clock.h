@@ -1,7 +1,6 @@
 #ifndef LOGIC_CLOCK_H__
 #define LOGIC_CLOCK_H__
 
-#include "storage.h"
 #include <limits>
 #include <stdint.h>
 #include <time.h>
@@ -18,6 +17,7 @@ public:
 	~Clock() {}
 
 public:
+	ClockTime now();
 	ClockTime now_incr();
 
 	uint32_t get_incr()
@@ -59,7 +59,12 @@ public:
 private:
 	static bool clock_less(uint32_t x, uint32_t y)
 	{
-		return kumo_clocktime_less(x, y);
+		if((x < (((uint32_t)1)<<10) && (((uint32_t)1)<<22) < y) ||
+		   (y < (((uint32_t)1)<<10) && (((uint32_t)1)<<22) < x)) {
+			return x > y;
+		} else {
+			return x < y;
+		}
 	}
 
 	friend class ClockTime;
@@ -83,6 +88,11 @@ public:
 
 	Clock clock() const {
 		return Clock(m&0xffffffff);
+	}
+
+	ClockTime before_sec(uint32_t sec)
+	{
+		return ClockTime( m - (((uint64_t)sec) << 32) );
 	}
 
 	bool operator== (const ClockTime& o) const
@@ -121,6 +131,11 @@ private:
 	volatile uint64_t m;
 };
 
+
+inline ClockTime Clock::now()
+{
+	return ClockTime(get(), time(NULL));
+}
 
 inline ClockTime Clock::now_incr()
 {

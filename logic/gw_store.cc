@@ -155,7 +155,7 @@ try {
 			protocol::type::DBValue st(res.convert());
 			ret.val       = (char*)st.data();
 			ret.vallen    = st.size();
-			ret.clocktime = st.clocktime();
+			ret.clocktime = st.clocktime().get();
 		}
 		try { (*callback)(user, ret); } catch (...) { }
 

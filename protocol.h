@@ -2,7 +2,7 @@
 #define PROTOCOL_H__
 
 #include "logic/hash.h"
-#include "storage.h"
+#include "storage/interface.h"
 #include "rpc/protocol.h"
 #include "rpc/message.h"
 
@@ -86,31 +86,36 @@ namespace type {
 			m_keylen(keylen), m_key(key), m_hash(hash) {}
 
 		DBKey(const char* raw_key, size_t raw_keylen)
-			{ msgpack_unpack(raw_ref(raw_key, raw_keylen)); }
+		{
+			msgpack_unpack(raw_ref(raw_key, raw_keylen));
+		}
 
 		const char* data() const		{ return m_key; }
 		size_t size() const				{ return m_keylen; }
 		uint64_t hash() const			{ return m_hash; }
 
 		// these functions are available only when deserialized
-		const char* raw_data() const	{ return m_key - 8; }
-		size_t raw_size() const			{ return m_keylen + 8; }
+		const char* raw_data() const	{ return m_key - Storage::KEY_META_SIZE; }
+		size_t raw_size() const			{ return m_keylen + Storage::KEY_META_SIZE; }
 
 		template <typename Packer>
 		void msgpack_pack(Packer& pk) const
 		{
-			uint64_t hash_be = kumo_be64(m_hash);
-			pk.pack_raw(m_keylen+8);
-			pk.pack_raw_body((const char*)&hash_be, 8);
+			char metabuf[Storage::KEY_META_SIZE];
+			Storage::hash_to(m_hash, metabuf);
+			pk.pack_raw(m_keylen + Storage::KEY_META_SIZE);
+			pk.pack_raw_body(metabuf, Storage::KEY_META_SIZE);
 			pk.pack_raw_body(m_key, m_keylen);
 		}
 
 		void msgpack_unpack(raw_ref o)
 		{
-			if(o.size < 8) { throw type_error(); }
-			m_keylen = o.size - 8;
-			m_hash = kumo_be64(*(uint64_t*)o.ptr);
-			m_key = o.ptr + 8;
+			if(o.size < Storage::KEY_META_SIZE) {
+				throw type_error();
+			}
+			m_keylen = o.size - Storage::KEY_META_SIZE;
+			m_hash = Storage::hash_of(o.ptr);
+			m_key = o.ptr + Storage::KEY_META_SIZE;
 		}
 
 	private:
@@ -120,52 +125,57 @@ namespace type {
 	};
 
 	struct DBValue {
-		DBValue() {}
+		DBValue() : m_clocktime(0) {}
 
 		DBValue(const char* val, size_t vallen, uint64_t meta) :
 			m_vallen(vallen), m_val(val), m_clocktime(0), m_meta(meta) {}
 
-		DBValue(const char* raw_val, size_t raw_vallen)
-			{ msgpack_unpack(raw_ref(raw_val, raw_vallen)); }
+		DBValue(const char* raw_val, size_t raw_vallen) :
+			m_clocktime(0)
+		{
+			msgpack_unpack(raw_ref(raw_val, raw_vallen));
+		}
 
 		const char* data() const		{ return m_val; }
 		size_t size() const				{ return m_vallen; }
-		uint64_t clocktime() const		{ return m_clocktime; }
+		ClockTime clocktime() const		{ return m_clocktime; }
 		uint64_t meta() const			{ return m_meta; }
 
 		// these functions are available only when deserialized
-		const char* raw_data() const	{ return m_val - 16; }
-		size_t raw_size() const			{ return m_vallen + 16; }
-		void raw_set_clocktime(uint64_t clocktime)
+		const char* raw_data() const	{ return m_val - Storage::VALUE_META_SIZE; }
+		size_t raw_size() const			{ return m_vallen + Storage::VALUE_META_SIZE; }
+		void raw_set_clocktime(ClockTime clocktime)
 		{
 			m_clocktime = clocktime;
-			*((uint64_t*)raw_data()) = kumo_be64(clocktime);
+			Storage::clocktime_to(clocktime, const_cast<char*>(raw_data()));
 		}
 
 		template <typename Packer>
 		void msgpack_pack(Packer& pk) const
 		{
-			uint64_t meta_be = kumo_be64(m_meta);
-			uint64_t clocktime = kumo_be64(m_clocktime);
-			pk.pack_raw(m_vallen + 16);
-			pk.pack_raw_body((const char*)&clocktime, 8);
-			pk.pack_raw_body((const char*)&meta_be, 8);
+			char metabuf[Storage::VALUE_META_SIZE];
+			Storage::clocktime_to(m_clocktime, metabuf);
+			Storage::meta_to(m_meta, metabuf);
+			pk.pack_raw(m_vallen + Storage::VALUE_META_SIZE);
+			pk.pack_raw_body(metabuf, Storage::VALUE_META_SIZE);
 			pk.pack_raw_body(m_val, m_vallen);
 		}
 
 		void msgpack_unpack(raw_ref o)
 		{
-			if(o.size < 16) { throw type_error(); }
-			m_vallen = o.size - 16;
-			m_clocktime = kumo_be64(*(uint64_t*)o.ptr);
-			m_meta = kumo_be64(*(uint64_t*)(o.ptr+8));
-			m_val = o.ptr + 16;
+			if(o.size < Storage::VALUE_META_SIZE) {
+				throw type_error();
+			}
+			m_clocktime = Storage::clocktime_of(o.ptr);
+			m_meta      = Storage::meta_of(o.ptr);
+			m_vallen    = o.size - Storage::VALUE_META_SIZE;
+			m_val       = o.ptr  + Storage::VALUE_META_SIZE;
 		}
 
 	private:
 		size_t m_vallen;
 		const char* m_val;
-		uint64_t m_clocktime;
+		ClockTime m_clocktime;
 		uint64_t m_meta;
 	};
 

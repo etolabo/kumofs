@@ -1,4 +1,6 @@
-#include "storage.h"
+#ifndef BUFFER_QUEUE_H__
+#define BUFFER_QUEUE_H__
+
 #include <queue>
 #include <stdlib.h>
 #include <string.h>
@@ -33,10 +35,10 @@ private:
 	mp::source<128, 2048> m_source;
 };
 
-buffer_queue::buffer_queue() :
+inline buffer_queue::buffer_queue() :
 	m_total_size(0) { }
 
-buffer_queue::~buffer_queue()
+inline buffer_queue::~buffer_queue()
 {
 	// source::~source frees all memory
 	//for(queue_type::iterator it(m_queue.begin()),
@@ -45,7 +47,7 @@ buffer_queue::~buffer_queue()
 	//}
 }
 
-void buffer_queue::push(const void* buf, size_t buflen)
+inline void buffer_queue::push(const void* buf, size_t buflen)
 {
 	void* data = m_source.malloc(buflen);
 	::memcpy(data, buf, buflen);
@@ -61,7 +63,7 @@ void buffer_queue::push(const void* buf, size_t buflen)
 	m_total_size += buflen;
 }
 
-const void* buffer_queue::front(size_t* result_buflen) const
+inline const void* buffer_queue::front(size_t* result_buflen) const
 {
 	if(m_queue.empty()) {
 		return NULL;
@@ -73,7 +75,7 @@ const void* buffer_queue::front(size_t* result_buflen) const
 	return e.data;
 }
 
-void buffer_queue::pop()
+inline void buffer_queue::pop()
 {
 	entry& e = m_queue.front();
 
@@ -83,7 +85,7 @@ void buffer_queue::pop()
 	m_queue.pop();
 }
 
-size_t buffer_queue::total_size() const
+inline size_t buffer_queue::total_size() const
 {
 	return m_total_size;
 }
@@ -92,7 +94,10 @@ size_t buffer_queue::total_size() const
 }  // namespace kumo
 
 
+#if 0
 using kumo::buffer_queue;
+
+struct kumo_buffer_queue;
 
 kumo_buffer_queue* kumo_buffer_queue_new(void)
 try {
@@ -134,5 +139,8 @@ size_t kumo_buffer_queue_total_size(kumo_buffer_queue* bq)
 	buffer_queue* impl = reinterpret_cast<buffer_queue*>(bq);
 	return impl->total_size();
 }
+#endif
 
+
+#endif /* storage/buffer_queue.h */
 

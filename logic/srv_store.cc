@@ -297,7 +297,7 @@ bool Server::DeleteByRhsWhs(weak_responder response, auto_zone& z,
 
 	ClockTime ct(m_clock.now_incr());
 
-	bool deleted = m_db.del(key.raw_data(), key.raw_size(), ct);
+	bool deleted = m_db.remove(key.raw_data(), key.raw_size(), ct);
 	if(!deleted) {
 		//response.result(false);
 		// the key is not stored
@@ -371,7 +371,7 @@ void Server::DeleteByWhs(weak_responder response, auto_zone& z,
 
 	ClockTime ct(m_clock.now_incr());
 
-	bool deleted = m_db.del(key.raw_data(), key.raw_size(), ct);
+	bool deleted = m_db.remove(key.raw_data(), key.raw_size(), ct);
 	if(!deleted) {
 		response.result(false);
 		// the key is not stored
@@ -542,7 +542,7 @@ try {
 
 	m_clock.update(param.clock());
 
-	bool deleted = m_db.del(key.raw_data(), key.raw_size(),
+	bool deleted = m_db.remove(key.raw_data(), key.raw_size(),
 			param.clocktime());
 
 	response.result(deleted);

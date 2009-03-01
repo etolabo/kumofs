@@ -247,7 +247,8 @@ void Server::replace_copy(const address& manager_addr, HashSpace& hs)
 
 		m_db.for_each(
 				for_each_replace_copy<OfferStorageMap, addrs_t, addrs_it>(
-					addr(), srchs, dsths, offer, fault_nodes) );
+					addr(), srchs, dsths, offer, fault_nodes),
+				m_clock.now());
 
 		send_offer(offer, replace_time);
 	}
@@ -268,9 +269,11 @@ void Server::send_offer(OfferStorageMap& offer, ClockTime replace_time)
 	for(SharedOfferMap::iterator it(m_offer_map.begin()),
 			it_end(m_offer_map.end()); it != it_end; ++it) {
 		const address& addr( (*it)->addr() );
+
 		LOG_DEBUG("send offer to ",(*it)->addr());
 		shared_zone nullz;
 		protocol::type::ReplaceOffer arg(m_stream_addr.port());
+
 		using namespace mp::placeholders;
 		get_node(addr)->call(
 				protocol::ReplaceOffer, arg, nullz,
@@ -378,11 +381,13 @@ void Server::replace_delete(shared_node& manager, HashSpace& hs)
 	if(!m_whs.empty()) {
 		m_db.for_each(
 				for_each_replace_delete<&Server::test_replicator_assign>(
-					m_whs, addr()) );
+					m_whs, addr()),
+				m_clock.now());
 	}
 
 	shared_zone nullz;
 	protocol::type::ReplaceDeleteEnd arg(m_whs.clocktime().get(), m_clock.get_incr());
+
 	using namespace mp::placeholders;
 	manager->call(protocol::ReplaceDeleteEnd, arg, nullz,
 			BIND_RESPONSE(ResReplaceDeleteEnd), 10);
