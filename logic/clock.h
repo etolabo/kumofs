@@ -4,6 +4,12 @@
 #include <limits>
 #include <stdint.h>
 #include <time.h>
+#include <cstdlib>
+
+// FIXME 5 sec.
+#ifndef TIME_ERROR_MARGIN
+#define TIME_ERROR_MARGIN 5
+#endif
 
 namespace kumo {
 
@@ -120,7 +126,7 @@ private:
 	{
 		uint32_t xt = x>>32;
 		uint32_t yt = y>>32;
-		if(xt == yt) {
+		if( std::abs((int)(xt - yt)) < TIME_ERROR_MARGIN ) {
 			return Clock::clock_less(x&0xffffffff, y&0xffffffff);
 		} else {
 			return xt < yt;
