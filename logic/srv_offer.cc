@@ -107,6 +107,10 @@ void Server::OfferStorage::mmap_stream::write(const void* buf, size_t len)
 	m_z.avail_in = len;
 
 	while(true) {
+		if(m_z.avail_out < RPC_BUFFER_RESERVATION_SIZE) { // FIXME size
+			expand_map(KUMO_OFFER_INITIAL_MAP_SIZE); // FIXME size
+		}
+
 		if(deflate(&m_z, Z_NO_FLUSH) != Z_OK) {
 			throw std::runtime_error("deflate failed");
 		}
@@ -114,8 +118,6 @@ void Server::OfferStorage::mmap_stream::write(const void* buf, size_t len)
 		if(m_z.avail_in == 0) {
 			break;
 		}
-
-		expand_map(m_z.avail_in);
 	}
 }
 
@@ -474,6 +476,10 @@ try {
 	m_z.avail_in = rl;
 
 	while(true) {
+		if(m_pac.buffer_capacity() < RPC_BUFFER_RESERVATION_SIZE) { // FIXME size
+			m_pac.reserve_buffer(KUMO_OFFER_INITIAL_MAP_SIZE); // FIXME size
+		}
+
 		m_z.next_out = (Bytef*)m_pac.buffer();
 		m_z.avail_out = m_pac.buffer_capacity();
 
@@ -487,8 +493,6 @@ try {
 		if(m_z.avail_in == 0) {
 			break;
 		}
-
-		m_pac.reserve_buffer(m_z.avail_in);
 	}
 
 	while(m_pac.execute()) {
