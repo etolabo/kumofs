@@ -42,7 +42,7 @@
     <br />
     <h3>動作環境と制限</h3>
     <h4>サーバーの時刻設定</h4>
-    <p>ManagerとServerを動作させるホストの時刻設定は、1秒以上ずれていると正常に動作しない。またUTCとlocaltimeはどちらかに揃える必要がある。</p>
+    <p>ManagerとServerを動作させるホストの時刻設定は、TIME_ERROR_MARGIN秒（コンパイル時に決定。デフォルトでは5秒）以上ずれていると正常に動作しない。またUTCとlocaltimeはどちらかに揃える必要がある。</p>
     <p># TODO</p>
     <br />
     <div class="footnote_view">
