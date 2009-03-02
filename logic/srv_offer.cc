@@ -4,6 +4,7 @@
 #include <sys/mman.h>
 #include <fcntl.h>
 #include <algorithm>
+#include <zlib.h>
 
 #ifndef KUMO_OFFER_INITIAL_MAP_SIZE
 #define KUMO_OFFER_INITIAL_MAP_SIZE 32768
@@ -42,8 +43,8 @@ public:
 	void flush();
 
 private:
-	size_t m_free;
-	char* m_head;
+	z_stream m_z;
+
 	char* m_map;
 	int m_fd;
 	void expand_map(size_t req);
@@ -60,67 +61,87 @@ private:
 };
 
 Server::OfferStorage::mmap_stream::mmap_stream(int fd) :
-	m_free(KUMO_OFFER_INITIAL_MAP_SIZE),
 	m_fd(fd),
 	m_mpk(*this)
 {
-	if(::ftruncate(m_fd, m_free) < 0) {
+	m_z.zalloc = Z_NULL;
+	m_z.zfree = Z_NULL;
+	m_z.opaque = Z_NULL;
+	if(deflateInit(&m_z, Z_DEFAULT_COMPRESSION) != Z_OK) {
+		throw std::runtime_error(m_z.msg);
+	}
+
+	if(::ftruncate(m_fd, KUMO_OFFER_INITIAL_MAP_SIZE) < 0) {
+		deflateEnd(&m_z);
 		throw mp::system_error(errno, "failed to truncate offer storage");
 	}
 
-	m_map = (char*)::mmap(NULL, m_free,
+	m_map = (char*)::mmap(NULL, KUMO_OFFER_INITIAL_MAP_SIZE,
 			PROT_WRITE, MAP_SHARED, m_fd, 0);
 	if(m_map == MAP_FAILED) {
+		deflateEnd(&m_z);
 		throw mp::system_error(errno, "failed to mmap offer storage");
 	}
-	m_head = m_map;
+
+	m_z.avail_out = KUMO_OFFER_INITIAL_MAP_SIZE;
+	m_z.next_out = (Bytef*)m_map;
 }
 
 Server::OfferStorage::mmap_stream::~mmap_stream()
 {
-	size_t used = m_head - m_map;
-	size_t csize = used + m_free;
+	size_t used = (char*)m_z.next_out - m_map;
+	size_t csize = used + m_z.avail_out;
 	::munmap(m_map, csize);
 	//::ftruncate(m_fd, used);
+	deflateEnd(&m_z);
 }
 
 size_t Server::OfferStorage::mmap_stream::size() const
 {
-	return m_head - m_map;
+	return (char*)m_z.next_out - m_map;
 }
 
 void Server::OfferStorage::mmap_stream::write(const void* buf, size_t len)
 {
-	if(m_free < len) {
-		expand_map(len);
-	}
-	memcpy(m_head, buf, len);
-	m_free -= len;
-	m_head += len;
-
-	/*
-	m_z.next_in = buf;
+	m_z.next_in = (Bytef*)buf;
 	m_z.avail_in = len;
+
 	while(true) {
 		if(deflate(&m_z, Z_NO_FLUSH) != Z_OK) {
 			throw std::runtime_error("deflate failed");
 		}
 
-		if(m_z.avail_in > 0) {
-			expand_map(len);
+		if(m_z.avail_in == 0) {
+			break;
 		}
+
+		expand_map(m_z.avail_in);
 	}
-	*/
 }
 
 void Server::OfferStorage::mmap_stream::flush()
 {
+	while(true) {
+		switch(deflate(&m_z, Z_FINISH)) {
+
+		case Z_STREAM_END:
+			return;
+
+		case Z_OK:
+			break;
+
+		default:
+			throw std::runtime_error("deflate flush failed");
+		}
+
+		expand_map(m_z.avail_in);
+	}
 }
 
 void Server::OfferStorage::mmap_stream::expand_map(size_t req)
 {
-	size_t used = m_head - m_map;
-	size_t csize = used + m_free;
+	size_t used = (char*)m_z.next_out - m_map;
+	size_t csize = used + m_z.avail_out;
 	size_t nsize = csize * 2;
 	while(nsize < req) { nsize *= 2; }
 
@@ -140,8 +161,8 @@ void Server::OfferStorage::mmap_stream::expand_map(size_t req)
 		throw mp::system_error(errno, "failed to munmap offer storage");
 	}
 	m_map = NULL;
-	m_head = NULL;
-	m_free = 0;
+	m_z.next_out = NULL;
+	m_z.avail_out = 0;
 
 	m_map = (char*)::mmap(NULL, nsize,
 			PROT_WRITE, MAP_SHARED, m_fd, 0);
@@ -150,8 +171,8 @@ void Server::OfferStorage::mmap_stream::expand_map(size_t req)
 	}
 
 #endif
-	m_head = m_map + used;
-	m_free = nsize - used;
+	m_z.next_out = (Bytef*)(m_map + used);
+	m_z.avail_out = nsize - used;
 }
 
 
@@ -390,18 +411,104 @@ try {
 	throw;
 }
 
-class Server::OfferStreamHandler : public rpc::connection<OfferStreamHandler> {
+
+class Server::OfferStreamHandler : public mp::wavy::handler {
 public:
-	OfferStreamHandler(int fd, Server* srv) :
-		rpc::connection<OfferStreamHandler>(fd), m_srv(srv) { }
-	~OfferStreamHandler() { }
+	OfferStreamHandler(int fd, Server* srv);
+	~OfferStreamHandler();
+
+	void read_event();
 	void submit_message(msgobj msg, auto_zone& z);
+
 private:
 	msgpack::unpacker m_pac;
+	z_stream m_z;
+	char* m_buffer;
 	Server* m_srv;
+
+private:
 	OfferStreamHandler();
 	OfferStreamHandler(const OfferStreamHandler&);
 };
+
+Server::OfferStreamHandler::OfferStreamHandler(int fd, Server* srv) :
+	mp::wavy::handler(fd),
+	m_pac(RPC_INITIAL_BUFFER_SIZE),
+	m_srv(srv)
+{
+	m_buffer = (char*)::malloc(RPC_INITIAL_BUFFER_SIZE);
+	if(!m_buffer) {
+		throw std::bad_alloc();
+	}
+
+	m_z.zalloc = Z_NULL;
+	m_z.zfree = Z_NULL;
+	m_z.opaque = Z_NULL;
+
+	if(inflateInit(&m_z) != Z_OK) {
+		::free(m_buffer);
+		throw std::runtime_error(m_z.msg);
+	}
+}
+
+Server::OfferStreamHandler::~OfferStreamHandler()
+{
+	inflateEnd(&m_z);
+	::free(m_buffer);
+}
+
+void Server::OfferStreamHandler::read_event()
+try {
+	ssize_t rl = ::read(fd(), m_buffer, RPC_INITIAL_BUFFER_SIZE);
+	if(rl < 0) {
+		if(errno == EAGAIN || errno == EINTR) {
+			return;
+		} else {
+			throw std::runtime_error("read error");
+		}
+	} else if(rl == 0) {
+		throw std::runtime_error("connection closed");
+	}
+
+	m_z.next_in = (Bytef*)m_buffer;
+	m_z.avail_in = rl;
+
+	while(true) {
+		m_z.next_out = (Bytef*)m_pac.buffer();
+		m_z.avail_out = m_pac.buffer_capacity();
+
+		int ret = inflate(&m_z, Z_SYNC_FLUSH);
+		if(ret != Z_OK && ret != Z_STREAM_END) {
+			throw std::runtime_error("inflate failed");
+		}
+
+		m_pac.buffer_consumed( m_pac.buffer_capacity() - m_z.avail_out );
+
+		if(m_z.avail_in == 0) {
+			break;
+		}
+
+		m_pac.reserve_buffer(m_z.avail_in);
+	}
+
+	while(m_pac.execute()) {
+		msgobj msg = m_pac.data();
+		std::auto_ptr<msgpack::zone> z( m_pac.release_zone() );
+		m_pac.reset();
+		submit_message(msg, z);
+	}
+
+} catch(msgpack::type_error& e) {
+	LOG_ERROR("rpc packet: type error");
+	throw;
+} catch(std::exception& e) {
+	LOG_WARN("rpc packet: ", e.what());
+	throw;
+} catch(...) {
+	LOG_ERROR("rpc packet: unknown error");
+	throw;
+}
+
 
 void Server::OfferStreamHandler::submit_message(msgobj msg, auto_zone& z)
 {
