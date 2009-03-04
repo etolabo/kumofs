@@ -1,0 +1,58 @@
+.TH kumoctl
+.SH NAME
+kumoctl
+.SH SYNOPSIS
+kumoctl address[:port=19750] command [options]
+.SS COMMANDS
+.TP
+.B pid
+get pid of server process
+.TP
+.B uptime
+get uptime
+.TP
+.B time
+get UNIX time
+.TP
+.B version
+get version
+.TP
+.B cmd_get
+get number of get requests
+.TP
+.B cmd_set
+get number of set requests
+.TP
+.B cmd_delete
+get number of delete requests
+.TP
+.B items
+get number of stored items
+.TP
+.B status                     
+get status
+.TP
+.B attach                     
+attach all new servers and start replace
+.TP
+.B attach-noreplace           
+attach all new servers
+.TP
+.B detach                     
+detach all fault servers and start replace
+.TP
+.B detach-noreplace           
+detach all fault servers
+.TP
+.B replace                    
+start replace without attach/detach
+.TP
+.B backup  [suffix=20090304]  
+create backup with specified suffix
+.TP
+.B enable-auto-replace        
+enable auto replace
+.TP
+.B disable-auto-replace       
+disable auto replace
+.SH DESCRIPTION

@@ -91,3 +91,8 @@ noinst_HEADERS = \
 		gateway/gateway.h \
 		storage.h
 
+man_MANS = \
+		doc/kumoctl.1 \
+		doc/kumolog.1 \
+		doc/kumostat.1
+

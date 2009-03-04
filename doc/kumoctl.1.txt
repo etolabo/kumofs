@@ -1,0 +1,29 @@
+*? kumoctl
+*NAME
+kumoctl
+
+*SYNOPSIS
+kumoctl address[:port=19750] command [options]
+
+**COMMANDS
+:pid:get pid of server process
+:uptime:get uptime
+:time:get UNIX time
+:version:get version
+:cmd_get:get number of get requests
+:cmd_set:get number of set requests
+:cmd_delete:get number of delete requests
+:items:get number of stored items
+
+:status                     :get status
+:attach                     :attach all new servers and start replace
+:attach-noreplace           :attach all new servers
+:detach                     :detach all fault servers and start replace
+:detach-noreplace           :detach all fault servers
+:replace                    :start replace without attach/detach
+:backup  [suffix=20090304]  :create backup with specified suffix
+:enable-auto-replace        :enable auto replace
+:disable-auto-replace       :disable auto replace
+
+*DESCRIPTION
+

@@ -1,7 +1,12 @@
-SRCS=$(wildcard *txt)
-default: $(SRCS:.txt=.pdf) $(SRCS:.txt=.html)
-clean: $(SRCS:.txt=.clean)
-distclean: $(SRCS:.txt=.distclean)
+#SRCS=$(wildcard *txt)
+#default: $(SRCS:.txt=.pdf) $(SRCS:.txt=.html)
+#clean: $(SRCS:.txt=.clean)
+#distclean: $(SRCS:.txt=.distclean)
+
+default: memo.pdf memo.html kumoctl.1 kumostat.1 kumolog.1
+clean: memo.clean
+distclean: memo.distclean
+
 
 %.sdoc : %.txt
 	wfdoc -i $< -o $@
@@ -30,4 +35,7 @@ distclean: $(SRCS:.txt=.distclean)
 
 %.distclean : %.txt
 	rm -f $*.sdoc $*.tex $*.etex $*.dvi $*.toc $*.aux $*.out $*.log $*.pdf $*.mk
+
+%.1 : %.1.txt
+	wfdoc -f man $< -o $@
 
