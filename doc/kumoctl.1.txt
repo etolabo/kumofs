@@ -6,15 +6,6 @@ kumoctl
 kumoctl address[:port=19750] command [options]
 
 **COMMANDS
-:pid:get pid of server process
-:uptime:get uptime
-:time:get UNIX time
-:version:get version
-:cmd_get:get number of get requests
-:cmd_set:get number of set requests
-:cmd_delete:get number of delete requests
-:items:get number of stored items
-
 :status                     :get status
 :attach                     :attach all new servers and start replace
 :attach-noreplace           :attach all new servers

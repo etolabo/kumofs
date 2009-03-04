@@ -15,6 +15,5 @@ kumostat address[:port=19800] command [options]
 :cmd_delete                 :get number of delete requests
 :items                      :get number of stored items
 
-
 *DESCRIPTION
 
