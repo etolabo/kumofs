@@ -1,13 +1,15 @@
 #include "logic/base.h"
 #include "logic/gw.h"
 #include "gateway/memtext.h"
+#include "gateway/memproto.h"
 #include "gateway/cloudy.h"
 #include <fstream>
 
 using namespace kumo;
 
-#define MEMTEXT_DEFAULT_PORT 19799
-#define CLOUDY_DEFAULT_PORT 19798
+#define MEMTEXT_DEFAULT_PORT  11411
+#define MEMPROTO_DEFAULT_PORT 11511
+#define CLOUDY_DEFAULT_PORT   11611
 
 struct arg_t : rpc_server_args {
 
@@ -26,9 +28,13 @@ struct arg_t : rpc_server_args {
 	bool async_replicate_set;
 	bool async_replicate_delete;
 
-	//bool memtext_set;
+	bool memtext_set;
 	sockaddr_in memtext_addr_in;
 	int memtext_lsock;  // convert
+
+	bool memproto_set;
+	sockaddr_in memproto_addr_in;
+	int memproto_lsock;  // convert
 
 	bool cloudy_set;
 	sockaddr_in cloudy_addr_in;
@@ -38,18 +44,20 @@ struct arg_t : rpc_server_args {
 	{
 		manager1 = rpc::address(manager1_in);
 		manager2 = rpc::address(manager2_in);
-		//if(!memtext_set && !cloudy_set) {
-		//	throw std::runtime_error("memproto text or cloudy must be set");
-		//}
-		//if(memtext_set) {
-		//	memtext_lsock = scoped_listen_tcp::listen(memtext_addr_in);
-		//}
-		if(!cloudy_set) {
+
+		if(!memtext_set && !memproto_set && !cloudy_set) {
+			throw std::runtime_error("-t, -b or -c is required");
+		}
+		if(memtext_set) {
 			memtext_lsock = scoped_listen_tcp::listen(memtext_addr_in);
+		}
+		if(memproto_set) {
+			memproto_lsock = scoped_listen_tcp::listen(memproto_addr_in);
 		}
 		if(cloudy_set) {
 			cloudy_lsock = scoped_listen_tcp::listen(cloudy_addr_in);
 		}
+
 		rpc_server_args::convert();
 	}
 
@@ -65,8 +73,10 @@ struct arg_t : rpc_server_args {
 				type::connectable(&manager1_in, MANAGER_DEFAULT_PORT));
 		on("-p", "--manager2", &manager2_set,
 				type::connectable(&manager2_in, MANAGER_DEFAULT_PORT));
-		on("-t", "--memproto-text",// &memtext_set,
+		on("-t", "--memproto-text", &memtext_set,
 				type::listenable(&memtext_addr_in, MEMTEXT_DEFAULT_PORT));
+		on("-b", "--memproto-binary", &memproto_set,
+				type::listenable(&memproto_addr_in, MEMPROTO_DEFAULT_PORT));
 		on("-c", "--cloudy", &cloudy_set,
 				type::listenable(&cloudy_addr_in, CLOUDY_DEFAULT_PORT));
 		on("-G", "--get-retry",
@@ -89,10 +99,11 @@ struct arg_t : rpc_server_args {
 std::cout <<
 "usage: "<<prog<<" -m <addr[:port]> -p <addr[:port]> [-t port="<<MEMTEXT_DEFAULT_PORT<<"]\n"
 "\n"
-"  -m  <addr[:port="<<MANAGER_DEFAULT_PORT<<"]>   "       "--manager1       address of manager 1\n"
-"  -p  <addr[:port="<<MANAGER_DEFAULT_PORT<<"]>   "       "--manager2       address of manager 2\n"
-"  -t  <[addr:]port="<<MEMTEXT_DEFAULT_PORT<<">   "       "--memproto-text  memcached text protocol listen port\n"
-"  -c  <[addr:]port="<<CLOUDY_DEFAULT_PORT<<">   "        "--cloudy         memcached binary protocol listen port\n"
+"  -m  <addr[:port="<<MANAGER_DEFAULT_PORT<<"]>   "       "--manager1        address of manager 1\n"
+"  -p  <addr[:port="<<MANAGER_DEFAULT_PORT<<"]>   "       "--manager2        address of manager 2\n"
+"  -t  <[addr:]port="<<MEMTEXT_DEFAULT_PORT<<">   "       "--memproto-text   memcached text protocol listen port\n"
+"  -b  <[addr:]port="<<MEMPROTO_DEFAULT_PORT<<">   "      "--memprpto-binary memcached binary protocol listen port\n"
+"  -c  <[addr:]port="<<CLOUDY_DEFAULT_PORT<<">   "        "--cloudy          asynchronous memcached binary protocol listen port\n"
 "  -As               "                                    "--async-replicate-set    send response without waiting replication on set\n"
 "  -Ad               "                                    "--async-replicate-delete send response without waiting replication on delete\n"
 "  -G  <number="<<get_retry_num<<">    "                  "--get-retry              get retry limit\n"
@@ -127,17 +138,13 @@ int main(int argc, char* argv[])
 		mlogger::reset(new mlogger_tty(loglevel, std::cout));
 	}
 
-	// initialize memcache gateway
-	std::auto_ptr<MemprotoText> mpt;
+	// initialize gateway
+	std::auto_ptr<Memtext> mpt;
+	std::auto_ptr<Memproto> mpb;
 	std::auto_ptr<Cloudy> cl;
-	//if(arg.memtext_set) {
-	//	mpt.reset(new MemprotoText(arg.memtext_lsock));
-	//}
-	if(arg.cloudy_set) {
-		cl.reset(new Cloudy(arg.cloudy_lsock));
-	} else {
-		mpt.reset(new MemprotoText(arg.memtext_lsock));
-	}
+	if(arg.memtext_set)  { mpt.reset(new Memtext(arg.memtext_lsock));   }
+	if(arg.memproto_set) { mpb.reset(new Memproto(arg.memproto_lsock)); }
+	if(arg.cloudy_set)   { cl.reset(new Cloudy(arg.cloudy_lsock));      }
 
 	// daemonize
 	if(!arg.pidfile.empty()) {
@@ -151,14 +158,11 @@ int main(int argc, char* argv[])
 
 	// run server
 	Gateway::initialize(arg);
-	//if(arg.memtext_set) {
-	//	Gateway::instance().add_gateway(mpt.get());
-	//}
-	if(arg.cloudy_set) {
-		Gateway::instance().add_gateway(cl.get());
-	} else {
-		Gateway::instance().add_gateway(mpt.get());
-	}
+
+	if(mpt.get()) { Gateway::instance().add_gateway(mpt.get()); }
+	if(mpb.get()) { Gateway::instance().add_gateway(mpb.get()); }
+	if(cl.get())  { Gateway::instance().add_gateway(cl.get());  }
+
 	Gateway::instance().run();
 	Gateway::instance().join();
 }

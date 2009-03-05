@@ -10,6 +10,8 @@ struct kumo_tchdb {
 		if(!db) {
 			throw std::bad_alloc();
 		}
+		//tchdbsetcache(db, 32000);   FIXME
+		//tchdbsetxmsiz(db, 1024*1024);   FIXME
 	}
 
 	~kumo_tchdb()

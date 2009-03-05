@@ -161,8 +161,9 @@ private:
 	Connection(const Connection&);
 };
 
+
 Cloudy::Connection::Connection(int fd, Gateway* gw) :
-	mp::wavy::handler(fd),
+	wavy::handler(fd),
 	m_buffer(CLOUDY_INITIAL_ALLOCATION_SIZE),
 	m_gw(gw),
 	m_zone(new msgpack::zone()),
@@ -239,21 +240,30 @@ try {
 		size_t off = 0;
 		int ret = memproto_parser_execute(&m_memproto,
 				(char*)m_buffer.data(), m_buffer.data_size(), &off);
-		if(ret == 0) { break; }
+
+		if(ret == 0) {
+			break;
+		}
+
 		if(ret < 0) {
 			//std::cout << "parse error " << ret << std::endl;
 			throw std::runtime_error("parse error");
 		}
+
 		m_buffer.data_used(off);
 
-		m_zone->push_finalizer(&mp::object_delete<mp::stream_buffer::reference>,
+		m_zone->push_finalizer(
+				&mp::object_delete<mp::stream_buffer::reference>,
 				m_buffer.release());
+
 		ret = memproto_dispatch(&m_memproto);
 		if(ret <= 0) {
 			LOG_DEBUG("unknown command ",(uint16_t)-ret);
 			throw std::runtime_error("unknown command");
 		}
+
 		m_zone.reset(new msgpack::zone());
+
 	} while(m_buffer.data_size() > 0);
 
 } catch (std::exception& e) {
