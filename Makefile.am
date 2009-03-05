@@ -32,6 +32,7 @@ kumo_server_SOURCES = \
 		logic/srv_cmd.cc
 
 kumo_gateway_SOURCES = \
+		gateway/memproto.cc \
 		gateway/memtext.cc \
 		gateway/cloudy.cc \
 		logic/gw_store.cc \

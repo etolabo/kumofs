@@ -72,6 +72,9 @@ private:
 	// noop
 	inline void request_noop(memproto_header* h);
 
+	inline void request_flush(memproto_header* h,
+			uint32_t expiration);
+
 private:
 	memproto_parser m_memproto;
 	mp::stream_buffer m_buffer;
@@ -212,6 +215,11 @@ Memproto::Connection::Connection(int fd, Gateway* gw) :
 			&mp::object_callback<void (memproto_header*)>
 				::mem_fun<Connection, &Connection::request_noop>;
 
+	void (*cmd_flush)(void*, memproto_header*,
+			uint32_t) = &mp::object_callback<void (memproto_header*,
+				uint32_t expiration)>
+				::mem_fun<Connection, &Connection::request_flush>;
+
 	memproto_callback cb = {
 		cmd_getx,    // get
 		cmd_set,     // set
@@ -221,7 +229,7 @@ Memproto::Connection::Connection(int fd, Gateway* gw) :
 		NULL,        // increment
 		NULL,        // decrement
 		NULL,        // quit
-		NULL,        // flush
+		cmd_flush,   // flush
 		cmd_getx,    // getq
 		cmd_noop,    // noop
 		NULL,        // version
@@ -288,8 +296,14 @@ inline void Memproto::Connection::response_queue::reached_try_send(
 	for(; found != m_queue.end(); found = m_queue.begin()) {
 		element_t& elem(*found);
 
-		wavy::request req(&mp::object_delete<shared_zone>, new shared_zone(elem.life));
-		wavy::writev(m_fd, elem.vec, elem.veclen, req);
+		if(elem.e) {
+			break;
+		}
+
+		if(elem.veclen > 0) {
+			wavy::request req(&mp::object_delete<shared_zone>, new shared_zone(elem.life));
+			wavy::writev(m_fd, elem.vec, elem.veclen, req);
+		}
 
 		m_queue.pop_front();
 	}
@@ -449,11 +463,30 @@ void Memproto::Connection::request_noop(memproto_header* h)
 {
 	LOG_TRACE("noop");
 
-	entry* e = m_zone->allocate<get_entry>();
+	entry* e = m_zone->allocate<entry>();
 	e->queue      = m_queue;
 	e->header     = *h;
 
-	send_response_nosend(e);
+	m_queue->push_entry(e, m_zone);
+	send_response_nodata(e, *m_zone, MEMPROTO_RES_NO_ERROR);
+}
+
+void Memproto::Connection::request_flush(memproto_header* h,
+		uint32_t expiration)
+{
+	LOG_TRACE("flush");
+
+	if(expiration) {
+		// FIXME error response
+		throw std::runtime_error("memcached binary protocol: invalid argument");
+	}
+
+	entry* e = m_zone->allocate<entry>();
+	e->queue      = m_queue;
+	e->header     = *h;
+
+	m_queue->push_entry(e, m_zone);
+	send_response_nodata(e, *m_zone, MEMPROTO_RES_NO_ERROR);
 }
 
 namespace {
