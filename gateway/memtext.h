@@ -6,10 +6,10 @@
 namespace kumo {
 
 
-class MemprotoText : public GatewayInterface {
+class Memtext : public GatewayInterface {
 public:
-	MemprotoText(int lsock);
-	~MemprotoText();
+	Memtext(int lsock);
+	~Memtext();
 
 	static void accepted(Gateway* gw, int fd, int err);
 	void listen(Gateway* gw);
@@ -19,8 +19,8 @@ private:
 	int m_lsock;
 
 private:
-	MemprotoText();
-	MemprotoText(const MemprotoText&);
+	Memtext();
+	Memtext(const Memtext&);
 };
 
 

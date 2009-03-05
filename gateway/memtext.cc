@@ -19,13 +19,13 @@ static const size_t MEMTEXT_INITIAL_ALLOCATION_SIZE = 16*1024;
 static const size_t MEMTEXT_RESERVE_SIZE = 1024;
 
 
-MemprotoText::MemprotoText(int lsock) :
+Memtext::Memtext(int lsock) :
 	m_lsock(lsock) { }
 
-MemprotoText::~MemprotoText() {}
+Memtext::~Memtext() {}
 
 
-void MemprotoText::accepted(Gateway* gw, int fd, int err)
+void Memtext::accepted(Gateway* gw, int fd, int err)
 {
 	if(fd < 0) {
 		LOG_FATAL("accept failed: ",strerror(err));
@@ -36,15 +36,15 @@ void MemprotoText::accepted(Gateway* gw, int fd, int err)
 	wavy::add<Connection>(fd, gw);
 }
 
-void MemprotoText::listen(Gateway* gw)
+void Memtext::listen(Gateway* gw)
 {
 	using namespace mp::placeholders;
 	wavy::listen(m_lsock,
-			mp::bind(&MemprotoText::accepted, gw, _1, _2));
+			mp::bind(&Memtext::accepted, gw, _1, _2));
 }
 
 
-class MemprotoText::Connection : public wavy::handler {
+class Memtext::Connection : public wavy::handler {
 public:
 	Connection(int fd, Gateway* gw);
 	~Connection();
@@ -156,7 +156,7 @@ private:
 };
 
 
-MemprotoText::Connection::Connection(int fd, Gateway* gw) :
+Memtext::Connection::Connection(int fd, Gateway* gw) :
 	mp::wavy::handler(fd),
 	m_buffer(MEMTEXT_INITIAL_ALLOCATION_SIZE),
 	m_off(0),
@@ -191,13 +191,13 @@ MemprotoText::Connection::Connection(int fd, Gateway* gw) :
 	memtext_init(&m_memproto, &cb, this);
 }
 
-MemprotoText::Connection::~Connection()
+Memtext::Connection::~Connection()
 {
 	*m_valid = false;
 }
 
 
-void MemprotoText::Connection::read_event()
+void Memtext::Connection::read_event()
 try {
 	m_buffer.reserve_buffer(MEMTEXT_RESERVE_SIZE);
 
@@ -234,13 +234,13 @@ try {
 }
 
 
-void MemprotoText::Connection::Responder::send_data(
+void Memtext::Connection::Responder::send_data(
 		const char* buf, size_t buflen)
 {
 	wavy::write(m_fd, buf, buflen);
 }
 
-void MemprotoText::Connection::Responder::send_datav(
+void Memtext::Connection::Responder::send_datav(
 		struct iovec* vb, size_t count, shared_zone& life)
 {
 	wavy::request req(&mp::object_delete<shared_zone>, new shared_zone(life));
@@ -260,7 +260,7 @@ static const char* const DELETE_FAILED_REPLY = "SERVER_ERROR delete failed\r\n";
 	life->push_finalizer(&mp::object_delete<mp::stream_buffer::reference>, \
 				m_buffer.release());
 
-int MemprotoText::Connection::memproto_get(
+int Memtext::Connection::memproto_get(
 		memtext_command cmd,
 		memtext_request_retrieval* r)
 {
@@ -316,7 +316,7 @@ int MemprotoText::Connection::memproto_get(
 }
 
 
-int MemprotoText::Connection::memproto_set(
+int Memtext::Connection::memproto_set(
 		memtext_command cmd,
 		memtext_request_storage* r)
 {
@@ -352,7 +352,7 @@ int MemprotoText::Connection::memproto_set(
 }
 
 
-int MemprotoText::Connection::memproto_delete(
+int Memtext::Connection::memproto_delete(
 		memtext_command cmd,
 		memtext_request_delete* r)
 {
@@ -387,7 +387,7 @@ int MemprotoText::Connection::memproto_delete(
 
 
 
-void MemprotoText::Connection::ResGet::response(get_response& res)
+void Memtext::Connection::ResGet::response(get_response& res)
 {
 	if(!is_valid()) { return; }
 	LOG_TRACE("get response");
@@ -417,7 +417,7 @@ void MemprotoText::Connection::ResGet::response(get_response& res)
 }
 
 
-void MemprotoText::Connection::ResMultiGet::response(get_response& res)
+void Memtext::Connection::ResMultiGet::response(get_response& res)
 {
 	if(!is_valid()) { return; }
 	LOG_TRACE("get multi response ",m_count);
@@ -446,7 +446,7 @@ filled:
 }
 
 
-void MemprotoText::Connection::ResSet::response(set_response& res)
+void Memtext::Connection::ResSet::response(set_response& res)
 {
 	if(!is_valid()) { return; }
 	LOG_TRACE("set response");
@@ -459,11 +459,11 @@ void MemprotoText::Connection::ResSet::response(set_response& res)
 	send_data("STORED\r\n", 8);
 }
 
-void MemprotoText::Connection::ResSet::no_response(set_response& res)
+void Memtext::Connection::ResSet::no_response(set_response& res)
 { }
 
 
-void MemprotoText::Connection::ResDelete::response(delete_response& res)
+void Memtext::Connection::ResDelete::response(delete_response& res)
 {
 	if(!is_valid()) { return; }
 	LOG_TRACE("delete response");
@@ -479,7 +479,7 @@ void MemprotoText::Connection::ResDelete::response(delete_response& res)
 	}
 }
 
-void MemprotoText::Connection::ResDelete::no_response(delete_response& res)
+void Memtext::Connection::ResDelete::no_response(delete_response& res)
 { }
 
 
