@@ -1,6 +1,9 @@
 #include "gateway/memproto.h"
 #include "memproto/memproto.h"
+#include <mp/object_callback.h>
+#include <mp/stream_buffer.h>
 #include <stdexcept>
+#include <string.h>
 #include <errno.h>
 #include <sys/types.h>
 #include <sys/uio.h>
@@ -22,28 +25,27 @@ Memproto::Memproto(int lsock) :
 Memproto::~Memproto() {}
 
 
-void Memproto::accepted(void* data, int fd)
+void Memproto::accepted(Gateway* gw, int fd, int err)
 {
-	Gateway* gw = reinterpret_cast<Gateway*>(data);
 	if(fd < 0) {
-		LOG_FATAL("accept failed: ",strerror(-fd));
+		LOG_FATAL("accept failed: ",strerror(err));
 		gw->signal_end();
 		return;
 	}
-	mp::set_nonblock(fd);
-	mp::iothreads::add<Connection>(fd, gw);
+	LOG_DEBUG("accept memproto text user fd=",fd);
+	wavy::add<Connection>(fd, gw);
 }
 
 void Memproto::listen(Gateway* gw)
 {
-	mp::iothreads::listen(m_lsock,
-			&Memproto::accepted,
-			reinterpret_cast<void*>(gw));
+	using namespace mp::placeholders;
+	wavy::listen(m_lsock,
+			mp::bind(&Memproto::accepted, gw, _1, _2));
 }
 
 
 
-class Memproto::Connection : public iothreads::handler {
+class Memproto::Connection : public wavy::handler {
 public:
 	Connection(int fd, Gateway* gw);
 	~Connection();
@@ -53,96 +55,124 @@ public:
 
 private:
 	// get, getq, getk, getkq
-	inline void memproto_getx(memproto_header* h, const char* key, uint16_t keylen);
+	inline void request_getx(memproto_header* h,
+			const char* key, uint16_t keylen);
 
 	// set
-	inline void memproto_set(memproto_header* h, const char* key, uint16_t keylen,
-			const char* val, uint16_t vallen,
+	inline void request_set(memproto_header* h,
+			const char* key, uint16_t keylen,
+			const char* val, uint32_t vallen,
 			uint32_t flags, uint32_t expiration);
 
 	// delete
-	inline void memproto_delete(memproto_header* h, const char* key, uint16_t keylen,
+	inline void request_delete(memproto_header* h,
+			const char* key, uint16_t keylen,
 			uint32_t expiration);
 
 	// noop
-	inline void memproto_noop(memproto_header* h);
+	inline void request_noop(memproto_header* h);
 
 private:
 	memproto_parser m_memproto;
-	char* m_buffer;
-	size_t m_free;
-	size_t m_used;
-	size_t m_off;
+	mp::stream_buffer m_buffer;
+
 	Gateway* m_gw;
 
-	class Responder;
+	typedef Gateway::get_request gw_get_request;
+	typedef Gateway::set_request gw_set_request;
+	typedef Gateway::delete_request gw_delete_request;
 
-	class Queue {
-	public:
-		bool is_valid() const { return m_valid; }
-		void process_queue();
-	private:
-		int m_fd;
-		typedef std::deque<Responder*> queue_t;
-		queue_t m_queue;
-		bool m_valid;
-	};
-	typedef mp::shared_ptr<Queue> SharedQueue;
-	SharedQueue m_queue;
-
-	typedef Gateway::get_request get_request;
-	typedef Gateway::set_request set_request;
-	typedef Gateway::delete_request delete_request;
-
-	typedef Gateway::get_response get_response;
-	typedef Gateway::set_response set_response;
-	typedef Gateway::delete_response delete_response;
+	typedef Gateway::get_response gw_get_response;
+	typedef Gateway::set_response gw_set_response;
+	typedef Gateway::delete_response gw_delete_response;
 
 	typedef rpc::shared_zone shared_zone;
 
-
-	struct LifeKeeper {
-		LifeKeeper(shared_zone& z) : m(z) { }
-		~LifeKeeper() { }
-	private:
-		shared_zone m;
-		LifeKeeper();
-	};
+	shared_zone m_zone;
 
 
-	struct Responder {
-		Responder(int fd, SharedQueue& valid) :
-			m_fd(fd), m_valid(valid) { }
-		~Responder() { }
+	struct entry;
 
-		bool is_valid() const { return *m_valid; }
 
-		int fd() const { return m_fd; }
+	class response_queue {
+	public:
+		response_queue(int fd);
+		~response_queue();
 
-		void send_data(const char* buf, size_t buflen);
-		void send_datav(struct iovec* vb, size_t count, shared_zone& life);
+		void push_entry(entry* e, shared_zone& life);
+		void reached_try_send(entry* e, struct iovec* vec, size_t veclen);
+
+		int is_valid() const;
+		void invalidate();
 
 	private:
+		bool m_valid;
 		int m_fd;
-		SharedQueue m_valid;
+
+		struct element_t {
+			entry* e;
+			shared_zone life;
+			struct iovec* vec;
+			size_t veclen;
+		};
+
+		mp::pthread_mutex m_queue_mutex;
+
+		typedef std::deque<element_t> queue_t;
+		queue_t m_queue;
+
+		struct find_entry_compare;
+
+	private:
+		response_queue();
+		response_queue(const response_queue&);
 	};
 
-	struct ResGet : Responder {
-		ResGet(int fd, SharedQueue& valid) :
-			Responder(fd, valid) { }
-		~ResGet() { }
-		void response(get_response& res);
-		void response_q(get_response& res);
-		void response_k(get_response& res);
-		void response_kq(get_response& res);
+	typedef mp::shared_ptr<response_queue> shared_entry_queue;
+	shared_entry_queue m_queue;
+
+
+	struct entry {
+		shared_entry_queue queue;
+		memproto_header header;
 	};
 
 
-	template <typename T>
-	char* alloc_responder_buf(shared_zone& z, size_t size, T** rp);
+	// get, getq, getk, getkq
+	struct get_entry : entry {
+		bool flag_key;
+		bool flag_quiet;
+	};
+	static void response_getx(void* user, gw_get_response& res);
 
-	template <typename T>
-	static void object_destruct_free(void* data);
+
+	// set
+	struct set_entry : entry {
+	};
+	static void response_set(void* user, gw_set_response& res);
+
+
+	// delete
+	struct delete_entry : entry {
+	};
+	static void response_delete(void* user, gw_delete_response& res);
+
+
+	static void send_response_nosend(entry* e);
+
+	static void send_response_nodata(entry* e, msgpack::zone& life,
+			uint8_t status);
+
+	static void send_response(entry* e, msgpack::zone& life,
+			uint8_t status,
+			const char* key, uint16_t keylen,
+			const void* val, uint16_t vallen,
+			const char* extra, uint16_t extralen);
+
+	static inline void pack_header(
+			char* hbuf, uint16_t status, uint8_t op,
+			uint16_t keylen, uint32_t vallen, uint8_t extralen,
+			uint32_t opaque, uint64_t cas);
 
 private:
 	Connection();
@@ -151,38 +181,36 @@ private:
 
 
 Memproto::Connection::Connection(int fd, Gateway* gw) :
-	mp::iothreads::handler(fd),
-	m_buffer(NULL),
-	m_free(0),
-	m_used(0),
-	m_off(0),
+	wavy::handler(fd),
+	m_buffer(MEMPROTO_INITIAL_ALLOCATION_SIZE),
 	m_gw(gw),
-	m_queue(new Queue())
+	m_zone(new msgpack::zone()),
+	m_queue(new response_queue(fd))
 {
 	void (*cmd_getx)(void*, memproto_header*,
 			const char*, uint16_t) = &mp::object_callback<void (memproto_header*,
 				const char*, uint16_t)>
-				::mem_fun<Connection, &Connection::memproto_getx>;
+				::mem_fun<Connection, &Connection::request_getx>;
 
 	void (*cmd_set)(void*, memproto_header*,
 			const char*, uint16_t,
-			const char*, uint16_t,
+			const char*, uint32_t,
 			uint32_t, uint32_t) = &mp::object_callback<void (memproto_header*,
 				const char*, uint16_t,
-				const char*, uint16_t,
+				const char*, uint32_t,
 				uint32_t, uint32_t)>
-				::mem_fun<Connection, &Connection::memproto_set>;
+				::mem_fun<Connection, &Connection::request_set>;
 
 	void (*cmd_delete)(void*, memproto_header*,
 			const char*, uint16_t,
 			uint32_t) = &mp::object_callback<void (memproto_header*,
 				const char*, uint16_t,
 				uint32_t)>
-				::mem_fun<Connection, &Connection::memproto_delete>;
+				::mem_fun<Connection, &Connection::request_delete>;
 
 	void (*cmd_noop)(void*, memproto_header*) =
 			&mp::object_callback<void (memproto_header*)>
-				::mem_fun<Connection, &Connection::memproto_noop>;
+				::mem_fun<Connection, &Connection::request_noop>;
 
 	memproto_callback cb = {
 		cmd_getx,    // get
@@ -209,26 +237,80 @@ Memproto::Connection::Connection(int fd, Gateway* gw) :
 Memproto::Connection::~Connection()
 {
 	m_queue->invalidate();
-	::free(m_buffer);
 }
 
-namespace {
-static void finalize_free(void* buf) { ::free(buf); }
-}  // noname namespace
+
+struct Memproto::Connection::response_queue::find_entry_compare {
+	find_entry_compare(entry* key) : m_key(key) { }
+
+	bool operator() (const element_t& elem)
+	{
+		return elem.e == m_key;
+	}
+
+	entry* m_key;
+};
+
+Memproto::Connection::response_queue::response_queue(int fd) :
+	m_valid(true), m_fd(fd) { }
+
+Memproto::Connection::response_queue::~response_queue() { }
+
+inline void Memproto::Connection::response_queue::push_entry(
+		entry* e, shared_zone& life)
+{
+	element_t m = {e, life};
+
+	mp::pthread_scoped_lock mqlk(m_queue_mutex);
+	m_queue.push_back(m);
+}
+
+inline void Memproto::Connection::response_queue::reached_try_send(
+		entry* e, struct iovec* vec, size_t veclen)
+{
+	mp::pthread_scoped_lock mqlk(m_queue_mutex);
+
+	queue_t::iterator found = std::find_if(m_queue.begin(), m_queue.end(),
+			find_entry_compare(e));
+
+	if(found == m_queue.end()) {
+		return;
+	}
+
+	found->e = NULL;
+	found->vec = vec;
+	found->veclen = veclen;
+
+	if(found != m_queue.begin()) {
+		return;
+	}
+
+	for(; found != m_queue.end(); found = m_queue.begin()) {
+		element_t& elem(*found);
+
+		wavy::request req(&mp::object_delete<shared_zone>, new shared_zone(elem.life));
+		wavy::writev(m_fd, elem.vec, elem.veclen, req);
+
+		m_queue.pop_front();
+	}
+}
+
+inline int Memproto::Connection::response_queue::is_valid() const
+{
+	return m_valid;
+}
+
+inline void Memproto::Connection::response_queue::invalidate()
+{
+	m_valid = false;
+}
+
 
 void Memproto::Connection::read_event()
 try {
-	if(m_free < MEMPROTO_RESERVE_SIZE) {
-		size_t nsize;
-		if(m_buffer == NULL) { nsize = MEMPROTO_INITIAL_ALLOCATION_SIZE; }
-		else { nsize = (m_free + m_used) * 2; }
-		char* tmp = (char*)::realloc(m_buffer, nsize);
-		if(!tmp) { throw std::bad_alloc(); }
-		m_buffer = tmp;
-		m_free = nsize - m_used;
-	}
+	m_buffer.reserve_buffer(MEMPROTO_RESERVE_SIZE);
 
-	ssize_t rl = ::read(fd(), m_buffer+m_used, m_free);
+	size_t rl = ::read(fd(), m_buffer.buffer(), m_buffer.buffer_capacity());
 	if(rl < 0) {
 		if(errno == EAGAIN || errno == EINTR) {
 			return;
@@ -236,43 +318,43 @@ try {
 			throw std::runtime_error("read error");
 		}
 	} else if(rl == 0) {
+		LOG_DEBUG("connection closed: ",strerror(errno));
 		throw std::runtime_error("connection closed");
 	}
 
-	m_used += rl;
-	m_free -= rl;
+	m_buffer.buffer_consumed(rl);
 
-	int ret;
-	while( (ret = memproto_parser_execute(&m_memproto, m_buffer, m_used, &m_off)) > 0) {
-		m_zone->push_finalizer(finalize_free, m_buffer);
-		size_t trail = m_used - m_off;
-		if(trail > 0) {
-			char* curbuf = m_buffer;
-			m_buffer = NULL;  // prevent double-free at destructor
-			size_t nsize = MEMPROTO_INITIAL_ALLOCATION_SIZE;
-			while(nsize < trail) { nsize *= 2; }
-			char* nbuffer = (char*)::malloc(nsize);
-			if(!nbuffer) { throw std::bad_alloc(); }
-			memcpy(nbuffer, curbuf+m_off, trail);
-			m_buffer = nbuffer;
-			m_free = nsize - trail;
-			m_used = trail;
-		} else {
-			m_buffer = NULL;
-			m_free = 0;
-			m_used = 0;
+	do {
+		size_t off = 0;
+		int ret = memproto_parser_execute(&m_memproto,
+				(char*)m_buffer.data(), m_buffer.data_size(), &off);
+
+		if(ret == 0) {
+			break;
 		}
-		m_off = 0;
-		if( (ret = memproto_dispatch(&m_memproto)) <= 0) {
-			LOG_WARN("unknown command ",(-ret));
+
+		if(ret < 0) {
+			//std::cout << "parse error " << ret << std::endl;
+			throw std::runtime_error("parse error");
+		}
+
+		m_buffer.data_used(off);
+
+		m_zone->push_finalizer(
+				&mp::object_delete<mp::stream_buffer::reference>,
+				m_buffer.release());
+
+		ret = memproto_dispatch(&m_memproto);
+		if(ret <= 0) {
+			LOG_DEBUG("unknown command ",(uint16_t)-ret);
 			throw std::runtime_error("unknown command");
 		}
-		m_zone.reset(new mp::zone());
-	}
 
-	if(ret < 0) { throw std::runtime_error("parse error"); }
+		m_zone.reset(new msgpack::zone());
 
-} catch (std::runtime_error& e) {
+	} while(m_buffer.data_size() > 0);
+
+} catch (std::exception& e) {
 	LOG_DEBUG("memcached binary protocol error: ",e.what());
 	throw;
 } catch (...) {
@@ -280,481 +362,179 @@ try {
 	throw;
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-class Memproto::Connection : public iothreads::handler {
-public:
-	Connection(int fd, Gateway* gw);
-	~Connection();
-
-public:
-	void read_event();
-
-private:
-	// get, getq, getk, getkq
-	inline void memproto_getx(memproto_header* h, const char* key, uint16_t keylen);
-
-	// set
-	inline void memproto_set(memproto_header* h, const char* key, uint16_t keylen,
-			const char* val, uint16_t vallen,
-			uint32_t flags, uint32_t expiration);
-
-	// delete
-	inline void memproto_delete(memproto_header* h, const char* key, uint16_t keylen,
-			uint32_t expiration);
-
-	// noop
-	inline void memproto_noop(memproto_header* h);
-
-private:
-	memproto_parser m_memproto;
-	char* m_buffer;
-	size_t m_free;
-	size_t m_used;
-	size_t m_off;
-	shared_zone m_zone;
-	Gateway* m_gw;
-
-	mp::shared_ptr<SharedResponder> m_responder;
-
-public:
-	struct Request {
-		Request(shared_zone life_) : done(false), life(life_) {}
-		bool done;
-		struct iovec vec[4];  // NOTE: check send_response()
-		unsigned short veclen;
-		shared_zone life;
-	private:
-		Request();
-		Request(const Request&);
-	};
-
-private:
-	Connection();
-	Connection(const Connection&);
-};
-
-
-class Memproto::SharedResponder {
-public:
-	SharedResponder(int fd);
-	~SharedResponder();
-
-public:
-	bool is_valid() const;
-	void invalidate();
-
-public:
-	typedef Connection::Request Request;
-	typedef Gateway::user_get_response user_get_response;
-	typedef Gateway::user_set_response user_set_response;
-	typedef Gateway::user_delete_response user_delete_response;
-
-	void memproto_getx_response(
-			Request* req, memproto_header h,
-			const char* key, uint32_t keylen,
-			user_get_response ret, shared_zone life);
-
-	void memproto_set_response(
-			Request* req, memproto_header h,
-			user_set_response ret, shared_zone life);
-
-	void memproto_delete_response(
-			Request* req, memproto_header h,
-			user_delete_response ret, shared_zone life);
-
-private:
-	void send_response_quiet(Request* req);
-
-	void send_response_nodata(
-			Request* req, memproto_header* h,
-			uint8_t status, uint64_t cas);
-
-	void send_response(
-			Request* req, memproto_header* h,
-			uint8_t status,
-			const char* key, uint16_t keylen,
-			const void* val, uint16_t vallen,
-			const char* extra, uint16_t extralen,
-			uint64_t cas);
-
-	static void pack_header(char* hbuf, uint16_t status, uint8_t op,
-			uint16_t keylen, uint32_t vallen, uint8_t extralen,
-			uint32_t opaque, uint64_t cas);
-
-private:
-	void process_queue();
-
-private:
-	int m_fd;
-
-	typedef std::deque<Request*> queue_t;
-	queue_t m_queue;
-	friend class Connection;
-
-private:
-	SharedResponder();
-	SharedResponder(const SharedResponder&);
-};
-
-
-#define BIND_RESPONSE(gw_cmd, res_cmd, ...) \
-	Gateway::user ##gw_cmd ##_callback_t( \
-			mp::bind(&SharedResponder::memproto ##res_cmd ##_response, \
-				m_responder, __VA_ARGS__))
-
-
-Memproto::Connection::Connection(int fd, Gateway* gw) :
-	mp::iothreads::handler(fd),
-	m_buffer(NULL),
-	m_free(0),
-	m_used(0),
-	m_off(0),
-	m_zone(new mp::zone()),
-	m_gw(gw),
-	m_responder(new SharedResponder(fd))
-{
-	void (*cmd_getx)(void*, memproto_header*,
-			const char*, uint16_t) = &mp::object_callback<void (memproto_header*,
-				const char*, uint16_t)>
-				::mem_fun<Connection, &Connection::memproto_getx>;
-
-	void (*cmd_set)(void*, memproto_header*,
-			const char*, uint16_t,
-			const char*, uint16_t,
-			uint32_t, uint32_t) = &mp::object_callback<void (memproto_header*,
-				const char*, uint16_t,
-				const char*, uint16_t,
-				uint32_t, uint32_t)>
-				::mem_fun<Connection, &Connection::memproto_set>;
-
-	void (*cmd_delete)(void*, memproto_header*,
-			const char*, uint16_t,
-			uint32_t) = &mp::object_callback<void (memproto_header*,
-				const char*, uint16_t,
-				uint32_t)>
-				::mem_fun<Connection, &Connection::memproto_delete>;
-
-	void (*cmd_noop)(void*, memproto_header*) =
-			&mp::object_callback<void (memproto_header*)>
-				::mem_fun<Connection, &Connection::memproto_noop>;
-
-	memproto_callback cb = {
-		cmd_getx,    // get
-		cmd_set,     // set
-		NULL,        // add
-		NULL,        // replace
-		cmd_delete,  // delete
-		NULL,        // increment
-		NULL,        // decrement
-		NULL,        // quit
-		NULL,        // flush
-		cmd_getx,    // getq
-		cmd_noop,    // noop
-		NULL,        // version
-		cmd_getx,    // getk
-		cmd_getx,    // getkq
-		NULL,        // append
-		NULL,        // prepend
-	};
-
-	memproto_parser_init(&m_memproto, &cb, this);
-}
-
-Memproto::Connection::~Connection()
-{
-	m_responder->invalidate();
-	::free(m_buffer);
-}
-
-
-inline Memproto::SharedResponder::SharedResponder(int fd) :
-	m_fd(fd)
-{ }
-
-inline Memproto::SharedResponder::~SharedResponder()
-{ }
-
-inline bool Memproto::SharedResponder::is_valid() const
-{
-	return m_fd >= 0;
-}
-
-inline void Memproto::SharedResponder::invalidate()
-{
-	m_fd = -1;
-}
-
-
-namespace {
-static void finalize_free(void* buf) { ::free(buf); }
-}  // noname namespace
-
-void Memproto::Connection::read_event()
-try {
-	if(m_free < MEMPROTO_RESERVE_SIZE) {
-		size_t nsize;
-		if(m_buffer == NULL) { nsize = MEMPROTO_INITIAL_ALLOCATION_SIZE; }
-		else { nsize = (m_free + m_used) * 2; }
-		char* tmp = (char*)::realloc(m_buffer, nsize);
-		if(!tmp) { throw std::bad_alloc(); }
-		m_buffer = tmp;
-		m_free = nsize - m_used;
-	}
-
-	ssize_t rl = ::read(fd(), m_buffer+m_used, m_free);
-	if(rl < 0) {
-		if(errno == EAGAIN || errno == EINTR) {
-			return;
-		} else {
-			throw std::runtime_error("read error");
-		}
-	} else if(rl == 0) {
-		throw std::runtime_error("connection closed");
-	}
-
-	m_used += rl;
-	m_free -= rl;
-
-	int ret;
-	while( (ret = memproto_parser_execute(&m_memproto, m_buffer, m_used, &m_off)) > 0) {
-		m_zone->push_finalizer(finalize_free, m_buffer);
-		size_t trail = m_used - m_off;
-		if(trail > 0) {
-			char* curbuf = m_buffer;
-			m_buffer = NULL;  // prevent double-free at destructor
-			size_t nsize = MEMPROTO_INITIAL_ALLOCATION_SIZE;
-			while(nsize < trail) { nsize *= 2; }
-			char* nbuffer = (char*)::malloc(nsize);
-			if(!nbuffer) { throw std::bad_alloc(); }
-			memcpy(nbuffer, curbuf+m_off, trail);
-			m_buffer = nbuffer;
-			m_free = nsize - trail;
-			m_used = trail;
-		} else {
-			m_buffer = NULL;
-			m_free = 0;
-			m_used = 0;
-		}
-		m_off = 0;
-		if( (ret = memproto_dispatch(&m_memproto)) <= 0) {
-			LOG_WARN("unknown command ",(-ret));
-			throw std::runtime_error("unknown command");
-		}
-		m_zone.reset(new mp::zone());
-	}
-
-	if(ret < 0) { throw std::runtime_error("parse error"); }
-
-} catch (std::runtime_error& e) {
-	LOG_DEBUG("memcached binary protocol error: ",e.what());
-	throw;
-} catch (...) {
-	LOG_DEBUG("memcached binary protocol error: unknown error");
-	throw;
-}
-
-
-void Memproto::Connection::memproto_getx(memproto_header* h, const char* key, uint16_t keylen)
+void Memproto::Connection::request_getx(memproto_header* h,
+		const char* key, uint16_t keylen)
 {
 	LOG_TRACE("getx");
 
-	std::auto_ptr<Request> req(new Request(m_zone));
-	m_responder->m_queue.push_back(req.get());
+	get_entry* e = m_zone->allocate<get_entry>();
+	e->queue      = m_queue;
+	e->header     = *h;
+	e->flag_key   = (h->opcode == MEMPROTO_CMD_GETK || h->opcode == MEMPROTO_CMD_GETKQ);
+	e->flag_quiet = (h->opcode == MEMPROTO_CMD_GETQ || h->opcode == MEMPROTO_CMD_GETKQ);
 
-	using namespace mp::placeholders;
-	mp::iothreads::submit(&Gateway::user_get, m_gw,
-			key, keylen, m_zone,
-			BIND_RESPONSE(_get, _getx, req.get(), *h,
-				key, keylen, _1, _2));
+	gw_get_request req;
+	req.keylen   = keylen;
+	req.key      = key;
+	req.hash     = Gateway::stdhash(req.key, req.keylen);
+	req.life     = m_zone;
+	req.user     = reinterpret_cast<void*>(e);
+	req.callback = &Connection::response_getx;
 
-	req.release();
+	m_queue->push_entry(e, m_zone);
+
+	m_gw->submit(req);
+}
+
+void Memproto::Connection::request_set(memproto_header* h,
+		const char* key, uint16_t keylen,
+		const char* val, uint32_t vallen,
+		uint32_t flags, uint32_t expiration)
+{
+	LOG_TRACE("set");
+
+	if(h->cas || flags || expiration) {
+		// FIXME error response
+		throw std::runtime_error("memcached binary protocol: invalid argument");
+	}
+
+	get_entry* e = m_zone->allocate<get_entry>();
+	e->queue      = m_queue;
+	e->header     = *h;
+
+	gw_set_request req;
+	req.keylen   = keylen;
+	req.key      = key;
+	req.vallen   = vallen;
+	req.hash     = Gateway::stdhash(req.key, req.keylen);
+	req.val      = val;
+	req.life     = m_zone;
+	req.user     = reinterpret_cast<void*>(e);
+	req.callback = &Connection::response_set;
+
+	m_queue->push_entry(e, m_zone);
+
+	m_gw->submit(req);
+}
+
+void Memproto::Connection::request_delete(memproto_header* h,
+		const char* key, uint16_t keylen,
+		uint32_t expiration)
+{
+	LOG_TRACE("delete");
+
+	if(expiration) {
+		// FIXME error response
+		throw std::runtime_error("memcached binary protocol: invalid argument");
+	}
+
+	get_entry* e = m_zone->allocate<get_entry>();
+	e->queue      = m_queue;
+	e->header     = *h;
+
+	gw_delete_request req;
+	req.key      = key;
+	req.keylen   = keylen;
+	req.hash     = Gateway::stdhash(req.key, req.keylen);
+	req.life     = m_zone;
+	req.user     = reinterpret_cast<void*>(e);
+	req.callback = &Connection::response_delete;
+
+	m_queue->push_entry(e, m_zone);
+
+	m_gw->submit(req);
+}
+
+void Memproto::Connection::request_noop(memproto_header* h)
+{
+	LOG_TRACE("noop");
+
+	entry* e = m_zone->allocate<get_entry>();
+	e->queue      = m_queue;
+	e->header     = *h;
+
+	send_response_nosend(e);
 }
 
 namespace {
 	static const uint32_t ZERO_FLAG = 0;
 }  // noname namespace
 
-void Memproto::SharedResponder::memproto_getx_response(
-		Request* req, memproto_header h,
-		const char* key, uint32_t keylen,
-		user_get_response ret, shared_zone life)
+void Memproto::Connection::response_getx(void* user, gw_get_response& res)
 {
-	if(!is_valid()) { return; }
-	LOG_TRACE("getx callbacked ",(uint16_t)h.opcode);
+	get_entry* e = reinterpret_cast<get_entry*>(user);
+	if(!e->queue->is_valid()) { return; }
 
-	bool cmd_k = (h.opcode == MEMPROTO_CMD_GETK || h.opcode == MEMPROTO_CMD_GETKQ);
-	bool cmd_q = (h.opcode == MEMPROTO_CMD_GETQ || h.opcode == MEMPROTO_CMD_GETKQ);
+	LOG_TRACE("get response");
 
-	if(!ret.success) {
-		if(cmd_q) {
-			send_response_quiet(req);
-		} else {
-			LOG_TRACE("getx res err");
-			send_response_nodata(req, &h,
-					MEMPROTO_RES_INVALID_ARGUMENTS, 0);
+	if(res.error) {
+		// error
+		if(e->flag_quiet) {
+			send_response_nosend(e);
+			return;
 		}
-	} else if(ret.val) {
-		LOG_TRACE("getx res found");
-		send_response(req, &h,
-				MEMPROTO_RES_NO_ERROR,
-				key, (cmd_k ? keylen : 0),
-				ret.val, ret.vallen,
-				(char*)&ZERO_FLAG, 4,
-				0);
-	} else {
-		if(cmd_q) {
-			send_response_quiet(req);
-		} else {
-			LOG_TRACE("getx res not found");
-			send_response_nodata(req, &h,
-					MEMPROTO_RES_KEY_NOT_FOUND, 0);
+		LOG_TRACE("getx res err");
+		send_response_nodata(e, *res.life, MEMPROTO_RES_INVALID_ARGUMENTS);
+		return;
+	}
+
+	if(!res.val) {
+		// not found
+		if(e->flag_quiet) {
+			send_response_nosend(e);
+			return;
 		}
+		send_response_nodata(e, *res.life, MEMPROTO_RES_KEY_NOT_FOUND);
+		return;
 	}
 
-	LOG_TRACE("getx responsed");
+	// found
+	send_response(e, *res.life, MEMPROTO_RES_NO_ERROR,
+			res.key, (e->flag_key ? res.keylen : 0),
+			res.val, res.vallen,
+			(char*)&ZERO_FLAG, 4);
 }
 
-
-void Memproto::Connection::memproto_set(memproto_header* h, const char* key, uint16_t keylen,
-		const char* val, uint16_t vallen,
-		uint32_t flags, uint32_t expiration)
+void Memproto::Connection::response_set(void* user, gw_set_response& res)
 {
-	LOG_TRACE("set");
+	set_entry* e = reinterpret_cast<set_entry*>(user);
+	if(!e->queue->is_valid()) { return; }
 
-	if(h->cas || flags || expiration) {
-		throw std::runtime_error("memcached binary protocol: invalid argument");
+	LOG_TRACE("set response");
+
+	if(res.error) {
+		// error
+		send_response_nodata(e, *res.life, MEMPROTO_RES_OUT_OF_MEMORY);
+		return;
 	}
 
-	std::auto_ptr<Request> req(new Request(m_zone));
-	m_responder->m_queue.push_back(req.get());
-
-	using namespace mp::placeholders;
-	mp::iothreads::submit(&Gateway::user_set, m_gw,
-			key, keylen, val, vallen, m_zone,
-			BIND_RESPONSE(_set, _set, req.get(), *h,
-				_1, _2));
-
-	req.release();
+	// stored
+	send_response_nodata(e, *res.life, MEMPROTO_RES_NO_ERROR);
 }
 
-void Memproto::SharedResponder::memproto_set_response(
-		Request* req, memproto_header h,
-		user_set_response ret, shared_zone life)
+void Memproto::Connection::response_delete(void* user, gw_delete_response& res)
 {
-	if(!is_valid()) { return; }
-	LOG_TRACE("set callbacked");
+	delete_entry* e = reinterpret_cast<delete_entry*>(user);
+	if(!e->queue->is_valid()) { return; }
 
-	if(!ret.success) {
-		LOG_ERROR("set error");
-		send_response_nodata(req, &h, MEMPROTO_RES_OUT_OF_MEMORY, 0);
+	LOG_TRACE("delete response");
+
+	if(res.error) {
+		// error
+		send_response_nodata(e, *res.life, MEMPROTO_RES_INVALID_ARGUMENTS);
+		return;
+	}
+
+	if(res.deleted) {
+		send_response_nodata(e, *res.life, MEMPROTO_RES_NO_ERROR);
 	} else {
-		send_response_nodata(req, &h, MEMPROTO_RES_NO_ERROR, 0);
+		send_response_nodata(e, *res.life, MEMPROTO_RES_OUT_OF_MEMORY);
 	}
 }
 
 
-void Memproto::Connection::memproto_delete(memproto_header* h, const char* key, uint16_t keylen,
-		uint32_t expiration)
-{
-	LOG_TRACE("delete");
-
-	if(expiration) {
-		throw std::runtime_error("memcached binary protocol: invalid argument");
-	}
-
-	std::auto_ptr<Request> req(new Request(m_zone));
-	m_responder->m_queue.push_back(req.get());
-
-	using namespace mp::placeholders;
-	mp::iothreads::submit(&Gateway::user_delete, m_gw,
-			key, keylen, m_zone,
-			BIND_RESPONSE(_delete, _delete, req.get(), *h,
-				_1, _2));
-
-	req.release();
-}
-
-
-void Memproto::SharedResponder::memproto_delete_response(
-		Request* req, memproto_header h,
-		user_delete_response ret, shared_zone life)
-{
-	if(!is_valid()) { return; }
-	LOG_TRACE("delete callbacked");
-
-	if(!ret.success) {
-		send_response_nodata(req, &h, MEMPROTO_RES_INVALID_ARGUMENTS, 0);
-	} else if(ret.deleted) {
-		send_response_nodata(req, &h, MEMPROTO_RES_NO_ERROR, 0);
-	} else {
-		send_response_nodata(req, &h, MEMPROTO_RES_OUT_OF_MEMORY, 0);
-	}
-}
-
-
-void Memproto::Connection::memproto_noop(memproto_header* h)
-{
-	LOG_TRACE("noop");
-
-	std::auto_ptr<Request> req(new Request(m_zone));
-	m_responder->m_queue.push_back(req.get());
-
-	mp::iothreads::submit(&SharedResponder::send_response_nodata, m_responder,
-			req.get(), h,
-			MEMPROTO_RES_NO_ERROR, 0);
-
-	req.release();
-}
-
-
-void Memproto::SharedResponder::pack_header(char* hbuf, uint16_t status, uint8_t op,
+void Memproto::Connection::pack_header(
+		char* hbuf, uint16_t status, uint8_t op,
 		uint16_t keylen, uint32_t vallen, uint8_t extralen,
 		uint32_t opaque, uint64_t cas)
 {
@@ -770,87 +550,67 @@ void Memproto::SharedResponder::pack_header(char* hbuf, uint16_t status, uint8_t
 	*(uint32_t*)&hbuf[20] = htonl((uint32_t)(cas&0xffffffff));
 }
 
-inline void Memproto::SharedResponder::send_response_quiet(Request* req)
+void Memproto::Connection::send_response_nosend(entry* e)
 {
-	req->veclen = 0;
-	req->done = true;
-	process_queue();
+	e->queue->reached_try_send(e, NULL, 0);
 }
 
-void Memproto::SharedResponder::send_response_nodata(
-		Request* req, memproto_header* h,
-		uint8_t status, uint64_t cas)
+void Memproto::Connection::send_response_nodata(
+		entry* e, msgpack::zone& life,
+		uint8_t status)
 {
-	char* header = (char*)req->life->malloc(24);
-	pack_header(header, status, h->opcode,
+	char* header = (char*)life.malloc(MEMPROTO_HEADER_SIZE);
+
+	pack_header(header, status, e->header.opcode,
 			0, 0, 0,
-			h->opaque, cas);
-	req->vec[0].iov_base = header;
-	req->vec[0].iov_len  = 24;
-	req->veclen = 1;
-	req->done = true;
-	process_queue();
+			e->header.opaque, 0);  // cas = 0
+
+	struct iovec* vec = (struct iovec*)life.malloc(
+			sizeof(struct iovec) * 1);
+	vec[0].iov_base = header;
+	vec[0].iov_len  = MEMPROTO_HEADER_SIZE;
+
+	e->queue->reached_try_send(e, vec, 1);
 }
 
-
-namespace {
-struct shared_zone_keeper {
-	shared_zone_keeper(shared_zone& z) : m(z) {}
-	shared_zone m;
-};
-}  // noname namespace
-
-inline void Memproto::SharedResponder::send_response(
-		Request* req, memproto_header* h,
+inline void Memproto::Connection::send_response(
+		entry* e, msgpack::zone& life,
 		uint8_t status,
 		const char* key, uint16_t keylen,
 		const void* val, uint16_t vallen,
-		const char* extra, uint16_t extralen,
-		uint64_t cas)
+		const char* extra, uint16_t extralen)
 {
-	char* header = (char*)req->life->malloc(24);
-	pack_header(header, status, h->opcode,
+	char* header = (char*)life.malloc(MEMPROTO_HEADER_SIZE);
+	pack_header(header, status, e->header.opcode,
 			keylen, vallen, extralen,
-			h->opaque, cas);
+			e->header.opaque, 0);  // cas = 0
 
-	req->vec[0].iov_base = header;
-	req->vec[0].iov_len  = 24;
-	req->veclen = 1;
+	struct iovec* vec = (struct iovec*)life.malloc(
+			sizeof(struct iovec) * 4);
+
+	vec[0].iov_base = header;
+	vec[0].iov_len  = MEMPROTO_HEADER_SIZE;
+	size_t cnt = 1;
 
 	if(extralen > 0) {
-		req->vec[req->veclen].iov_base = const_cast<char*>(extra);
-		req->vec[req->veclen].iov_len  = extralen;
-		++req->veclen;
+		vec[cnt].iov_base = const_cast<char*>(extra);
+		vec[cnt].iov_len  = extralen;
+		++cnt;
 	}
 
 	if(keylen > 0) {
-		req->vec[req->veclen].iov_base = const_cast<char*>(key);
-		req->vec[req->veclen].iov_len  = keylen;
-		++req->veclen;
+		vec[cnt].iov_base = const_cast<char*>(key);
+		vec[cnt].iov_len  = keylen;
+		++cnt;
 	}
 
 	if(vallen > 0) {
-		req->vec[req->veclen].iov_base = const_cast<void*>(val);
-		req->vec[req->veclen].iov_len  = vallen;
-		++req->veclen;
+		vec[cnt].iov_base = const_cast<void*>(val);
+		vec[cnt].iov_len  = vallen;
+		++cnt;
 	}
 
-	req->done = true;
-	process_queue();
-}
-
-
-void Memproto::SharedResponder::process_queue()
-{
-	while(!m_queue.empty()) {
-		Request* req(m_queue.front());
-		if(!req->done) { break; }
-		if(req->veclen > 0) {
-			mp::iothreads::send_datav(m_fd, req->vec, req->veclen, *req->life, true);
-		}
-		m_queue.pop_front();
-		delete req;
-	}
+	e->queue->reached_try_send(e, vec, cnt);
 }
 
 

@@ -8,15 +8,14 @@ namespace kumo {
 
 class Memproto : public GatewayInterface {
 public:
-	Memproto(Gateway& cli);
+	Memproto(int lsock);
 	~Memproto();
 
-	static void accepted(void* data, int fd);
+	static void accepted(Gateway* gw, int fd, int err);
 	void listen(Gateway* gw);
 
 private:
 	class Connection;
-	class SharedResponder;
 	int m_lsock;
 
 private:
