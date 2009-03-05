@@ -42,6 +42,8 @@ int main(int argc, char* argv[])
 	memcached_server_add(mc, host, port);
 
 	memcached_behavior_set(mc, MEMCACHED_BEHAVIOR_BINARY_PROTOCOL, 1);
+	//memcached_behavior_set(mc, MEMCACHED_BEHAVIOR_POLL_TIMEOUT, 20*1000);
+	//memcached_behavior_set(mc, MEMCACHED_BEHAVIOR_CONNECT_TIMEOUT, 20*1000);
 
 	char kbuf[strlen(KEY_PREFIX) + 11];
 	char vbuf[strlen(VAL_PREFIX) + 11];

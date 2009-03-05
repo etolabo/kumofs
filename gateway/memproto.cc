@@ -103,7 +103,8 @@ private:
 		~response_queue();
 
 		void push_entry(entry* e, shared_zone& life);
-		void reached_try_send(entry* e, struct iovec* vec, size_t veclen);
+		void reached_try_send(entry* e, shared_zone& life,
+				struct iovec* vec, size_t veclen);
 
 		int is_valid() const;
 		void invalidate();
@@ -161,12 +162,12 @@ private:
 	static void response_delete(void* user, gw_delete_response& res);
 
 
-	static void send_response_nosend(entry* e);
+	static void send_response_nosend(entry* e, shared_zone& life);
 
-	static void send_response_nodata(entry* e, msgpack::zone& life,
+	static void send_response_nodata(entry* e, shared_zone& life,
 			uint8_t status);
 
-	static void send_response(entry* e, msgpack::zone& life,
+	static void send_response(entry* e, shared_zone& life,
 			uint8_t status,
 			const char* key, uint16_t keylen,
 			const void* val, uint16_t vallen,
@@ -274,7 +275,8 @@ inline void Memproto::Connection::response_queue::push_entry(
 }
 
 inline void Memproto::Connection::response_queue::reached_try_send(
-		entry* e, struct iovec* vec, size_t veclen)
+		entry* e, shared_zone& life,
+		struct iovec* vec, size_t veclen)
 {
 	mp::pthread_scoped_lock mqlk(m_queue_mutex);
 
@@ -282,19 +284,17 @@ inline void Memproto::Connection::response_queue::reached_try_send(
 			find_entry_compare(e));
 
 	if(found == m_queue.end()) {
+		// FIXME log?
 		return;
 	}
 
 	found->e = NULL;
+	found->life = life;
 	found->vec = vec;
 	found->veclen = veclen;
 
-	if(found != m_queue.begin()) {
-		return;
-	}
-
-	for(; found != m_queue.end(); found = m_queue.begin()) {
-		element_t& elem(*found);
+	do {
+		element_t& elem(m_queue.front());
 
 		if(elem.e) {
 			break;
@@ -306,7 +306,54 @@ inline void Memproto::Connection::response_queue::reached_try_send(
 		}
 
 		m_queue.pop_front();
+	} while(!m_queue.empty());
+
+#if 0
+	size_t reqlen = 0;
+
+	queue_t::iterator qlast = m_queue.begin();
+	for(queue_t::const_iterator qend = m_queue.end(); qlast != qend; ++qlast) {
+		if(qlast->e) { break; }
+		reqlen += qlast->veclen;
 	}
+
+	if(reqlen == 0) { return; }
+
+	// optimize
+	//if(m_queue.begin() + 1 == qlast) {
+	//}
+
+	typedef mp::wavy::output::request wavy_request;
+
+	struct iovec* const vb = (struct iovec*)found->life->malloc(
+			sizeof(struct iovec) * reqlen);
+
+	wavy_request* const vr = (wavy_request*)found->life->malloc(
+			sizeof(wavy_request) * reqlen);
+
+	memset(vr, 0, sizeof(wavy_request) * reqlen);
+
+
+	struct iovec* vbp = vb;
+	wavy_request* vrp = vr;
+
+	for(queue_t::const_iterator q(m_queue.begin()); q != qlast; ++q) {
+		memcpy(vbp, q->vec, sizeof(struct iovec) * q->veclen);
+
+		vrp[q->veclen-1] = wavy_request(
+				&mp::object_delete<shared_zone>,
+				new shared_zone(q->life));
+
+		vbp += q->veclen;
+		vrp += q->veclen;
+	}
+
+	m_queue.erase(m_queue.begin(), qlast);
+
+	mqlk.unlock();
+
+	wavy::writev(m_fd, vb, vr, reqlen);
+#endif
 }
 
 inline int Memproto::Connection::response_queue::is_valid() const
@@ -412,7 +459,7 @@ void Memproto::Connection::request_set(memproto_header* h,
 		throw std::runtime_error("memcached binary protocol: invalid argument");
 	}
 
-	get_entry* e = m_zone->allocate<get_entry>();
+	set_entry* e = m_zone->allocate<set_entry>();
 	e->queue      = m_queue;
 	e->header     = *h;
 
@@ -442,7 +489,7 @@ void Memproto::Connection::request_delete(memproto_header* h,
 		throw std::runtime_error("memcached binary protocol: invalid argument");
 	}
 
-	get_entry* e = m_zone->allocate<get_entry>();
+	delete_entry* e = m_zone->allocate<delete_entry>();
 	e->queue      = m_queue;
 	e->header     = *h;
 
@@ -468,7 +515,7 @@ void Memproto::Connection::request_noop(memproto_header* h)
 	e->header     = *h;
 
 	m_queue->push_entry(e, m_zone);
-	send_response_nodata(e, *m_zone, MEMPROTO_RES_NO_ERROR);
+	send_response_nodata(e, m_zone, MEMPROTO_RES_NO_ERROR);
 }
 
 void Memproto::Connection::request_flush(memproto_header* h,
@@ -486,7 +533,7 @@ void Memproto::Connection::request_flush(memproto_header* h,
 	e->header     = *h;
 
 	m_queue->push_entry(e, m_zone);
-	send_response_nodata(e, *m_zone, MEMPROTO_RES_NO_ERROR);
+	send_response_nodata(e, m_zone, MEMPROTO_RES_NO_ERROR);
 }
 
 namespace {
@@ -503,26 +550,26 @@ void Memproto::Connection::response_getx(void* user, gw_get_response& res)
 	if(res.error) {
 		// error
 		if(e->flag_quiet) {
-			send_response_nosend(e);
+			send_response_nosend(e, res.life);
 			return;
 		}
 		LOG_TRACE("getx res err");
-		send_response_nodata(e, *res.life, MEMPROTO_RES_INVALID_ARGUMENTS);
+		send_response_nodata(e, res.life, MEMPROTO_RES_INVALID_ARGUMENTS);
 		return;
 	}
 
 	if(!res.val) {
 		// not found
 		if(e->flag_quiet) {
-			send_response_nosend(e);
+			send_response_nosend(e, res.life);
 			return;
 		}
-		send_response_nodata(e, *res.life, MEMPROTO_RES_KEY_NOT_FOUND);
+		send_response_nodata(e, res.life, MEMPROTO_RES_KEY_NOT_FOUND);
 		return;
 	}
 
 	// found
-	send_response(e, *res.life, MEMPROTO_RES_NO_ERROR,
+	send_response(e, res.life, MEMPROTO_RES_NO_ERROR,
 			res.key, (e->flag_key ? res.keylen : 0),
 			res.val, res.vallen,
 			(char*)&ZERO_FLAG, 4);
@@ -537,12 +584,12 @@ void Memproto::Connection::response_set(void* user, gw_set_response& res)
 
 	if(res.error) {
 		// error
-		send_response_nodata(e, *res.life, MEMPROTO_RES_OUT_OF_MEMORY);
+		send_response_nodata(e, res.life, MEMPROTO_RES_OUT_OF_MEMORY);
 		return;
 	}
 
 	// stored
-	send_response_nodata(e, *res.life, MEMPROTO_RES_NO_ERROR);
+	send_response_nodata(e, res.life, MEMPROTO_RES_NO_ERROR);
 }
 
 void Memproto::Connection::response_delete(void* user, gw_delete_response& res)
@@ -554,14 +601,14 @@ void Memproto::Connection::response_delete(void* user, gw_delete_response& res)
 
 	if(res.error) {
 		// error
-		send_response_nodata(e, *res.life, MEMPROTO_RES_INVALID_ARGUMENTS);
+		send_response_nodata(e, res.life, MEMPROTO_RES_INVALID_ARGUMENTS);
 		return;
 	}
 
 	if(res.deleted) {
-		send_response_nodata(e, *res.life, MEMPROTO_RES_NO_ERROR);
+		send_response_nodata(e, res.life, MEMPROTO_RES_NO_ERROR);
 	} else {
-		send_response_nodata(e, *res.life, MEMPROTO_RES_OUT_OF_MEMORY);
+		send_response_nodata(e, res.life, MEMPROTO_RES_OUT_OF_MEMORY);
 	}
 }
 
@@ -583,42 +630,42 @@ void Memproto::Connection::pack_header(
 	*(uint32_t*)&hbuf[20] = htonl((uint32_t)(cas&0xffffffff));
 }
 
-void Memproto::Connection::send_response_nosend(entry* e)
+void Memproto::Connection::send_response_nosend(entry* e, shared_zone& life)
 {
-	e->queue->reached_try_send(e, NULL, 0);
+	e->queue->reached_try_send(e, life, NULL, 0);
 }
 
 void Memproto::Connection::send_response_nodata(
-		entry* e, msgpack::zone& life,
+		entry* e, shared_zone& life,
 		uint8_t status)
 {
-	char* header = (char*)life.malloc(MEMPROTO_HEADER_SIZE);
+	char* header = (char*)life->malloc(MEMPROTO_HEADER_SIZE);
 
 	pack_header(header, status, e->header.opcode,
 			0, 0, 0,
 			e->header.opaque, 0);  // cas = 0
 
-	struct iovec* vec = (struct iovec*)life.malloc(
+	struct iovec* vec = (struct iovec*)life->malloc(
 			sizeof(struct iovec) * 1);
 	vec[0].iov_base = header;
 	vec[0].iov_len  = MEMPROTO_HEADER_SIZE;
 
-	e->queue->reached_try_send(e, vec, 1);
+	e->queue->reached_try_send(e, life, vec, 1);
 }
 
 inline void Memproto::Connection::send_response(
-		entry* e, msgpack::zone& life,
+		entry* e, shared_zone& life,
 		uint8_t status,
 		const char* key, uint16_t keylen,
 		const void* val, uint16_t vallen,
 		const char* extra, uint16_t extralen)
 {
-	char* header = (char*)life.malloc(MEMPROTO_HEADER_SIZE);
+	char* header = (char*)life->malloc(MEMPROTO_HEADER_SIZE);
 	pack_header(header, status, e->header.opcode,
 			keylen, vallen, extralen,
 			e->header.opaque, 0);  // cas = 0
 
-	struct iovec* vec = (struct iovec*)life.malloc(
+	struct iovec* vec = (struct iovec*)life->malloc(
 			sizeof(struct iovec) * 4);
 
 	vec[0].iov_base = header;
@@ -643,7 +690,7 @@ inline void Memproto::Connection::send_response(
 		++cnt;
 	}
 
-	e->queue->reached_try_send(e, vec, cnt);
+	e->queue->reached_try_send(e, life, vec, cnt);
 }
 
 
