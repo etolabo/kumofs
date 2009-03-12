@@ -22,6 +22,9 @@ public:
 
 	void step_timeout();
 
+	// override wavy_server::run
+	virtual void run();
+
 public:
 	void submit(get_request& req);
 	void submit(set_request& req);
