@@ -1,8 +1,7 @@
-#include "server/storage.h"
+#include "storage/storage.h"
 #include "log/mlogger.h"
 
 namespace kumo {
-namespace server {
 
 
 Storage::Storage(const char* path,
@@ -289,6 +288,5 @@ std::string Storage::error()
 }
 
 
-}  // namespace server
 }  // namespace kumo
 

@@ -1,7 +1,7 @@
 #ifndef LOGIC_MSGTYPE_H__
 #define LOGIC_MSGTYPE_H__
 
-#include "server/storage.h"
+#include "storage/storage.h"
 #include "logic/hash.h"
 #include <msgpack.hpp>
 
@@ -56,8 +56,6 @@ private:
 	size_t m_keylen;
 	const char* m_key;
 	uint64_t m_hash;
-
-	typedef server::Storage Storage;
 };
 
 
@@ -114,8 +112,6 @@ private:
 	const char* m_val;
 	ClockTime m_clocktime;
 	uint64_t m_meta;
-
-	typedef server::Storage Storage;
 };
 
 

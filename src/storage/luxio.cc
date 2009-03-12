@@ -1,4 +1,4 @@
-#include "interface.h"  // FIXME
+#include "storage/interface.h"  // FIXME
 #include <memory>
 #include <pthread.h>
 #include <luxio/btree.h>

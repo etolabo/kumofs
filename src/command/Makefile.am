@@ -11,6 +11,6 @@ kumomergedb_SOURCES = \
 		mergedb.cc
 
 kumomergedb_LDADD = \
-		../logic/libkumo_storage.a \
+		../storage/libkumo_storage.a \
 		../log/libkumo_log.a
 

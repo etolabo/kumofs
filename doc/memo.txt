@@ -1,4 +1,4 @@
-?title Kumofs memo -- Kumo Fast Storage rev.948
+?title Kumofs memo -- Kumo Fast Storage rev.1012
 ?author FURUHASHI Sadayuki
 
 
@@ -63,7 +63,7 @@ ManagerとServerを動作させるホストの時刻設定は、TIME_ERROR_MARGI
 -rubygems
 -libcrypto(openssl)
 -zlib >= XXX
--Tokyo Cabinet >= 1.4.9
+-Tokyo Cabinet >= 1.4.10
 
 **コンパイル
 まず最新のMessagePackをインストールする。

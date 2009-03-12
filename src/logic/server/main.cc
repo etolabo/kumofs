@@ -20,7 +20,7 @@ struct arg_t : rpc_cluster_args {
 
 	std::string offer_tmpdir;
 
-	server::Storage* db;
+	Storage* db;
 	std::string db_backup_basename;  // convert?
 
 	unsigned short replicate_set_retry_num;
@@ -125,8 +125,8 @@ int main(int argc, char* argv[])
 	}
 
 	// open database
-	std::auto_ptr<server::Storage> db(
-			new server::Storage(arg.dbpath.c_str(),
+	std::auto_ptr<Storage> db(
+			new Storage(arg.dbpath.c_str(),
 				arg.garbage_min_time_sec,
 				arg.garbage_max_time_sec,
 				arg.garbage_mem_limit_kb*1024));

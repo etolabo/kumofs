@@ -1,4 +1,4 @@
-#include "interface.h"  // FIXME
+#include "storage/interface.h"  // FIXME
 #include <tchdb.h>
 #include <mp/pthread.h>
 

@@ -2,5 +2,5 @@ export ERB
 export RUBY
 export RAGEL
 
-SUBDIRS = mp mpsrc log kazuhiki rpc logic command
+SUBDIRS = mp mpsrc log kazuhiki rpc storage logic command
 

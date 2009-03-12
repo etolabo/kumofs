@@ -5,7 +5,7 @@ export RAGEL
 # work around for dependency
 SUBDIRS = protogen
 
-noinst_LIBRARIES = libkumo_logic.a libkumo_storage.a
+noinst_LIBRARIES = libkumo_logic.a
 bin_PROGRAMS = kumo-manager kumo-server kumo-gateway
 
 AM_CPPFLAGS   = -I..
@@ -32,9 +32,6 @@ libkumo_logic_a_SOURCES = \
 		hash.cc \
 		wavy_server.cc
 
-libkumo_storage_a_SOURCES = server/storage.cc server/storage/tchdb.cc
-#libkumo_storage_a_SOURCES = server/storage.cc server/storage/luxio.cc
-
 
 kumo_manager_SOURCES = \
 		manager/control_framework.cc \
@@ -59,12 +56,11 @@ kumo_server_SOURCES = \
 		server/proto_network.cc \
 		server/proto_replace.cc \
 		server/proto_replace_stream.cc \
-		server/proto_store.cc \
-		server/storage.cc
+		server/proto_store.cc
 
 kumo_server_LDADD  = \
 		libkumo_logic.a \
-		libkumo_storage.a \
+		../storage/libkumo_storage.a \
 		../kazuhiki/libkazuhiki.a \
 		../rpc/libkumo_cluster.a \
 		../log/libkumo_log.a \
@@ -110,9 +106,6 @@ noinst_HEADERS = \
 		manager/init.h \
 		server/framework.h \
 		server/init.h \
-		server/buffer_queue.h \
-		server/storage.h \
-		server/storage/interface.h \
 		gateway/framework.h \
 		gateway/init.h \
 		gateway/interface.h \

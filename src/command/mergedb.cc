@@ -1,6 +1,6 @@
 #include "log/mlogger.h"
 #include "log/mlogger_ostream.h"
-#include "server/storage.h"
+#include "storage/storage.h"
 #include <iostream>
 
 template <typename T>
@@ -16,7 +16,6 @@ private:
 
 
 using namespace kumo;
-using kumo::server::Storage;
 
 struct for_each_update {
 	for_each_update(Storage* dstdb, uint64_t* total, uint64_t* merged) :

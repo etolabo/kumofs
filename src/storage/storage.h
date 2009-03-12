@@ -1,8 +1,8 @@
-#ifndef SERVER_STORAGE_H__
-#define SERVER_STORAGE_H__
+#ifndef STORAGE_STORAGE_H__
+#define STORAGE_STORAGE_H__
 
-#include "server/storage/interface.h"
-#include "server/buffer_queue.h"
+#include "storage/interface.h"
+#include "buffer_queue.h"
 #include "logic/clock.h"
 #include <mp/pthread.h>
 #include <mp/shared_buffer.h>
@@ -56,7 +56,6 @@ static inline uint64_t kumo_be64(uint64_t x) {
  */
 
 namespace kumo {
-namespace server {
 
 
 class Storage {
@@ -257,8 +256,7 @@ inline void Storage::iterator::del()
 }
 
 
-}  // namespace server
 }  // namespace kumo
 
-#endif /* server/storage.h */
+#endif /* storage/storage.h */
 
