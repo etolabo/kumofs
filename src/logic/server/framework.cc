@@ -44,7 +44,6 @@ void framework::subsystem_dispatch(
 	}
 }
 
-
 void framework::run()
 {
 	wavy_server::run();

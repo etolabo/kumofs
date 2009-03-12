@@ -38,13 +38,37 @@ public:
 	~rpc_server() { }
 
 protected:
-	void start_timeout_step(unsigned long interval)
+	// precision of the timer thread
+	static const unsigned long TIMER_PRECISION_USEC = 500 * 1000;  // 0.5 sec.
+
+	// call Framework::step_timeout() every `interval_usec' microseconds.
+	void start_timeout_step(unsigned long interval_usec)
 	{
-		struct timespec ts = {interval / 1000000, interval % 1000000 * 1000};
-		wavy::timer(&ts, mp::bind(&Framework::step_timeout,
+		m_timer_interval_steps = interval_usec / TIMER_PRECISION_USEC;
+		m_timer_remain_steps = m_timer_interval_steps;
+		struct timespec ts = {TIMER_PRECISION_USEC / 1000000, TIMER_PRECISION_USEC % 1000000 * 1000};
+		wavy::timer(&ts, mp::bind(&Framework::timer_handler,
 					static_cast<Framework*>(this)));
-		LOG_TRACE("start timeout stepping interval = ",interval," usec");
+		LOG_TRACE("start timeout stepping interval = ",interval_usec," usec");
 	}
+
+private:
+	void timer_handler()
+	{
+		if(m_timer_remain_steps == 0) {
+			try {
+				static_cast<Framework*>(this)->step_timeout();
+			} catch (...) { }
+			m_timer_remain_steps = m_timer_interval_steps;
+		} else {
+			--m_timer_remain_steps;
+		}
+
+		static_cast<Framework*>(this)->step_do_after();
+	}
+
+	unsigned long m_timer_remain_steps;
+	unsigned long m_timer_interval_steps;
 };
 
 

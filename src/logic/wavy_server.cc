@@ -19,17 +19,24 @@ void wavy_server::do_after(unsigned int steps, mp::function<void ()> func)
 
 void wavy_server::step_do_after()
 {
-	mp::pthread_scoped_lock dalk(m_do_after_mutex);
-	for(do_after_t::iterator it(m_do_after.begin()); it != m_do_after.end(); ) {
-		if(it->remain_steps == 0) {
-			try {
-				it->func();
-			} catch (...) { }  // FIXME log
-			it = m_do_after.erase(it);
-		} else {
-			--it->remain_steps;
-			++it;
+	do_after_t fire;
+
+	{
+		mp::pthread_scoped_lock dalk(m_do_after_mutex);
+		for(do_after_t::iterator it(m_do_after.begin()); it != m_do_after.end(); ) {
+			if(it->remain_steps == 0) {
+				fire.splice(fire.end(), m_do_after, it++);
+			} else {
+				--it->remain_steps;
+				++it;
+			}
 		}
+	}
+
+	for(do_after_t::iterator it(fire.begin()); it != fire.end(); ++it) {
+		try {
+			it->func();
+		} catch (...) { }  // FIXME log
 	}
 }
 
