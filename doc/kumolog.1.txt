@@ -1,0 +1,9 @@
+*? kumolog
+*NAME
+kumolog
+
+*SYNOPSIS
+kumolog <logfile.mpac>
+
+*DESCRIPTION
+

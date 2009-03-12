@@ -1,0 +1,285 @@
+#!/usr/bin/env ruby
+
+begin
+	require 'rubygems'
+rescue LoadError
+end
+require 'msgpack'
+require 'socket'
+
+
+class KumoRPC
+	def initialize(host, port)
+		@sock = TCPSocket.open(host, port)
+		@pk = MessagePack::Unpacker.new
+		@buffer = ''
+		@nread = 0
+		@seqid = rand(1<<16)  # FIXME 1 << 32
+		@callback = {}
+	end
+
+	private
+	def send_request(seq, cmd, param)
+		@sock.write [true, seq, cmd, param].to_msgpack
+		@sock.flush
+	rescue
+		@sock.close
+		raise
+	end
+
+	def receive_message
+		while true
+			if @buffer.length > @nread
+				@nread = @pk.execute(@buffer, @nread)
+				if @pk.finished?
+					msg = @pk.data
+					@pk.reset
+					@buffer.slice!(0, @nread)
+					@nread = 0
+					if msg[0]
+						process_request(msg[1], msg[2], msg[3])
+					else
+						process_response(msg[1], msg[3], msg[2])
+					end
+					return msg[1]
+				end
+			end
+			@buffer << @sock.sysread(1024)
+		end
+	end
+
+	def process_request(seqid, cmd, param)
+		raise "request received, excpect response"
+	end
+
+	def process_response(seqid, res, err)
+		if cb = @callback[seqid]
+			cb.call(res, err)
+		end
+	end
+
+	def synchronize_response(seqid)
+		while receive_message != seqid; end
+	end
+
+	def send_request_async(cmd, param, &callback)
+		seqid = @seqid
+		# FIXME 1 << 32
+		@seqid += 1; if @seqid >= 1<<16 then @seqid = 0 end
+		@callback[seqid] = callback if callback
+		send_request(seqid, cmd, param)
+		seqid
+	end
+
+	def send_request_sync(cmd, param)
+		res = nil
+		err = nil
+		seqid = send_request_async(cmd, param) {|rres, rerr|
+			res = rres
+			err = rerr
+		}
+		synchronize_response(seqid)
+		return [res, err]
+	end
+
+	def send_request_sync_ex(cmd, param)
+		res, err = send_request_sync(cmd, param)
+		raise "error #{err}" if err
+		res
+	end
+
+
+	def rpc_addr(raw)
+		if raw.length == 6
+			addr = Socket.pack_sockaddr_in(0, '0.0.0.0')
+			addr[2,6] = raw[0,6]
+		else
+			addr = Socket.pack_sockaddr_in(0, '::')
+			addr[2,2]  = raw[0,2]
+			addr[8,20] = raw[2,20]
+		end
+		Socket.unpack_sockaddr_in(addr).reverse
+	end
+
+	public
+	def GetStatus
+		res = send_request_sync_ex(84, [])
+		form = {}
+		nodes = res[0]
+
+		clocktime = nodes.slice!(-1)
+		date = Time.at(clocktime >> 32)
+		clock = clocktime & ((1<<32)-1)
+
+		nodes.each {|nodes|
+			nodes.map! {|raw|
+				active = (raw.slice!(0) == "\1"[0])
+				rpc_addr(raw) << active
+			}
+		}
+
+		newcomers = res[1]
+		res[1].map! {|raw|
+			rpc_addr(raw)
+		}
+
+		return [nodes, newcomers, date, clock]
+	end
+
+	def AttachNewServers(replace)
+		send_request_sync_ex(85, [replace])
+	end
+
+	def DetachFaultServers(replace)
+		send_request_sync_ex(86, [replace])
+	end
+
+	def CreateBackup(suffix)
+		send_request_sync_ex(87, [suffix])
+	end
+
+	def SetAutoReplace(enable)
+		send_request_sync_ex(88, [enable])
+	end
+
+	def StartReplace()
+		send_request_sync_ex(89, [])
+	end
+
+	module Protocol
+		ControlGetStatus           = 84
+		ControlAttachNewServers    = 85
+		ControlDetachFaultServers  = 86
+		ControlCreateBackup        = 87
+		ControlSetAutoReplace      = 88
+		ControlStartReplace        = 89
+		GetStatus  = 112
+		SetConfig  = 112
+	end
+
+	CONTROL_DEFAULT_PORT = 19750
+	MANAGER_DEFAULT_PORT = 19700
+	SERVER_DEFAULT_PORT  = 19800
+end
+
+if $0 == __FILE__
+
+
+
+class KumoManager < KumoRPC
+	def initialize(host, port)
+		super(host, port)
+	end
+
+	def AttachNewServers(replace)
+		send_request_sync_ex(Protocol::ControlAttachNewServers, [replace])
+	end
+
+	def DetachFaultServers(replace)
+		send_request_sync_ex(Protocol::ControlDetachFaultServers, [replace])
+	end
+
+	def CreateBackup(suffix)
+		send_request_sync_ex(Protocol::ControlCreateBackup, [suffix])
+	end
+
+	def SetAutoReplace(enable)
+		send_request_sync_ex(Protocol::ControlSetAutoReplace, [enable])
+	end
+
+	def StartReplace()
+		send_request_sync_ex(Protocol::ControlStartReplace, [])
+	end
+end
+
+
+$now = Time.now.strftime("%Y%m%d")
+
+def usage
+	puts "Usage: #{File.basename($0)} address[:port=#{KumoRPC::CONTROL_DEFAULT_PORT}] command [options]"
+	puts "command:"
+	puts "   status                     get status"
+	puts "   attach                     attach all new servers and start replace"
+	puts "   attach-noreplace           attach all new servers"
+	puts "   detach                     detach all fault servers and start replace"
+	puts "   detach-noreplace           detach all fault servers"
+	puts "   replace                    start replace without attach/detach"
+	puts "   backup  [suffix=#{$now }]  create backup with specified suffix"
+	puts "   enable-auto-replace        enable auto replace"
+	puts "   disable-auto-replace       disable auto replace"
+	exit 1
+end
+
+if ARGV.length < 2
+	usage
+end
+
+addr = ARGV.shift
+host, port = addr.split(':', 2)
+port ||= KumoRPC::CONTROL_DEFAULT_PORT
+
+cmd = ARGV.shift
+
+case cmd
+when "stat", "status"
+	usage if ARGV.length != 0
+	attached, not_attached, date, clock =
+			KumoManager.new(host, port).GetStatus
+	puts "hash space timestamp:"
+	puts "  #{date} clock #{clock}"
+	puts "attached node:"
+	attached.each {|addr, port, active|
+		puts "  #{addr}:#{port}  (#{active ? "active":"fault"})"
+	}
+	puts "not attached node:"
+	not_attached.each {|addr, port|
+		puts "  #{addr}:#{port}"
+	}
+
+when "attach"
+	usage if ARGV.length != 0
+	p KumoManager.new(host, port).AttachNewServers(true)
+
+when "attach-noreplace"
+	usage if ARGV.length != 0
+	p KumoManager.new(host, port).AttachNewServers(false)
+
+when "detach"
+	usage if ARGV.length != 0
+	p KumoManager.new(host, port).DetachFaultServers(true)
+
+when "detach-noreplace"
+	usage if ARGV.length != 0
+	p KumoManager.new(host, port).DetachFaultServers(false)
+
+when "enable-auto-replace"
+	usage if ARGV.length != 0
+	p KumoManager.new(host, port).SetAutoReplace(true)
+
+when "disable-auto-replace"
+	usage if ARGV.length != 0
+	p KumoManager.new(host, port).SetAutoReplace(false)
+
+when "backup"
+	if ARGV.length == 0
+		suffix = $now
+	elsif ARGV.length == 1
+		suffix = ARGV.shift
+	else
+		usage
+	end
+	puts "suffix=#{suffix}"
+	p KumoManager.new(host, port).CreateBackup(suffix)
+
+when "replace"
+	usage if ARGV.length != 0
+	p KumoManager.new(host, port).StartReplace()
+
+else
+	puts "unknown command #{cmd}"
+	puts ""
+	usage
+end
+
+
+end   # if $0 == __FILE__

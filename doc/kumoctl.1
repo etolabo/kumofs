@@ -1,0 +1,34 @@
+.TH kumoctl
+.SH NAME
+kumoctl
+.SH SYNOPSIS
+kumoctl address[:port=19750] command [options]
+.SS COMMANDS
+.TP
+.B status                     
+get status
+.TP
+.B attach                     
+attach all new servers and start replace
+.TP
+.B attach-noreplace           
+attach all new servers
+.TP
+.B detach                     
+detach all fault servers and start replace
+.TP
+.B detach-noreplace           
+detach all fault servers
+.TP
+.B replace                    
+start replace without attach/detach
+.TP
+.B backup  [suffix=20090304]  
+create backup with specified suffix
+.TP
+.B enable-auto-replace        
+enable auto replace
+.TP
+.B disable-auto-replace       
+disable auto replace
+.SH DESCRIPTION

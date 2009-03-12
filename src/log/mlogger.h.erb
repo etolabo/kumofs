@@ -1,0 +1,150 @@
+#ifndef MLOGGER_H__
+#define MLOGGER_H__
+
+#include <sstream>
+#include <iostream>
+
+
+#ifndef MLOGGER_LEVEL
+
+#ifdef NDEBUG
+#define MLOGGER_LEVEL 2
+#else
+#define MLOGGER_LEVEL 0
+#endif
+
+#endif
+<% GENERATION_LIMIT = 16 %>
+
+class mlogger_initializer;
+
+class mlogger {
+public:
+	static void reset(mlogger* lg);
+	static void destroy();
+
+public:
+	static mlogger& instance();
+
+public:
+	enum level {
+		TRACE  = 0,
+		DEBUG  = 1,
+		INFO   = 2,
+		WARN   = 3,
+		ERROR  = 4,
+		FATAL  = 5,
+	};
+
+	mlogger(level runtime_level);
+	virtual ~mlogger();
+
+#define MLOGGER_IMPL_BEGIN \
+	try { \
+		if(lv < m_runtime_level) { return; } \
+		std::stringstream s; \
+		do { \
+			char tmbuf[21]; \
+			time_t ti = time(NULL); \
+			struct tm t; localtime_r(&ti, &t); \
+			s.write(tmbuf, strftime(tmbuf, sizeof(tmbuf), "%Y-%m-%d %H:%M:%S ", &t)); \
+		} while(0)
+
+#define MLOGGER_IMPL_END \
+		std::string str(s.str()); \
+		log_impl(lv, str); \
+	} catch (...) { \
+		std::cerr << prefix << " log error" << std::endl; \
+	}
+
+<% 0.upto(GENERATION_LIMIT) {|i| %>
+	template <typename A0<%1.upto(i) {|j|%>, typename A<%=j%><%}%>>
+	void log(level lv, const char* prefix, A0 a0<%1.upto(i) {|j|%>, A<%=j%> a<%=j%><%}%>) {
+		MLOGGER_IMPL_BEGIN;
+		s << prefix << a0<%1.upto(i) {|j|%> << a<%=j%><%}%>;
+		MLOGGER_IMPL_END;
+	}
+<%}%>
+
+private:
+	virtual void log_impl(level lv, std::string& str) = 0;
+
+private:
+	level m_runtime_level;
+
+private:
+	friend class mlogger_initializer;
+	static mlogger* s_logger;
+
+private:
+	mlogger();
+	mlogger(const mlogger&);
+};
+
+inline mlogger& mlogger::instance()
+{
+	return *s_logger;
+}
+
+
+#include "mlogger_null.h"
+
+static unsigned long mlogger_initializer_counter = 0;
+
+class mlogger_initializer {
+public:
+	mlogger_initializer()
+	{
+		if(0 == mlogger_initializer_counter++) {
+			if(mlogger::s_logger == NULL) {
+				mlogger::reset(new mlogger_null());
+			}
+		}
+	}
+	~mlogger_initializer()
+	{
+		if(0 == --mlogger_initializer_counter) {
+			mlogger::destroy();
+		}
+	}
+private:
+	void initialize();
+};
+
+static mlogger_initializer mlogger_initializer_;
+
+#define MLOGGER_XSTR(s) #s
+#define MLOGGER_XSTR_(x) MLOGGER_XSTR(x)
+#define MLOGGER_LINE   MLOGGER_XSTR_(__LINE__)
+
+#ifndef MLOGGER_PREFIX
+#define MLOGGER_PREFIX __FILE__ ":" MLOGGER_LINE ": "
+#endif
+
+#ifndef MLOGGER_PREFIX_VERBOSE
+#define MLOGGER_PREFIX_VERBOSE __FILE__ ":" MLOGGER_LINE ":", __FUNCTION__, ": "
+#endif
+
+<% LEVELS = ["TRACE", "DEBUG", "INFO", "WARN", "ERROR", "FATAL"] %>
+<% LEVELS[0, 2].each {|l| %>
+#ifndef MLOGGER_PREFIX_<%=l%>
+#define MLOGGER_PREFIX_<%=l%> MLOGGER_PREFIX_VERBOSE
+#endif
+<%}%>
+<% LEVELS[2..-1].each {|l| %>
+#ifndef MLOGGER_PREFIX_<%=l%>
+#define MLOGGER_PREFIX_<%=l%> MLOGGER_PREFIX
+#endif
+<%}%>
+
+<% LEVELS.each {|l| %>
+#if MLOGGER_LEVEL <= <%=LEVELS.index(l)%>
+#define LOG_<%=l%>(...) \
+	mlogger::instance().log(mlogger::<%=l%>, MLOGGER_PREFIX_<%=l%>, __VA_ARGS__)
+#else
+#define LOG_<%=l%>(...) ((void)0)
+#endif
+<%}%>
+
+#endif /* mlogger.h */
+
