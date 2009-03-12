@@ -26,7 +26,7 @@ struct arg_t : rpc_cluster_args {
 	}
 
 	arg_t(int argc, char** argv) :
-		replace_delay_seconds(8)
+		replace_delay_seconds(4)
 	{
 		using namespace kazuhiki;
 		set_basic_args();

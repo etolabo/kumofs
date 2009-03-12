@@ -45,7 +45,7 @@ void proto_replace::remove_server(const address& addr)
 	bool wfault = share->whs().fault_server(ct, addr);
 	bool rfault = share->rhs().fault_server(ct, addr);
 
-	if((wfault || rfault) && !share->cfg_auto_replace()) {
+	if(wfault || rfault) {
 		net->scope_proto_network().sync_hash_space_partner(hslk);
 		net->scope_proto_network().sync_hash_space_servers(hslk, sslk);
 		net->scope_proto_network().push_hash_space_clients(hslk);
@@ -274,7 +274,8 @@ try {
 		return;
 	}
 
-	if(share->whs().clocktime() < req.param().hsseed.clocktime()) {
+	if(share->whs().clocktime() < req.param().hsseed.clocktime() ||
+			share->whs() == req.param().hsseed) {
 		LOG_INFO("double replace guard ",share->partner());
 
 	} else {

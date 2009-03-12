@@ -84,6 +84,7 @@ public:
 	const ClockTime& clocktime() const
 		{ return m_timestamp; }
 
+	// compare nodes (clocktime is ignored)
 	bool operator== (const HashSpace& other) const
 		{ return m_nodes == other.m_nodes; }
 
@@ -102,6 +103,8 @@ public:
 
 public:
 	friend class Seed;
+
+	// compare nodes (clocktime is ignored)
 	bool operator== (const Seed& other) const;
 };
 
@@ -209,7 +212,7 @@ inline HashSpace::HashSpace(Seed& seed) :
 
 inline bool HashSpace::operator== (const Seed& other) const
 {
-	return m_timestamp.get() == other.clocktime() && m_nodes == other.nodes();
+	return m_nodes == other.nodes();
 }
 
 
