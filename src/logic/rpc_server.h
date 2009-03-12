@@ -4,7 +4,6 @@
 #include "logic/wavy_server.h"
 #include "rpc/rpc.h"
 #include <mp/object_callback.h>
-#include <mp/functional.h>
 
 namespace kumo {
 

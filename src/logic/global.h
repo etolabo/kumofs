@@ -2,6 +2,7 @@
 #define LOGIC_GLOBAL_H__
 
 #include "log/mlogger.h"
+#include "config.h"
 
 #define NUM_REPLICATION 2
 
@@ -20,9 +21,6 @@
 #ifndef CONTROL_DEFAULT_PORT
 #define CONTROL_DEFAULT_PORT  19750
 #endif
-
-// FIXME VERSION
-#define VERSION "0.1.0"
 
 #endif /* logic/global.h */
 

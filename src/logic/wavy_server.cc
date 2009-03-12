@@ -11,6 +11,29 @@ wavy_server::wavy_server() :
 wavy_server::~wavy_server() { }
 
 
+void wavy_server::do_after(unsigned int steps, mp::function<void ()> func)
+{
+	mp::pthread_scoped_lock dalk(m_do_after_mutex);
+	m_do_after.push_back( do_after_entry(steps, func) );
+}
+
+void wavy_server::step_do_after()
+{
+	mp::pthread_scoped_lock dalk(m_do_after_mutex);
+	for(do_after_t::iterator it(m_do_after.begin()); it != m_do_after.end(); ) {
+		if(it->remain_steps == 0) {
+			try {
+				it->func();
+			} catch (...) { }  // FIXME log
+			it = m_do_after.erase(it);
+		} else {
+			--it->remain_steps;
+			++it;
+		}
+	}
+}
+
+
 namespace {
 	// avoid compile error
 	typedef void (*sigend_callback)(void*, int);
