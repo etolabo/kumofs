@@ -19,8 +19,14 @@ class KumoRPC
 	end
 
 	private
+	module MessageType
+		Request     = 0
+		Response    = 1
+		ClusterInit = 2
+	end
+
 	def send_request(seq, cmd, param)
-		@sock.write [true, seq, cmd, param].to_msgpack
+		@sock.write [MessageType::Request, seq, cmd, param].to_msgpack
 		@sock.flush
 	rescue
 		@sock.close
@@ -36,10 +42,12 @@ class KumoRPC
 					@pk.reset
 					@buffer.slice!(0, @nread)
 					@nread = 0
-					if msg[0]
+					if msg[0] == MessageType::Request
 						process_request(msg[1], msg[2], msg[3])
-					else
+					elsif msg[0] == MessageType::Response
 						process_response(msg[1], msg[3], msg[2])
+					else  # MessageType::ClusterInit
+						raise "unexpected cluster init message"
 					end
 					return msg[1]
 				end
@@ -103,7 +111,7 @@ class KumoRPC
 
 	public
 	def GetStatus
-		res = send_request_sync_ex(84, [])
+		res = send_request_sync_ex(Protocol::ControlGetStatus, [])
 		form = {}
 		nodes = res[0]
 
@@ -127,34 +135,34 @@ class KumoRPC
 	end
 
 	def AttachNewServers(replace)
-		send_request_sync_ex(85, [replace])
+		send_request_sync_ex(Protocol::ControlAttachNewServers, [replace])
 	end
 
 	def DetachFaultServers(replace)
-		send_request_sync_ex(86, [replace])
+		send_request_sync_ex(Protocol::ControlDetachFaultServers, [replace])
 	end
 
 	def CreateBackup(suffix)
-		send_request_sync_ex(87, [suffix])
+		send_request_sync_ex(Protocol::ControlCreateBackup, [suffix])
 	end
 
 	def SetAutoReplace(enable)
-		send_request_sync_ex(88, [enable])
+		send_request_sync_ex(Protocol::ControlSetAutoReplace, [enable])
 	end
 
 	def StartReplace()
-		send_request_sync_ex(89, [])
+		send_request_sync_ex(Protocol::ControlStartReplace, [])
 	end
 
 	module Protocol
-		ControlGetStatus           = 84
-		ControlAttachNewServers    = 85
-		ControlDetachFaultServers  = 86
-		ControlCreateBackup        = 87
-		ControlSetAutoReplace      = 88
-		ControlStartReplace        = 89
-		GetStatus  = 112
-		SetConfig  = 112
+		ControlGetStatus           = 84 << 16 | 1
+		ControlAttachNewServers    = 85 << 16 | 1
+		ControlDetachFaultServers  = 86 << 16 | 1
+		ControlCreateBackup        = 87 << 16 | 1
+		ControlSetAutoReplace      = 88 << 16 | 1
+		ControlStartReplace        = 89 << 16 | 1
+		GetStatus  = 112 << 16 | 1
+		SetConfig  = 112 << 16 | 1
 	end
 
 	CONTROL_DEFAULT_PORT = 19750
