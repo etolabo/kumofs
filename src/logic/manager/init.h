@@ -11,7 +11,7 @@ template <typename Config>
 framework::framework(const Config& cfg) :
 	cluster_logic<framework>(
 			cfg.rthreads, cfg.wthreads,
-			ROLE_SERVER,
+			ROLE_MANAGER,
 			cfg.cluster_addr,
 			cfg.connect_timeout_msec,
 			cfg.connect_retry_limit)
