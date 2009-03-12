@@ -5,7 +5,7 @@
 using namespace kumo;
 
 struct arg_t : rpc_cluster_args {
-	unsigned short replace_delay_clocks;
+	unsigned short replace_delay_seconds;
 
 	bool auto_replace;
 
@@ -26,7 +26,7 @@ struct arg_t : rpc_cluster_args {
 	}
 
 	arg_t(int argc, char** argv) :
-		replace_delay_clocks(4)
+		replace_delay_seconds(8)
 	{
 		using namespace kazuhiki;
 		set_basic_args();
@@ -39,7 +39,7 @@ struct arg_t : rpc_cluster_args {
 		on("-a", "--auto-replace",
 				type::boolean(&auto_replace));
 		on("-Rs", "--replace-delay",
-				type::numeric(&replace_delay_clocks, replace_delay_clocks));
+				type::numeric(&replace_delay_seconds, replace_delay_seconds));
 		parse(argc, argv);
 	}
 
@@ -51,7 +51,7 @@ std::cout <<
 "  -p  <addr[:port="<<MANAGER_DEFAULT_PORT  <<"]>   "      "--partner        master-slave replication partner\n"
 "  -c  <[addr:]port="<<CONTROL_DEFAULT_PORT <<">   "       "--control        dynamic control socket\n"
 "  -a                        "                             "--auto-replace   enable auto replacing\n"
-"  -Rs <number="<<replace_delay_clocks  <<">            "  "--replace-delay  delay steps of auto replacing\n"
+"  -Rs <number="<<replace_delay_seconds  <<">            "  "--replace-delay  delay time of auto replacing in sec.\n"
 ;
 rpc_cluster_args::show_usage();
 	}

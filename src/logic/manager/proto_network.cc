@@ -74,12 +74,12 @@ void proto_network::sync_hash_space_servers(REQUIRE_HSLK, REQUIRE_SSLK)
 	HashSpace::Seed* wseed = life->allocate<HashSpace::Seed>(share->whs());
 	HashSpace::Seed* rseed = life->allocate<HashSpace::Seed>(share->rhs());
 
-	server::proto_network::HashSpaceSync_1 arg(*wseed, *rseed, share->clock().get_incr());
+	server::proto_network::HashSpaceSync_1 param(*wseed, *rseed, share->clock().get_incr());
 
 	rpc::callback_t callback( BIND_RESPONSE(proto_network, HashSpaceSync_1) );
 
 	EACH_ACTIVE_SERVERS_BEGIN(node)
-		node->call(arg, life, callback, 10);
+		node->call(param, life, callback, 10);
 	EACH_ACTIVE_SERVERS_END
 }
 
@@ -92,9 +92,9 @@ void proto_network::sync_hash_space_partner(REQUIRE_HSLK)
 	HashSpace::Seed* wseed = life->allocate<HashSpace::Seed>(share->whs());
 	HashSpace::Seed* rseed = life->allocate<HashSpace::Seed>(share->rhs());
 
-	manager::proto_network::HashSpaceSync_1 arg(*wseed, *rseed, share->clock().get_incr());
+	manager::proto_network::HashSpaceSync_1 param(*wseed, *rseed, share->clock().get_incr());
 	net->get_node(share->partner())->call(
-			arg, life,
+			param, life,
 			BIND_RESPONSE(proto_network, HashSpaceSync_1), 10);
 }
 

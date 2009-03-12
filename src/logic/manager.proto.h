@@ -106,6 +106,9 @@ public:
 
 private:
 	void replace_election();
+	void delayed_replace_election();
+	void cas_checked_replace_election(int cas);
+	int m_delayed_replace_cas;
 
 	RPC_REPLY_DECL(ReplaceElection_1, from, res, err, life);
 	RPC_REPLY_DECL(ReplaceCopyStart_1, from, res, err, life);
@@ -132,12 +135,6 @@ private:
 	mp::pthread_mutex m_replace_mutex;
 	ReplaceContext m_copying;
 	ReplaceContext m_deleting;
-
-	short m_delayed_replace_clock;
-
-	void delayed_replace_election();
-	void delayed_replace_election_step();  // called from frame
-	friend class framework;
 @end
 
 

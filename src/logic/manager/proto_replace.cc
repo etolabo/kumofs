@@ -7,7 +7,7 @@ namespace manager {
 
 
 proto_replace::proto_replace() :
-	m_delayed_replace_clock(0)
+	m_delayed_replace_cas(0)
 { }
 
 proto_replace::~proto_replace() { }
@@ -78,20 +78,17 @@ void proto_replace::remove_server(const address& addr)
 
 void proto_replace::delayed_replace_election()
 {
-	m_delayed_replace_clock = share->cfg_replace_delay_clocks();
-	LOG_INFO("set delayed replace clock(",m_delayed_replace_clock,")");
-	if(m_delayed_replace_clock == 0) {
-		m_delayed_replace_clock = 1;
-	}
+	int cas = __sync_add_and_fetch(&m_delayed_replace_cas, 1);
+	net->do_after(
+			share->cfg_replace_delay_seconds() * framework::DO_AFTER_BY_SECONDS,
+			mp::bind(&proto_replace::cas_checked_replace_election, this, cas));
+	LOG_INFO("set delayed replace after ",share->cfg_replace_delay_seconds()," seconds");
 }
 
-void proto_replace::delayed_replace_election_step()
+void proto_replace::cas_checked_replace_election(int cas)
 {
-	if(m_delayed_replace_clock > 0) {
-		--m_delayed_replace_clock;
-		if(m_delayed_replace_clock == 0) {
-			replace_election();
-		}
+	if(m_delayed_replace_cas == cas) {
+		replace_election();
 	}
 }
 

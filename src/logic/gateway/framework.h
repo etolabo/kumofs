@@ -20,8 +20,6 @@ public:
 
 	void session_lost(const address& addr, shared_session& s);
 
-	void step_timeout();
-
 	// override wavy_server::run
 	virtual void run();
 

@@ -35,6 +35,7 @@ void wavy_server::step_do_after()
 
 	for(do_after_t::iterator it(fire.begin()); it != fire.end(); ++it) {
 		try {
+			// FIXME wavy::submit?
 			it->func();
 		} catch (...) { }  // FIXME log
 	}

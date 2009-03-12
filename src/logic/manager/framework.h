@@ -39,8 +39,6 @@ public:
 	void new_node(address addr, role_type id, shared_node n);
 	void lost_node(address addr, role_type id);
 
-	void step_timeout();
-
 	// cluster_logic
 	void keep_alive()
 	{
@@ -91,7 +89,7 @@ private:
 	const address m_partner;
 
 	bool m_cfg_auto_replace;
-	const short m_cfg_replace_delay_clocks;
+	const short m_cfg_replace_delay_seconds;
 
 public:
 	RESOURCE_ACCESSOR(Clock, clock);
@@ -109,7 +107,7 @@ public:
 	RESOURCE_CONST_ACCESSOR(address, partner);
 
 	RESOURCE_ACCESSOR(bool, cfg_auto_replace);
-	RESOURCE_CONST_ACCESSOR(short, cfg_replace_delay_clocks);
+	RESOURCE_CONST_ACCESSOR(short, cfg_replace_delay_seconds);
 
 private:
 	resource();

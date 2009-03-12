@@ -41,13 +41,6 @@ void framework::subsystem_dispatch(
 }
 
 
-void framework::step_timeout()
-{
-	rpc::cluster::step_timeout();
-	scope_proto_replace().delayed_replace_election_step();
-}
-
-
 void framework::new_node(address addr, role_type id, shared_node n)
 {
 	LOG_WARN("new node ",id," ",addr);

@@ -57,12 +57,6 @@ void framework::end_preprocess()
 }
 
 
-void framework::step_timeout()
-{
-	rpc::cluster::step_timeout();
-}
-
-
 void framework::new_node(address addr, role_type id, shared_node n)
 {
 	// XXX

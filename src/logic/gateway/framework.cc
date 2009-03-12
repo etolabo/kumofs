@@ -21,12 +21,6 @@ void framework::dispatch(
 }
 
 
-void framework::step_timeout()
-{
-	rpc::client<>::step_timeout();
-}
-
-
 void framework::session_lost(const address& addr, shared_session& s)
 {
 	LOG_INFO("lost session ",addr);

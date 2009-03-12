@@ -54,8 +54,6 @@ public:
 	void new_node(address addr, role_type id, shared_node n);
 	void lost_node(address addr, role_type id);
 
-	void step_timeout();
-
 	// override wavy_server::run
 	virtual void run();
 	virtual void end_preprocess();

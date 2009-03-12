@@ -31,7 +31,7 @@ template <typename Config>
 resource::resource(const Config& cfg) :
 	m_partner(cfg.partner),
 	m_cfg_auto_replace(cfg.auto_replace),
-	m_cfg_replace_delay_clocks(cfg.replace_delay_clocks)
+	m_cfg_replace_delay_seconds(cfg.replace_delay_seconds)
 { }
 
 template <typename Config>

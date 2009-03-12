@@ -37,10 +37,11 @@ public:
 
 	~rpc_server() { }
 
-protected:
 	// precision of the timer thread
 	static const unsigned long TIMER_PRECISION_USEC = 500 * 1000;  // 0.5 sec.
+	static const unsigned long DO_AFTER_BY_SECONDS = 1000*1000 / TIMER_PRECISION_USEC;
 
+protected:
 	// call Framework::step_timeout() every `interval_usec' microseconds.
 	void start_timeout_step(unsigned long interval_usec)
 	{
