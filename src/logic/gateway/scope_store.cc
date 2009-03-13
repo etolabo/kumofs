@@ -5,8 +5,7 @@ namespace kumo {
 namespace gateway {
 
 
-scope_store::scope_store() : m_error_count(0)
-{ }
+scope_store::scope_store() { }
 
 scope_store::~scope_store() { }
 
@@ -22,7 +21,7 @@ framework::shared_session resource::server_for(uint64_t h, unsigned int offset)
 	pthread_scoped_rdlock hslk(m_hs_rwlock);
 
 	if((Hs == HS_WRITE ? m_whs : m_rhs).empty()) {
-		net->scope_proto_network().renew_hash_space();  // FIXME may burst
+		share->incr_error_renew_count();
 		throw std::runtime_error("No server");
 	}
 	HashSpace::iterator it = (Hs == HS_WRITE ? m_whs : m_rhs).find(h);
@@ -61,6 +60,18 @@ node_found:
 	address addr = it->addr();
 	hslk.unlock();
 	return net->get_server(addr);
+}
+
+
+void resource::incr_error_renew_count()
+{
+	LOG_DEBUG("increment error count ",m_error_count);
+	if(m_error_count >= m_cfg_renew_threshold) {
+		m_error_count = 0;
+		net->scope_proto_network().renew_hash_space();
+	} else {
+		++m_error_count;
+	}
 }
 
 
@@ -206,7 +217,7 @@ try {
 		try { (*callback)(user, ret); } catch (...) { }
 
 	} else if( retry->retry_incr((NUM_REPLICATION+1) * share->cfg_get_retry_num() - 1) ) {
-		incr_error_count();
+		share->incr_error_renew_count();
 		unsigned short offset = retry->num_retried() % (NUM_REPLICATION+1);
 		if(offset == 0) {
 			// FIXME configurable steps
@@ -262,7 +273,7 @@ try {
 		try { (*callback)(user, ret); } catch (...) { }
 
 	} else if( retry->retry_incr(share->cfg_set_retry_num()) ) {
-		incr_error_count();
+		share->incr_error_renew_count();
 		// FIXME configurable steps
 		retry_after(1*framework::DO_AFTER_BY_SECONDS, retry, life, key.hash());
 		LOG_WARN("Set error: ",err,", retry ",retry->num_retried());
@@ -311,7 +322,7 @@ try {
 		try { (*callback)(user, ret); } catch (...) { }
 
 	} else if( retry->retry_incr(share->cfg_delete_retry_num()) ) {
-		incr_error_count();
+		share->incr_error_renew_count();
 		// FIXME configurable steps
 		retry_after(1*framework::DO_AFTER_BY_SECONDS, retry, life, key.hash());
 		LOG_WARN("Delete error: ",err,", retry ",retry->num_retried());
@@ -336,18 +347,6 @@ try {
 	}
 }
 GATEWAY_CATCH(ResDelete, delete_response)
-
-
-void scope_store::incr_error_count()
-{
-	LOG_DEBUG("increment error count ",m_error_count);
-	if(m_error_count >= share->cfg_renew_threshold()) {
-		m_error_count = 0;
-		net->scope_proto_network().renew_hash_space();
-	} else {
-		++m_error_count;
-	}
-}
 
 
 }  // namespace gateway

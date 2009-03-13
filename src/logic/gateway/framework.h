@@ -69,6 +69,12 @@ private:
 
 	const unsigned short m_cfg_renew_threshold;
 
+	unsigned short m_error_count;
+
+public:
+	// scope_store.cc
+	void incr_error_renew_count();
+
 public:
 	RESOURCE_ACCESSOR(mp::pthread_rwlock, hs_rwlock);
 	bool update_rhs(const HashSpace::Seed& seed, REQUIRE_HSLK_WRLOCK);

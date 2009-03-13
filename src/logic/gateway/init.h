@@ -36,7 +36,8 @@ resource::resource(const Config& cfg) :
 	m_cfg_get_retry_num(cfg.get_retry_num),
 	m_cfg_set_retry_num(cfg.set_retry_num),
 	m_cfg_delete_retry_num(cfg.delete_retry_num),
-	m_cfg_renew_threshold(cfg.renew_threshold)
+	m_cfg_renew_threshold(cfg.renew_threshold),
+	m_error_count(0)
 { }
 
 template <typename Config>

@@ -40,9 +40,6 @@ private:
 			rpc::retry<server::proto_store::Delete_1>* retry,
 			void (*callback)(void*, delete_response&), void* user);
 
-	void incr_error_count();
-	unsigned short m_error_count;
-
 	template <typename Parameter>
 	void retry_after(unsigned int steps,
 			rpc::retry<Parameter>* retry, shared_zone life,
