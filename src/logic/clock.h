@@ -16,8 +16,6 @@
 namespace kumo {
 
 
-class ClockTime;
-
 
 class Clock {
 public:
@@ -26,9 +24,6 @@ public:
 	~Clock() {}
 
 public:
-	ClockTime now() const;
-	ClockTime now_incr();
-
 	uint32_t get_incr()
 	{
 		//return m++;
@@ -65,7 +60,6 @@ public:
 		return clock_less(m, o.m);
 	}
 
-private:
 	static bool clock_less(uint32_t x, uint32_t y)
 	{
 		if((x < (((uint32_t)1)<<10) && (((uint32_t)1)<<22) < y) ||
@@ -75,8 +69,6 @@ private:
 			return x < y;
 		}
 	}
-
-	friend class ClockTime;
 
 private:
 	volatile uint32_t m;
@@ -141,17 +133,6 @@ private:
 private:
 	volatile uint64_t m;
 };
-
-
-inline ClockTime Clock::now() const
-{
-	return ClockTime(get(), time(NULL));
-}
-
-inline ClockTime Clock::now_incr()
-{
-	return ClockTime(get_incr(), time(NULL));
-}
 
 
 #ifdef MSGPACK_OBJECT_HPP__

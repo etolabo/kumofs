@@ -125,7 +125,7 @@ bool proto_store::SetByRhsWhs(weak_responder response, auto_zone& z,
 				})
 	}
 
-	ClockTime ct(share->clock_incr().now());
+	ClockTime ct(net->clock_incr_clocktime());
 	val.raw_set_clocktime(ct.get());
 
 	volatile unsigned int* pcr =
@@ -200,7 +200,7 @@ void proto_store::SetByWhs(weak_responder response, auto_zone& z,
 				})
 	}
 
-	ClockTime ct(share->clock_incr().now());
+	ClockTime ct(net->clock_incr_clocktime());
 	val.raw_set_clocktime(ct.get());
 
 	volatile unsigned int* pcr =
@@ -299,7 +299,7 @@ bool proto_store::DeleteByRhsWhs(weak_responder response, auto_zone& z,
 				})
 	}
 
-	ClockTime ct(share->clock_incr().now());
+	ClockTime ct(net->clock_incr_clocktime());
 
 	bool deleted = share->db().remove(key.raw_data(), key.raw_size(), ct);
 	if(!deleted) {
@@ -379,7 +379,7 @@ void proto_store::DeleteByWhs(weak_responder response, auto_zone& z,
 				})
 	}
 
-	ClockTime ct(share->clock_incr().now());
+	ClockTime ct(net->clock_incr_clocktime());
 
 	bool deleted = share->db().remove(key.raw_data(), key.raw_size(), ct);
 	if(!deleted) {
@@ -529,7 +529,7 @@ try {
 		check_replicator_assign(share->whs(), key.hash());
 	}
 
-	share->update_clock(req.param().clock);
+	net->clock_update(req.param().clock);
 
 	bool updated = share->db().update(
 			key.raw_data(), key.raw_size(),
@@ -553,7 +553,7 @@ try {
 		check_replicator_assign(share->whs(), key.hash());
 	}
 
-	share->update_clock(req.param().clock);
+	net->clock_update(req.param().clock);
 
 	bool deleted = share->db().remove(key.raw_data(), key.raw_size(),
 			req.param().clocktime);

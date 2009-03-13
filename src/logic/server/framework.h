@@ -2,6 +2,7 @@
 #define SERVER_FRAMEWORK_H__
 
 #include "logic/cluster_logic.h"
+#include "logic/clock_logic.h"
 #include "server/proto_control.h"
 #include "server/proto_network.h"
 #include "server/proto_replace.h"
@@ -38,7 +39,7 @@ namespace server {
 
 
 
-class framework : public cluster_logic<framework> {
+class framework : public cluster_logic<framework>, public clock_logic {
 public:
 	template <typename Config>
 	framework(const Config& cfg);
@@ -95,8 +96,6 @@ public:
 	resource(const Config& cfg);
 
 private:
-	Clock m_clock;
-
 	mp::pthread_rwlock m_rhs_mutex;
 	HashSpace m_rhs;
 
@@ -121,11 +120,6 @@ private:
 	volatile uint64_t m_stat_num_delete;
 
 public:
-	Clock current_clock() const { return m_clock; }
-	void update_clock(Clock c) { m_clock.update(c.get()); }
-	ClockTime get_clocktime() const { return m_clock.now(); }
-	Clock clock_incr() { return m_clock.get_incr(); }
-
 	RESOURCE_ACCESSOR(mp::pthread_rwlock, rhs_mutex);
 	RESOURCE_ACCESSOR(mp::pthread_rwlock, whs_mutex);
 	RESOURCE_ACCESSOR(HashSpace, rhs);

@@ -72,7 +72,7 @@ void proto_replace::replace_offer_pop(ClockTime replace_time, REQUIRE_STLK)
 
 RPC_IMPL(proto_replace, ReplaceCopyStart_1, req, z, response)
 try {
-	share->update_clock(req.param().clock);
+	net->clock_update(req.param().clock);
 
 	HashSpace hs(req.param().hsseed);
 
@@ -91,7 +91,7 @@ RPC_CATCH(ReplaceCopyStart, response)
 
 RPC_IMPL(proto_replace, ReplaceDeleteStart_1, req, z, response)
 try {
-	share->update_clock(req.param().clock);
+	net->clock_update(req.param().clock);
 
 	HashSpace hs(req.param().hsseed);
 
@@ -211,7 +211,7 @@ void proto_replace::replace_copy(const address& manager_addr, HashSpace& hs)
 
 		share->db().for_each(
 				for_each_replace_copy(net->addr(), srchs, dsths, offer, fault_nodes),
-				share->get_clocktime());
+				net->clocktime_now());
 
 		net->scope_proto_replace_stream().send_offer(offer, replace_time);
 	}
@@ -278,7 +278,7 @@ void proto_replace::finish_replace_copy(ClockTime replace_time, REQUIRE_STLK)
 
 	shared_zone nullz;
 	manager::proto_replace::ReplaceCopyEnd_1 param(
-			replace_time.get(), share->clock_incr());
+			replace_time.get(), net->clock_incr());
 
 	address addr;
 	//{
@@ -326,12 +326,12 @@ void proto_replace::replace_delete(shared_node& manager, HashSpace& hs)
 	if(!share->whs().empty()) {
 		share->db().for_each(
 				for_each_replace_delete(share->whs(), net->addr()),
-				share->get_clocktime() );
+				net->clocktime_now() );
 	}
 
 	shared_zone nullz;
 	manager::proto_replace::ReplaceDeleteEnd_1 param(
-			share->whs().clocktime().get(), share->clock_incr());
+			share->whs().clocktime().get(), net->clock_incr());
 
 	using namespace mp::placeholders;
 	manager->call(param, nullz,

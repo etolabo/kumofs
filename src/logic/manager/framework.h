@@ -2,6 +2,7 @@
 #define MANAGER_FRAMEWORK_H__
 
 #include "logic/cluster_logic.h"
+#include "logic/clock_logic.h"
 #include "manager/proto_network.h"
 #include "manager/proto_replace.h"
 #include "manager/control_framework.h"
@@ -23,7 +24,7 @@ namespace kumo {
 namespace manager {
 
 
-class framework : public cluster_logic<framework> {
+class framework : public cluster_logic<framework>, public clock_logic {
 public:
 	template <typename Config>
 	framework(const Config& cfg);
@@ -72,8 +73,6 @@ public:
 	resource(const Config& cfg);
 
 private:
-	Clock m_clock;
-
 	mp::pthread_mutex m_hs_mutex;
 	HashSpace m_rhs;
 	HashSpace m_whs;
@@ -92,11 +91,6 @@ private:
 	const short m_cfg_replace_delay_seconds;
 
 public:
-	Clock current_clock() const { return m_clock; }
-	void update_clock(Clock c) { m_clock.update(c.get()); }
-	ClockTime get_clocktime() const { return m_clock.now(); }
-	Clock clock_incr() { return m_clock.get_incr(); }
-
 	RESOURCE_ACCESSOR(mp::pthread_mutex, hs_mutex);
 	RESOURCE_ACCESSOR(HashSpace, rhs);
 	RESOURCE_ACCESSOR(HashSpace, whs);

@@ -94,6 +94,7 @@ noinst_HEADERS = \
 		boot.h \
 		client_logic.h \
 		clock.h \
+		clock_logic.h \
 		cluster_logic.h \
 		global.h \
 		hash.h \
