@@ -30,7 +30,7 @@ public:
 
 	Clock clock_incr()
 	{
-		return m_clock.get_incr();
+		return Clock( m_clock.get_incr() );
 	}
 
 	ClockTime clock_incr_clocktime()

@@ -126,7 +126,7 @@ bool proto_store::SetByRhsWhs(weak_responder response, auto_zone& z,
 	}
 
 	ClockTime ct(net->clock_incr_clocktime());
-	val.raw_set_clocktime(ct.get());
+	val.raw_set_clocktime(ct);
 
 	volatile unsigned int* pcr =
 		(volatile unsigned int*)z->malloc(sizeof(volatile unsigned int));
@@ -139,20 +139,20 @@ bool proto_store::SetByRhsWhs(weak_responder response, auto_zone& z,
 	rpc::retry<ReplicateSet_1>* rretry =
 		z->allocate< rpc::retry<ReplicateSet_1> >(
 				ReplicateSet_1(
-					ct.clock().get(), replicate_flags_by_rhs(),  // flags = by rhs
+					ct.clock(), replicate_flags_by_rhs(),  // flags = by rhs
 					msgtype::DBKey(key.raw_data(), key.raw_size()),
 					msgtype::DBValue(val.raw_data(), val.raw_size()))
 				);
 	rretry->set_callback( BIND_RESPONSE(proto_store, ReplicateSet_1,
 			rretry,
 			pcr,
-			response, ct.get()) );
+			response, ct) );
 
 	// whs Replication
 	rpc::retry<ReplicateSet_1>* wretry =
 		z->allocate< rpc::retry<ReplicateSet_1> >(
 				ReplicateSet_1(
-					ct.clock().get(), replicate_flags_none(),  // flags = none
+					ct.clock(), replicate_flags_none(),  // flags = none
 					msgtype::DBKey(key.raw_data(), key.raw_size()),
 					msgtype::DBValue(val.raw_data(), val.raw_size()))
 				);
@@ -177,7 +177,7 @@ bool proto_store::SetByRhsWhs(weak_responder response, auto_zone& z,
 
 	LOG_DEBUG("set copy required: ", wrep_num+rrep_num);
 	if((wrep_num == 0 && rrep_num == 0) || is_async) {
-		response.result( msgtype::tuple<ClockTime>(ct.get()) );
+		response.result( msgtype::tuple<ClockTime>(ct) );
 	}
 
 	return true;
@@ -201,7 +201,7 @@ void proto_store::SetByWhs(weak_responder response, auto_zone& z,
 	}
 
 	ClockTime ct(net->clock_incr_clocktime());
-	val.raw_set_clocktime(ct.get());
+	val.raw_set_clocktime(ct);
 
 	volatile unsigned int* pcr =
 		(volatile unsigned int*)z->malloc(sizeof(volatile unsigned int));
@@ -214,14 +214,14 @@ void proto_store::SetByWhs(weak_responder response, auto_zone& z,
 	rpc::retry<ReplicateSet_1>* retry =
 		z->allocate< rpc::retry<ReplicateSet_1> >(
 				ReplicateSet_1(
-					ct.clock().get(), replicate_flags_none(),  // flags = none
+					ct.clock(), replicate_flags_none(),  // flags = none
 					msgtype::DBKey(key.raw_data(), key.raw_size()),
 					msgtype::DBValue(val.raw_data(), val.raw_size()))
 				);
 	retry->set_callback( BIND_RESPONSE(proto_store, ReplicateSet_1,
 			retry,
 			pcr,
-			response, ct.get()) );
+			response, ct) );
 	
 	SHARED_ZONE(life, z);
 	for(unsigned int i=0; i < wrep_num; ++i) {
@@ -234,7 +234,7 @@ void proto_store::SetByWhs(weak_responder response, auto_zone& z,
 
 	LOG_DEBUG("set copy required: ", wrep_num);
 	if(wrep_num == 0 || is_async) {
-		response.result( msgtype::tuple<ClockTime>(ct.get()) );
+		response.result( msgtype::tuple<ClockTime>(ct) );
 	}
 }
 
@@ -325,8 +325,8 @@ bool proto_store::DeleteByRhsWhs(weak_responder response, auto_zone& z,
 	rpc::retry<ReplicateDelete_1>* rretry =
 		z->allocate< rpc::retry<ReplicateDelete_1> >(
 				ReplicateDelete_1(
-					ct.get(),
-					ct.clock().get(),
+					ct,
+					ct.clock(),
 					replicate_flags_by_rhs(),  // flag = by rhs
 					msgtype::DBKey(key.raw_data(), key.raw_size()))
 				);
@@ -339,8 +339,8 @@ bool proto_store::DeleteByRhsWhs(weak_responder response, auto_zone& z,
 	rpc::retry<ReplicateDelete_1>* wretry =
 		z->allocate< rpc::retry<ReplicateDelete_1> >(
 				ReplicateDelete_1(
-					ct.get(),
-					ct.clock().get(),
+					ct,
+					ct.clock(),
 					replicate_flags_none(),  // flag = none
 					msgtype::DBKey(key.raw_data(), key.raw_size()))
 				);
@@ -404,7 +404,7 @@ void proto_store::DeleteByWhs(weak_responder response, auto_zone& z,
 	rpc::retry<ReplicateDelete_1>* retry =
 		z->allocate< rpc::retry<ReplicateDelete_1> >(
 				ReplicateDelete_1(
-					ct.get(), ct.clock().get(),
+					ct, ct.clock(),
 					replicate_flags_none(),
 					msgtype::DBKey(key.raw_data(), key.raw_size()))
 				);

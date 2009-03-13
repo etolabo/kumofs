@@ -16,10 +16,9 @@
 namespace kumo {
 
 
-
 class Clock {
 public:
-	Clock(uint32_t n) : m(n) {}
+	explicit Clock(uint32_t n) : m(n) {}
 	Clock() : m(0) { }  // FIXME randomize?
 	~Clock() {}
 
@@ -80,7 +79,7 @@ public:
 	ClockTime(uint32_t c, uint32_t t) :
 		m( (((uint64_t)t) << 32) | c ) {}
 
-	ClockTime(uint64_t n) : m(n) {}
+	explicit ClockTime(uint64_t n) : m(n) {}
 
 	ClockTime() : m(0) { }
 

@@ -218,7 +218,7 @@ try {
 	size_t vallen = data->op->iterator_vallen(iterator_data);
 
 	if(vallen < Storage::VALUE_META_SIZE) {
-		if(data->clocktime_limit != 0) {  // for mergedb
+		if(data->clocktime_limit.get() != 0) {  // for mergedb
 
 			if(vallen < Storage::VALUE_CLOCKTIME_SIZE) {
 				// invalid value

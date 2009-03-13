@@ -81,7 +81,7 @@ public:
 
 	bool empty() const;
 
-	const ClockTime& clocktime() const
+	ClockTime clocktime() const
 		{ return m_timestamp; }
 
 	// compare nodes (clocktime is ignored)
@@ -194,13 +194,13 @@ inline msgpack::packer<Stream>& operator<< (msgpack::packer<Stream>& o, const Ha
 
 
 class HashSpace::Seed : public msgpack::define<
-		msgpack::type::tuple<nodes_t, uint64_t> > {
+		msgpack::type::tuple<nodes_t, ClockTime> > {
 public:
 	Seed() { }
 	Seed(HashSpace& hs) :
-		define_type(msgpack_type( hs.m_nodes, hs.m_timestamp.get() )) {}
+		define_type(msgpack_type( hs.m_nodes, hs.m_timestamp )) {}
 	const nodes_t& nodes()     const { return get<0>(); }
-	uint64_t       clocktime() const { return get<1>(); }
+	ClockTime      clocktime() const { return get<1>(); }
 	bool           empty()     const { return get<0>().empty(); }
 };
 

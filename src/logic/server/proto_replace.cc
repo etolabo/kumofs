@@ -278,7 +278,7 @@ void proto_replace::finish_replace_copy(ClockTime replace_time, REQUIRE_STLK)
 
 	shared_zone nullz;
 	manager::proto_replace::ReplaceCopyEnd_1 param(
-			replace_time.get(), net->clock_incr());
+			replace_time, net->clock_incr());
 
 	address addr;
 	//{
@@ -331,7 +331,7 @@ void proto_replace::replace_delete(shared_node& manager, HashSpace& hs)
 
 	shared_zone nullz;
 	manager::proto_replace::ReplaceDeleteEnd_1 param(
-			share->whs().clocktime().get(), net->clock_incr());
+			share->whs().clocktime(), net->clock_incr());
 
 	using namespace mp::placeholders;
 	manager->call(param, nullz,

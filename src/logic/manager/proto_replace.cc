@@ -235,7 +235,7 @@ void proto_replace::start_replace(REQUIRE_HSLK)
 
 	LOG_INFO("active node: ",num_active);
 	m_copying.reset(ct, num_active);
-	m_deleting.reset(0, 0);
+	m_deleting.invalidate();
 	relk.unlock();
 
 	// push hashspace to the clients
@@ -336,7 +336,7 @@ void proto_replace::finish_replace_copy(REQUIRE_RELK)
 	// FIXME
 	ClockTime clocktime = m_copying.clocktime();
 	LOG_INFO("start replace delete time(",clocktime.get(),")");
-	m_copying.reset(0, 0);
+	m_copying.invalidate();
 
 	shared_zone life(new msgpack::zone());
 	HashSpace::Seed* seed = life->allocate<HashSpace::Seed>(share->whs());
@@ -374,7 +374,7 @@ inline void proto_replace::finish_replace(REQUIRE_RELK)
 {
 	// FIXME
 	LOG_INFO("replace finished time(",m_deleting.clocktime().get(),")");
-	m_deleting.reset(0, 0);
+	m_deleting.invalidate();
 }
 
 
