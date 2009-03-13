@@ -28,7 +28,7 @@ namespace manager {
 
 @rpc proto_network
 	message KeepAlive.1 +cluster {
-		uint32_t clock;
+		Clock clock;
 		// ok: UNDEFINED
 	};
 
@@ -47,7 +47,7 @@ namespace manager {
 	message HashSpaceSync.1 +cluster {
 		msgtype::HSSeed wseed;
 		msgtype::HSSeed rseed;
-		uint32_t clock;
+		Clock clock;
 		// success: true
 		// obsolete: nil
 	};
@@ -73,20 +73,20 @@ class framework;
 
 @rpc proto_replace
 	message ReplaceCopyEnd.1 {
-		uint64_t clocktime;  // FIXME ClockTime?
-		uint32_t clock;
+		ClockTime clocktime;  // FIXME ClockTime?
+		Clock clock;
 		// acknowledge: true
 	};
 
 	message ReplaceDeleteEnd.1 {
-		uint64_t clocktime;  // FIXME ClockTime?
-		uint32_t clock;
+		ClockTime clocktime;  // FIXME ClockTime?
+		Clock clock;
 		// acknowledge: true
 	};
 
 	message ReplaceElection.1 +cluster {
 		msgtype::HSSeed hsseed;
-		uint32_t clock;
+		Clock clock;
 		// sender   of ReplaceElection is responsible for replacing: true
 		// receiver of ReplaceElection is responsible for replacing: nil
 	};

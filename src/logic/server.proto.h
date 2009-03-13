@@ -26,14 +26,14 @@ namespace server {
 
 @rpc proto_network
 	message KeepAlive.1 +cluster {
-		uint32_t clock;
+		Clock clock;
 		// ok: UNDEFINED
 	};
 
 	message HashSpaceSync.1 {
 		msgtype::HSSeed wseed;
 		msgtype::HSSeed rseed;
-		uint32_t clock;
+		Clock clock;
 		// success: true
 		// obsolete: nil
 	};
@@ -78,7 +78,7 @@ struct replicate_flags : msgtype::flags_base {
 		store_flags flags;
 		msgtype::DBKey dbkey;
 		msgtype::DBValue dbval;
-		// success: tuple< clocktime:uint64 >
+		// success: tuple< clocktime:ClockTime >
 		// failed:  nil
 	};
 
@@ -91,7 +91,7 @@ struct replicate_flags : msgtype::flags_base {
 	};
 
 	message ReplicateSet.1 {
-		uint32_t clock;
+		Clock clock;
 		replicate_flags flags;
 		msgtype::DBKey dbkey;
 		msgtype::DBValue dbval;
@@ -100,8 +100,8 @@ struct replicate_flags : msgtype::flags_base {
 	};
 
 	message ReplicateDelete.1 {
-		uint64_t clocktime;
-		uint32_t clock;
+		ClockTime clocktime;
+		Clock clock;
 		replicate_flags flags;
 		msgtype::DBKey dbkey;
 		// success: true
@@ -122,7 +122,7 @@ private:
 	RPC_REPLY_DECL(ReplicateSet_1, from, res, err, life,
 			rpc::retry<ReplicateSet_1>* retry,
 			volatile unsigned int* copy_required,
-			rpc::weak_responder response, uint64_t clocktime);
+			rpc::weak_responder response, ClockTime clocktime);
 
 	bool DeleteByRhsWhs(weak_responder response, auto_zone& z,
 			msgtype::DBKey& key,
@@ -142,13 +142,13 @@ private:
 @rpc proto_replace
 	message ReplaceCopyStart.1 +cluster {
 		msgtype::HSSeed hsseed;
-		uint32_t clock;
+		Clock clock;
 		// accepted: true
 	};
 
 	message ReplaceDeleteStart.1 +cluster {
 		msgtype::HSSeed hsseed;
-		uint32_t clock;
+		Clock clock;
 		// accepted: true
 	};
 

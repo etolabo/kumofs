@@ -70,6 +70,9 @@ private:
 	const unsigned short m_cfg_renew_threshold;
 
 public:
+	// FIXME update_rhs(const HashSpace::Seed&, REQUIRE_HSLK);
+	// FIXME update_whs(const HashSpace::Seed&, REQUIRE_HSLK);
+	// FIXME server_for
 	RESOURCE_ACCESSOR(mp::pthread_rwlock, hs_rwlock);
 	RESOURCE_ACCESSOR(HashSpace, rhs);
 	RESOURCE_ACCESSOR(HashSpace, whs);

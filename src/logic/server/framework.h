@@ -121,7 +121,10 @@ private:
 	volatile uint64_t m_stat_num_delete;
 
 public:
-	RESOURCE_ACCESSOR(Clock, clock);
+	Clock current_clock() const { return m_clock; }
+	void update_clock(Clock c) { m_clock.update(c.get()); }
+	ClockTime get_clocktime() const { return m_clock.now(); }
+	Clock clock_incr() { return m_clock.get_incr(); }
 
 	RESOURCE_ACCESSOR(mp::pthread_rwlock, rhs_mutex);
 	RESOURCE_ACCESSOR(mp::pthread_rwlock, whs_mutex);
@@ -139,6 +142,8 @@ public:
 	RESOURCE_CONST_ACCESSOR(unsigned short, cfg_replicate_delete_retry_num);
 
 	RESOURCE_CONST_ACCESSOR(time_t, stat_start_time);
+
+	// FIXME incr_stat_num_{get,set,delete} + const accessor
 	RESOURCE_ACCESSOR(volatile uint64_t, stat_num_get);
 	RESOURCE_ACCESSOR(volatile uint64_t, stat_num_set);
 	RESOURCE_ACCESSOR(volatile uint64_t, stat_num_delete);

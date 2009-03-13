@@ -6,6 +6,8 @@
 #include <time.h>
 #include <cstdlib>
 
+#include <msgpack.hpp>
+
 // FIXME 5 sec.
 #ifndef TIME_ERROR_MARGIN
 #define TIME_ERROR_MARGIN 5
@@ -19,11 +21,12 @@ class ClockTime;
 
 class Clock {
 public:
-	Clock(uint32_t n = 0) : m(n) {}
+	Clock(uint32_t n) : m(n) {}
+	Clock() : m(0) { }  // FIXME randomize?
 	~Clock() {}
 
 public:
-	ClockTime now();
+	ClockTime now() const;
 	ClockTime now_incr();
 
 	uint32_t get_incr()
@@ -87,6 +90,8 @@ public:
 
 	ClockTime(uint64_t n) : m(n) {}
 
+	ClockTime() : m(0) { }
+
 	~ClockTime() {}
 
 public:
@@ -138,7 +143,7 @@ private:
 };
 
 
-inline ClockTime Clock::now()
+inline ClockTime Clock::now() const
 {
 	return ClockTime(get(), time(NULL));
 }
@@ -147,6 +152,36 @@ inline ClockTime Clock::now_incr()
 {
 	return ClockTime(get_incr(), time(NULL));
 }
+
+
+#ifdef MSGPACK_OBJECT_HPP__
+inline Clock& operator>> (msgpack::object o, Clock& v)
+{
+	v = Clock(o.as<uint32_t>());
+	return v;
+}
+
+template <typename Stream>
+inline msgpack::packer<Stream>& operator<< (msgpack::packer<Stream>& o, const Clock& v)
+{
+	o.pack(v.get());
+	return o;
+}
+
+
+inline ClockTime& operator>> (msgpack::object o, ClockTime& v)
+{
+	v = ClockTime(o.as<uint64_t>());
+	return v;
+}
+
+template <typename Stream>
+inline msgpack::packer<Stream>& operator<< (msgpack::packer<Stream>& o, const ClockTime& v)
+{
+	o.pack(v.get());
+	return o;
+}
+#endif
 
 
 }  // namespace kumo

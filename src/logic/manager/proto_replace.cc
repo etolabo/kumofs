@@ -36,7 +36,7 @@ void proto_replace::remove_server(const address& addr)
 	LOGPACK("lS",2,
 			"addr", addr);
 
-	ClockTime ct = share->clock().now_incr();
+	ClockTime ct = share->clock_incr().now();
 
 	pthread_scoped_lock hslk(share->hs_mutex());
 	pthread_scoped_lock sslk(share->servers_mutex());
@@ -110,9 +110,9 @@ void proto_replace::replace_election()
 		HashSpace::Seed* seed = life->allocate<HashSpace::Seed>(share->whs());
 		hslk.unlock();
 
-		manager::proto_replace::ReplaceElection_1 arg(*seed, share->clock().get_incr());
+		manager::proto_replace::ReplaceElection_1 param(*seed, share->clock_incr());
 		net->get_node(share->partner())->call(  // FIXME exception
-				arg, life,
+				param, life,
 				BIND_RESPONSE(proto_replace, ReplaceElection_1), 10);
 	} else {
 		LOG_INFO("replace self elected");
@@ -136,7 +136,7 @@ RPC_REPLY_IMPL(proto_replace, ReplaceElection_1, from, res, err, life)
 void proto_replace::attach_new_servers(REQUIRE_HSLK)
 {
 	// update hash space
-	ClockTime ct = share->clock().now_incr();
+	ClockTime ct = share->clock_incr().now();
 	LOG_INFO("update hash space at time(",ct.get(),")");
 
 	pthread_scoped_lock nslk(share->new_servers_mutex());
@@ -168,7 +168,7 @@ void proto_replace::attach_new_servers(REQUIRE_HSLK)
 
 void proto_replace::detach_fault_servers(REQUIRE_HSLK)
 {
-	ClockTime ct = share->clock().now_incr();
+	ClockTime ct = share->clock_incr().now();
 
 	share->whs().remove_fault_servers(ct);
 
@@ -219,7 +219,7 @@ void proto_replace::start_replace(REQUIRE_HSLK)
 	HashSpace::Seed* seed = life->allocate<HashSpace::Seed>(share->whs());
 	ClockTime ct(share->whs().clocktime());
 
-	server::proto_replace::ReplaceCopyStart_1 arg(*seed, share->clock().get_incr());
+	server::proto_replace::ReplaceCopyStart_1 param(*seed, share->clock_incr());
 
 	using namespace mp::placeholders;
 	rpc::callback_t callback( BIND_RESPONSE(proto_replace, ReplaceCopyStart_1) );
@@ -228,7 +228,7 @@ void proto_replace::start_replace(REQUIRE_HSLK)
 
 	pthread_scoped_lock sslk(share->servers_mutex());
 	EACH_ACTIVE_SERVERS_BEGIN(n)
-		n->call(arg, life, callback, 10);
+		n->call(param, life, callback, 10);
 		++num_active;
 	EACH_ACTIVE_SERVERS_END
 	sslk.unlock();
@@ -262,7 +262,7 @@ try {
 		throw std::runtime_error("unknown partner node");
 	}
 
-	share->clock().update(req.param().clock);
+	share->update_clock(req.param().clock);
 
 	pthread_scoped_lock hslk(share->hs_mutex());
 	ClockTime ct(share->whs().clocktime());
@@ -301,7 +301,7 @@ RPC_IMPL(proto_replace, ReplaceCopyEnd_1, req, z, response)
 try {
 	pthread_scoped_lock relk(m_replace_mutex);
 
-	share->clock().update(req.param().clock);
+	share->update_clock(req.param().clock);
 
 	ClockTime ct(req.param().clocktime);
 	if(m_copying.pop(ct)) {
@@ -318,7 +318,7 @@ RPC_IMPL(proto_replace, ReplaceDeleteEnd_1, req, z, response)
 try {
 	pthread_scoped_lock relk(m_replace_mutex);
 
-	share->clock().update(req.param().clock);
+	share->update_clock(req.param().clock);
 
 	ClockTime ct(req.param().clocktime);
 	if(m_deleting.pop(ct)) {
@@ -342,7 +342,7 @@ void proto_replace::finish_replace_copy(REQUIRE_RELK)
 	HashSpace::Seed* seed = life->allocate<HashSpace::Seed>(share->whs());
 	// FIXME server::proto_replace::ReplaceDeleteStart_1 has HashSpace::Seed:
 	//       not so good efficiency
-	server::proto_replace::ReplaceDeleteStart_1 arg(*seed, share->clock().get_incr());
+	server::proto_replace::ReplaceDeleteStart_1 param(*seed, share->clock_incr());
 
 	using namespace mp::placeholders;
 	rpc::callback_t callback( BIND_RESPONSE(proto_replace, ReplaceDeleteStart_1) );
@@ -351,7 +351,7 @@ void proto_replace::finish_replace_copy(REQUIRE_RELK)
 
 	pthread_scoped_lock sslk(share->servers_mutex());
 	EACH_ACTIVE_SERVERS_BEGIN(node)
-		node->call(arg, life, callback, 10);
+		node->call(param, life, callback, 10);
 		++num_active;
 	EACH_ACTIVE_SERVERS_END
 	sslk.unlock();

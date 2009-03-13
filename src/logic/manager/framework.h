@@ -92,7 +92,10 @@ private:
 	const short m_cfg_replace_delay_seconds;
 
 public:
-	RESOURCE_ACCESSOR(Clock, clock);
+	Clock current_clock() const { return m_clock; }
+	void update_clock(Clock c) { m_clock.update(c.get()); }
+	ClockTime get_clocktime() const { return m_clock.now(); }
+	Clock clock_incr() { return m_clock.get_incr(); }
 
 	RESOURCE_ACCESSOR(mp::pthread_mutex, hs_mutex);
 	RESOURCE_ACCESSOR(HashSpace, rhs);

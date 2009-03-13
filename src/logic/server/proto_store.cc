@@ -125,7 +125,7 @@ bool proto_store::SetByRhsWhs(weak_responder response, auto_zone& z,
 				})
 	}
 
-	ClockTime ct(share->clock().now_incr());
+	ClockTime ct(share->clock_incr().now());
 	val.raw_set_clocktime(ct.get());
 
 	volatile unsigned int* pcr =
@@ -159,7 +159,7 @@ bool proto_store::SetByRhsWhs(weak_responder response, auto_zone& z,
 	wretry->set_callback( BIND_RESPONSE(proto_store, ReplicateSet_1,
 			wretry,
 			pcr,
-			response, ct.get()) );
+			response, ct) );
 
 	SHARED_ZONE(life, z);
 
@@ -177,7 +177,7 @@ bool proto_store::SetByRhsWhs(weak_responder response, auto_zone& z,
 
 	LOG_DEBUG("set copy required: ", wrep_num+rrep_num);
 	if((wrep_num == 0 && rrep_num == 0) || is_async) {
-		response.result( msgtype::tuple<uint64_t>(ct.get()) );
+		response.result( msgtype::tuple<ClockTime>(ct.get()) );
 	}
 
 	return true;
@@ -200,7 +200,7 @@ void proto_store::SetByWhs(weak_responder response, auto_zone& z,
 				})
 	}
 
-	ClockTime ct(share->clock().now_incr());
+	ClockTime ct(share->clock_incr().now());
 	val.raw_set_clocktime(ct.get());
 
 	volatile unsigned int* pcr =
@@ -234,7 +234,7 @@ void proto_store::SetByWhs(weak_responder response, auto_zone& z,
 
 	LOG_DEBUG("set copy required: ", wrep_num);
 	if(wrep_num == 0 || is_async) {
-		response.result( msgtype::tuple<uint64_t>(ct.get()) );
+		response.result( msgtype::tuple<ClockTime>(ct.get()) );
 	}
 }
 
@@ -299,7 +299,7 @@ bool proto_store::DeleteByRhsWhs(weak_responder response, auto_zone& z,
 				})
 	}
 
-	ClockTime ct(share->clock().now_incr());
+	ClockTime ct(share->clock_incr().now());
 
 	bool deleted = share->db().remove(key.raw_data(), key.raw_size(), ct);
 	if(!deleted) {
@@ -379,7 +379,7 @@ void proto_store::DeleteByWhs(weak_responder response, auto_zone& z,
 				})
 	}
 
-	ClockTime ct(share->clock().now_incr());
+	ClockTime ct(share->clock_incr().now());
 
 	bool deleted = share->db().remove(key.raw_data(), key.raw_size(), ct);
 	if(!deleted) {
@@ -443,7 +443,7 @@ RPC_CATCH(Delete_1, response)
 RPC_REPLY_IMPL(proto_store, ReplicateSet_1, from, res, err, life,
 		rpc::retry<ReplicateSet_1>* retry,
 		volatile unsigned int* copy_required,
-		rpc::weak_responder response, uint64_t clocktime)
+		rpc::weak_responder response, ClockTime clocktime)
 {
 	LOG_DEBUG("ResReplicateSet ",res,",",err," remain:",*copy_required);
 	// retry if failed
@@ -473,7 +473,7 @@ RPC_REPLY_IMPL(proto_store, ReplicateSet_1, from, res, err, life,
 	LOG_DEBUG("ReplicateSet succeeded");
 
 	if(__sync_sub_and_fetch(copy_required, 1) == 0) {
-		response.result( msgtype::tuple<uint64_t>(clocktime) );
+		response.result( msgtype::tuple<ClockTime>(clocktime) );
 	}
 }
 
@@ -529,7 +529,7 @@ try {
 		check_replicator_assign(share->whs(), key.hash());
 	}
 
-	share->clock().update(req.param().clock);
+	share->update_clock(req.param().clock);
 
 	bool updated = share->db().update(
 			key.raw_data(), key.raw_size(),
@@ -553,7 +553,7 @@ try {
 		check_replicator_assign(share->whs(), key.hash());
 	}
 
-	share->clock().update(req.param().clock);
+	share->update_clock(req.param().clock);
 
 	bool deleted = share->db().remove(key.raw_data(), key.raw_size(),
 			req.param().clocktime);

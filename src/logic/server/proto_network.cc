@@ -8,7 +8,7 @@ namespace server {
 
 RPC_IMPL(proto_network, KeepAlive_1, req, z, response)
 try {
-	share->clock().update(req.param().clock);
+	share->update_clock(req.param().clock);
 	response.null();
 }
 RPC_CATCH(KeepAlive_1, response)
@@ -18,7 +18,7 @@ void proto_network::keep_alive()
 {
 	LOG_TRACE("keep alive ...");
 	shared_zone nullz;
-	manager::proto_network::KeepAlive_1 param(share->clock().get_incr());
+	manager::proto_network::KeepAlive_1 param(share->clock_incr());
 
 	using namespace mp::placeholders;
 	rpc::callback_t callback( BIND_RESPONSE(proto_network, KeepAlive_1) );
@@ -47,7 +47,7 @@ RPC_IMPL(proto_network, HashSpaceSync_1, req, z, response)
 try {
 	LOG_DEBUG("HashSpaceSync_1");
 
-	share->clock().update(req.param().clock);
+	share->update_clock(req.param().clock);
 
 	bool ret = false;
 

@@ -21,7 +21,7 @@ namespace manager {
 
 RPC_IMPL(proto_network, KeepAlive_1, req, z, response)
 try {
-	share->clock().update(req.param().clock);
+	share->update_clock(req.param().clock);
 	response.null();
 }
 RPC_CATCH(KeepAlive_1, response)
@@ -74,7 +74,7 @@ void proto_network::sync_hash_space_servers(REQUIRE_HSLK, REQUIRE_SSLK)
 	HashSpace::Seed* wseed = life->allocate<HashSpace::Seed>(share->whs());
 	HashSpace::Seed* rseed = life->allocate<HashSpace::Seed>(share->rhs());
 
-	server::proto_network::HashSpaceSync_1 param(*wseed, *rseed, share->clock().get_incr());
+	server::proto_network::HashSpaceSync_1 param(*wseed, *rseed, share->clock_incr());
 
 	rpc::callback_t callback( BIND_RESPONSE(proto_network, HashSpaceSync_1) );
 
@@ -92,7 +92,7 @@ void proto_network::sync_hash_space_partner(REQUIRE_HSLK)
 	HashSpace::Seed* wseed = life->allocate<HashSpace::Seed>(share->whs());
 	HashSpace::Seed* rseed = life->allocate<HashSpace::Seed>(share->rhs());
 
-	manager::proto_network::HashSpaceSync_1 param(*wseed, *rseed, share->clock().get_incr());
+	manager::proto_network::HashSpaceSync_1 param(*wseed, *rseed, share->clock_incr());
 	net->get_node(share->partner())->call(
 			param, life,
 			BIND_RESPONSE(proto_network, HashSpaceSync_1), 10);
@@ -148,7 +148,7 @@ try {
 		throw std::runtime_error("unknown partner node");
 	}
 
-	share->clock().update(req.param().clock);
+	share->update_clock(req.param().clock);
 
 	bool ret = false;
 
@@ -193,7 +193,7 @@ void proto_network::keep_alive()
 {
 	LOG_TRACE("keep alive ...");
 	shared_zone nullz;
-	server::proto_network::KeepAlive_1 param(share->clock().get_incr());
+	server::proto_network::KeepAlive_1 param(share->clock_incr());
 
 	rpc::callback_t callback( BIND_RESPONSE(proto_network, KeepAlive_1) );
 
