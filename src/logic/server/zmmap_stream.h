@@ -58,7 +58,7 @@ inline void zmmap_stream::write(const void* buf, size_t len)
 			throw std::runtime_error("deflate failed");
 		}
 
-	} while(m_z.avail_out > 0);
+	} while(m_z.avail_in > 0);
 }
 
 

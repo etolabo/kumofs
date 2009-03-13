@@ -5,6 +5,14 @@
 #include <mp/exception.h>
 #include "rpc/connection.h"
 
+#ifndef ZCONNECTION_INITIAL_SIZE
+#define ZCONNECTION_INITIAL_SIZE (128*1024)
+#endif
+
+#ifndef ZCONNECTION_RESERVE_SIZE
+#define ZCONNECTION_RESERVE_SIZE (16*1024)
+#endif
+
 namespace kumo {
 namespace server {
 
@@ -31,7 +39,7 @@ private:
 template <typename IMPL>
 zconnection<IMPL>::zconnection(int fd) :
 	mp::wavy::handler(fd),
-	m_pac(RPC_INITIAL_BUFFER_SIZE)
+	m_pac(ZCONNECTION_INITIAL_SIZE)
 {
 	m_buffer = (char*)::malloc(RPC_INITIAL_BUFFER_SIZE);
 	if(!m_buffer) {
@@ -74,7 +82,9 @@ try {
 	m_z.avail_in = rl;
 
 	do {
-		m_pac.reserve_buffer(RPC_BUFFER_RESERVATION_SIZE);
+		if(m_pac.buffer_capacity() < ZCONNECTION_INITIAL_SIZE) {
+			m_pac.reserve_buffer(ZCONNECTION_RESERVE_SIZE); // reserve larger buffer
+		}
 
 		m_z.next_out = (Bytef*)m_pac.buffer();
 		m_z.avail_out = m_pac.buffer_capacity();
