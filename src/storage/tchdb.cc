@@ -95,13 +95,43 @@ static bool kumo_tchdb_set(void* data,
 }
 
 
+typedef struct {
+	bool deleted;
+	kumo_storage_casproc proc;
+	void* casdata;
+} kumo_tchdb_del_ctx;
+
+static void* kumo_tchdb_del_proc(const void* vbuf, int vsiz, int* sp, void* op)
+{
+	kumo_tchdb_del_ctx* delctx = (kumo_tchdb_del_ctx*)op;
+
+	if( delctx->proc(delctx->casdata, (const char*)vbuf, vsiz) ) {
+		delctx->deleted = true;
+		return (void*)-1;  // delete it
+	} else {
+		return NULL;
+	}
+}
+
 static bool kumo_tchdb_del(void* data,
 		const char* key, uint32_t keylen,
 		kumo_storage_casproc proc, void* casdata)
 {
-	// FIXME tchdboutproc
 	kumo_tchdb* ctx = reinterpret_cast<kumo_tchdb*>(data);
-	return tchdbout(ctx->db, key, keylen);
+
+	kumo_tchdb_del_ctx delctx = { true, proc, casdata };
+
+	bool ret = tchdbputproc(ctx->db,
+			key, keylen,
+			NULL, 0,
+			kumo_tchdb_del_proc,
+			&delctx);
+
+	if(!ret) {
+		return false;
+	}
+
+	return delctx.deleted;
 }
 
 
@@ -270,40 +300,41 @@ static size_t kumo_tchdb_iterator_vallen(void* iterator_data)
 }
 
 
-static bool kumo_tchdb_iterator_release_key(void* iterator_data, msgpack_zone* zone)
+static const char* kumo_tchdb_iterator_release_key(void* iterator_data, msgpack_zone* zone)
 {
 	kumo_tchdb_iterator* it = reinterpret_cast<kumo_tchdb_iterator*>(iterator_data);
 
 	if(!msgpack_zone_push_finalizer(zone, (void (*)(void*))tcxstrdel, it->key)) {
-		return false;
+		return NULL;
 	}
 
+	const char* tmp = TCXSTRPTR(it->key);
 	it->key = NULL;
-	return true;
+	return tmp;
 }
 
-static bool kumo_tchdb_iterator_release_val(void* iterator_data, msgpack_zone* zone)
+static const char* kumo_tchdb_iterator_release_val(void* iterator_data, msgpack_zone* zone)
 {
 	kumo_tchdb_iterator* it = reinterpret_cast<kumo_tchdb_iterator*>(iterator_data);
 
 	if(!msgpack_zone_push_finalizer(zone, (void (*)(void*))tcxstrdel, it->val)) {
-		return false;
+		return NULL;
 	}
 
+	const char* tmp = TCXSTRPTR(it->val);
 	it->val = NULL;
-	return true;
+	return tmp;
 }
 
 static bool kumo_tchdb_iterator_del(void* iterator_data,
 		kumo_storage_casproc proc, void* casdata)
 {
-	// FIXME tchdboutproc
 	kumo_tchdb_iterator* it = reinterpret_cast<kumo_tchdb_iterator*>(iterator_data);
 
 	const char* key = TCXSTRPTR(it->key);
 	size_t keylen = TCXSTRSIZE(it->key);
 
-	return tchdbout(it->ctx->db, key, keylen);
+	return kumo_tchdb_del(it->ctx, key, keylen, proc, casdata);
 }
 
 static bool kumo_tchdb_iterator_del_force(void* iterator_data)

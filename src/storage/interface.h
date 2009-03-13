@@ -74,9 +74,9 @@ typedef struct {
 	size_t (*iterator_keylen)(void* iterator_data);
 	size_t (*iterator_vallen)(void* iterator_data);
 
-	// success: true;  failed: false
-	bool (*iterator_release_key)(void* iterator_data, msgpack_zone* zone);
-	bool (*iterator_release_val)(void* iterator_data, msgpack_zone* zone);
+	// success: released pointer;  failed: NULL
+	const char* (*iterator_release_key)(void* iterator_data, msgpack_zone* zone);
+	const char* (*iterator_release_val)(void* iterator_data, msgpack_zone* zone);
 
 	// deleted: true;  not-deleted: false
 	bool (*iterator_del)(void* iterator_data,

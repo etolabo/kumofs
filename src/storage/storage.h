@@ -120,8 +120,8 @@ public:
 		const char* val();
 		size_t keylen();
 		size_t vallen();
-		void release_key(msgpack::zone* z);
-		void release_val(msgpack::zone* z);
+		const char* release_key(msgpack::zone* z);
+		const char* release_val(msgpack::zone* z);
 		void del();
 
 	private:
@@ -236,18 +236,22 @@ inline size_t Storage::iterator::vallen()
 	return m_op->iterator_vallen(m_data);
 }
 
-inline void Storage::iterator::release_key(msgpack::zone* z)
+inline const char* Storage::iterator::release_key(msgpack::zone* z)
 {
-	if(!m_op->iterator_release_key(m_data, z)) {
+	const char* key = m_op->iterator_release_key(m_data, z);
+	if(!key) {
 		throw std::bad_alloc();
 	}
+	return key;
 }
 
-inline void Storage::iterator::release_val(msgpack::zone* z)
+inline const char* Storage::iterator::release_val(msgpack::zone* z)
 {
-	if(!m_op->iterator_release_val(m_data, z)) {
+	const char* val = m_op->iterator_release_val(m_data, z);
+	if(!val) {
 		throw std::bad_alloc();
 	}
+	return val;
 }
 
 inline void Storage::iterator::del()

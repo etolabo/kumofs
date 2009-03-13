@@ -84,9 +84,9 @@ class Node
 		]
 
 	rescue
-		ar = Array.new(INDEX.length-1)
+		ar = Array.new(INDEX.length)
 		ar[0] = "#{@host}:#{@port}"
-		ar.push $!.to_s
+		ar[1] = $!.to_s
 		ar
 	end
 
