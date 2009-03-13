@@ -42,11 +42,11 @@ void proto_replace_stream::stop_stream()
 }
 
 
-class proto_replace_stream::OfferStorage {
+class proto_replace_stream::stream_accumulator {
 public:
-	OfferStorage(const std::string& basename,
+	stream_accumulator(const std::string& basename,
 			const address& addr, ClockTime replace_time);
-	~OfferStorage();
+	~stream_accumulator();
 public:
 	void add(const char* key, size_t keylen,
 			const char* val, size_t vallen);
@@ -73,8 +73,8 @@ private:
 	class mmap_stream;
 	std::auto_ptr<mmap_stream> m_mmap;
 private:
-	OfferStorage();
-	OfferStorage(const OfferStorage&);
+	stream_accumulator();
+	stream_accumulator(const stream_accumulator&);
 };
 
 
@@ -98,15 +98,15 @@ try {
 RPC_CATCH(ReplaceDeleteStart, response)
 
 
-void proto_replace_stream::send_offer(proto_replace_stream::OfferStorageMap& offer, ClockTime replace_time)
+void proto_replace_stream::send_offer(proto_replace_stream::offer_storage& offer, ClockTime replace_time)
 {
 	pthread_scoped_lock oflk(m_offer_map_mutex);
-	offer.commit(&m_offer_map);
+	offer.commit(&m_accum_set);
 
 	pthread_scoped_lock relk(net->scope_proto_replace().state_mutex());
 
-	for(SharedOfferMap::iterator it(m_offer_map.begin()),
-			it_end(m_offer_map.end()); it != it_end; ++it) {
+	for(accum_set_t::iterator it(m_accum_set.begin()),
+			it_end(m_accum_set.end()); it != it_end; ++it) {
 		const address& addr( (*it)->addr() );
 
 		LOG_DEBUG("send offer to ",(*it)->addr());
@@ -130,17 +130,17 @@ RPC_REPLY_IMPL(proto_replace_stream, ReplaceOffer_1, from, res, err, life,
 
 	pthread_scoped_lock oflk(m_offer_map_mutex);
 
-	SharedOfferMap::iterator it = find_offer_map(m_offer_map, addr);
-	if(it == m_offer_map.end()) {
+	accum_set_t::iterator it = accum_set_find(m_accum_set, addr);
+	if(it == m_accum_set.end()) {
 		return;
 	}
 
-	m_offer_map.erase(it);
+	m_accum_set.erase(it);
 }
 
 
 
-class proto_replace_stream::OfferStorage::mmap_stream {
+class proto_replace_stream::stream_accumulator::mmap_stream {
 public:
 	mmap_stream(int fd);
 	~mmap_stream();
@@ -167,7 +167,7 @@ private:
 	mmap_stream(const mmap_stream&);
 };
 
-proto_replace_stream::OfferStorage::mmap_stream::mmap_stream(int fd) :
+proto_replace_stream::stream_accumulator::mmap_stream::mmap_stream(int fd) :
 	m_fd(fd),
 	m_mpk(*this)
 {
@@ -194,7 +194,7 @@ proto_replace_stream::OfferStorage::mmap_stream::mmap_stream(int fd) :
 	m_z.next_out = (Bytef*)m_map;
 }
 
-proto_replace_stream::OfferStorage::mmap_stream::~mmap_stream()
+proto_replace_stream::stream_accumulator::mmap_stream::~mmap_stream()
 {
 	size_t used = (char*)m_z.next_out - m_map;
 	size_t csize = used + m_z.avail_out;
@@ -203,12 +203,12 @@ proto_replace_stream::OfferStorage::mmap_stream::~mmap_stream()
 	deflateEnd(&m_z);
 }
 
-size_t proto_replace_stream::OfferStorage::mmap_stream::size() const
+size_t proto_replace_stream::stream_accumulator::mmap_stream::size() const
 {
 	return (char*)m_z.next_out - m_map;
 }
 
-void proto_replace_stream::OfferStorage::mmap_stream::write(const void* buf, size_t len)
+void proto_replace_stream::stream_accumulator::mmap_stream::write(const void* buf, size_t len)
 {
 	m_z.next_in = (Bytef*)buf;
 	m_z.avail_in = len;
@@ -228,7 +228,7 @@ void proto_replace_stream::OfferStorage::mmap_stream::write(const void* buf, siz
 	}
 }
 
-void proto_replace_stream::OfferStorage::mmap_stream::flush()
+void proto_replace_stream::stream_accumulator::mmap_stream::flush()
 {
 	while(true) {
 		switch(deflate(&m_z, Z_FINISH)) {
@@ -247,7 +247,7 @@ void proto_replace_stream::OfferStorage::mmap_stream::flush()
 	}
 }
 
-void proto_replace_stream::OfferStorage::mmap_stream::expand_map(size_t req)
+void proto_replace_stream::stream_accumulator::mmap_stream::expand_map(size_t req)
 {
 	size_t used = (char*)m_z.next_out - m_map;
 	size_t csize = used + m_z.avail_out;
@@ -285,61 +285,61 @@ void proto_replace_stream::OfferStorage::mmap_stream::expand_map(size_t req)
 }
 
 
-struct proto_replace_stream::SharedOfferMapComp {
-	bool operator() (const SharedOfferStorage& x, const address& y) const
+struct proto_replace_stream::accum_set_comp {
+	bool operator() (const shared_stream_accumulator& x, const address& y) const
 		{ return x->addr() < y; }
-	bool operator() (const address& x, const SharedOfferStorage& y) const
+	bool operator() (const address& x, const shared_stream_accumulator& y) const
 		{ return x < y->addr(); }
-	bool operator() (const SharedOfferStorage& x, const SharedOfferStorage& y) const
+	bool operator() (const shared_stream_accumulator& x, const shared_stream_accumulator& y) const
 		{ return x->addr() < y->addr(); }
 };
 
 
-proto_replace_stream::OfferStorageMap::OfferStorageMap(
+proto_replace_stream::offer_storage::offer_storage(
 		const std::string& basename, ClockTime replace_time) :
 	m_basename(basename),
 	m_replace_time(replace_time) { }
 
-proto_replace_stream::OfferStorageMap::~OfferStorageMap() { }
+proto_replace_stream::offer_storage::~offer_storage() { }
 
-void proto_replace_stream::OfferStorageMap::add(
+void proto_replace_stream::offer_storage::add(
 		const address& addr,
 		const char* key, size_t keylen,
 		const char* val, size_t vallen)
 {
-	SharedOfferMap::iterator it = find_offer_map(m_map, addr);
-	if(it != m_map.end()) {
+	accum_set_t::iterator it = accum_set_find(m_set, addr);
+	if(it != m_set.end()) {
 		(*it)->add(key, keylen, val, vallen);
 	} else {
-		SharedOfferStorage of(new OfferStorage(m_basename, addr, m_replace_time));
-		//m_map.insert(it, of);  // FIXME
-		m_map.push_back(of);
-		std::sort(m_map.begin(), m_map.end(), SharedOfferMapComp());
-		of->add(key, keylen, val, vallen);
+		shared_stream_accumulator accum(new stream_accumulator(m_basename, addr, m_replace_time));
+		//m_set.insert(it, accum);  // FIXME
+		m_set.push_back(accum);
+		std::sort(m_set.begin(), m_set.end(), accum_set_comp());
+		accum->add(key, keylen, val, vallen);
 	}
 }
 
-void proto_replace_stream::OfferStorageMap::commit(SharedOfferMap* dst)
+void proto_replace_stream::offer_storage::commit(accum_set_t* dst)
 {
-	*dst = m_map;
+	*dst = m_set;
 }
 
 
-proto_replace_stream::SharedOfferMap::iterator proto_replace_stream::find_offer_map(
-		SharedOfferMap& map, const address& addr)
+proto_replace_stream::accum_set_t::iterator proto_replace_stream::accum_set_find(
+		accum_set_t& accum_set, const address& addr)
 {
-	SharedOfferMap::iterator it =
-		std::lower_bound(map.begin(), map.end(),
-				addr, SharedOfferMapComp());
-	if(it != map.end() && (*it)->addr() == addr) {
+	accum_set_t::iterator it =
+		std::lower_bound(accum_set.begin(), accum_set.end(),
+				addr, accum_set_comp());
+	if(it != accum_set.end() && (*it)->addr() == addr) {
 		return it;
 	} else {
-		return map.end();
+		return accum_set.end();
 	}
 }
 
 
-int proto_replace_stream::OfferStorage::openfd(const std::string& basename)
+int proto_replace_stream::stream_accumulator::openfd(const std::string& basename)
 {
 	char* path = (char*)::malloc(basename.size()+8);
 	if(!path) { throw std::bad_alloc(); }
@@ -358,20 +358,20 @@ int proto_replace_stream::OfferStorage::openfd(const std::string& basename)
 	return fd;
 }
 
-proto_replace_stream::OfferStorage::OfferStorage(const std::string& basename,
+proto_replace_stream::stream_accumulator::stream_accumulator(const std::string& basename,
 		const address& addr, ClockTime replace_time):
 	m_addr(addr),
 	m_replace_time(replace_time),
 	m_fd(openfd(basename)),
 	m_mmap(new mmap_stream(m_fd.get()))
 {
-	LOG_TRACE("create OfferStorage for ",addr);
+	LOG_TRACE("create stream_accumulator for ",addr);
 }
 
-proto_replace_stream::OfferStorage::~OfferStorage() { }
+proto_replace_stream::stream_accumulator::~stream_accumulator() { }
 
 
-void proto_replace_stream::OfferStorage::add(
+void proto_replace_stream::stream_accumulator::add(
 		const char* key, size_t keylen,
 		const char* val, size_t vallen)
 {
@@ -383,7 +383,7 @@ void proto_replace_stream::OfferStorage::add(
 	pk.pack_raw_body(val, vallen);
 }
 
-void proto_replace_stream::OfferStorage::send(int sock)
+void proto_replace_stream::stream_accumulator::send(int sock)
 {
 	m_mmap->flush();
 	size_t size = m_mmap->size();
@@ -443,25 +443,25 @@ try {
 		iaddr = address(addrbuf+1, (uint8_t)addrbuf[0]);
 	}
 
-	// take out OfferStorage from m_offer_map
-	SharedOfferStorage st;
+	// take out stream_accumulator from m_accum_set
+	shared_stream_accumulator accum;
 	{
 		pthread_scoped_lock oflk(m_offer_map_mutex);
-		SharedOfferMap::iterator it = find_offer_map(m_offer_map, iaddr);
-		if(it == m_offer_map.end()) {
+		accum_set_t::iterator it = accum_set_find(m_accum_set, iaddr);
+		if(it == m_accum_set.end()) {
 			LOG_DEBUG("storage offer to ",iaddr," is already timed out");
 			return;
 		}
-		st = *it;
-		m_offer_map.erase(it);
+		accum = *it;
+		m_accum_set.erase(it);
 	}
 
 	LOG_DEBUG("send offer storage to ",iaddr);
-	st->send(fd);
+	accum->send(fd);
 	LOG_DEBUG("finish to send offer storage to ",iaddr);
 
 	pthread_scoped_lock relk(net->scope_proto_replace().state_mutex());
-	net->scope_proto_replace().replace_offer_pop(st->replace_time(), relk);
+	net->scope_proto_replace().replace_offer_pop(accum->replace_time(), relk);
 
 } catch (std::exception& e) {
 	LOG_WARN("failed to send offer storage: ",e.what());
@@ -509,7 +509,7 @@ try {
 
 	mp::set_nonblock(fd);
 
-	m_stream_core->add<OfferStreamHandler>(fd);
+	m_stream_core->add<stream_handler>(fd);
 	fdscope.release();
 
 } catch (std::exception& e) {
@@ -521,10 +521,10 @@ try {
 }
 
 
-class proto_replace_stream::OfferStreamHandler : public mp::wavy::handler {
+class proto_replace_stream::stream_handler : public mp::wavy::handler {
 public:
-	OfferStreamHandler(int fd);
-	~OfferStreamHandler();
+	stream_handler(int fd);
+	~stream_handler();
 
 	void read_event();
 	void submit_message(rpc::msgobj msg, rpc::auto_zone& z);
@@ -535,11 +535,11 @@ private:
 	char* m_buffer;
 
 private:
-	OfferStreamHandler();
-	OfferStreamHandler(const OfferStreamHandler&);
+	stream_handler();
+	stream_handler(const stream_handler&);
 };
 
-proto_replace_stream::OfferStreamHandler::OfferStreamHandler(int fd) :
+proto_replace_stream::stream_handler::stream_handler(int fd) :
 	mp::wavy::handler(fd),
 	m_pac(RPC_INITIAL_BUFFER_SIZE)
 {
@@ -558,13 +558,13 @@ proto_replace_stream::OfferStreamHandler::OfferStreamHandler(int fd) :
 	}
 }
 
-proto_replace_stream::OfferStreamHandler::~OfferStreamHandler()
+proto_replace_stream::stream_handler::~stream_handler()
 {
 	inflateEnd(&m_z);
 	::free(m_buffer);
 }
 
-void proto_replace_stream::OfferStreamHandler::read_event()
+void proto_replace_stream::stream_handler::read_event()
 try {
 	ssize_t rl = ::read(fd(), m_buffer, RPC_INITIAL_BUFFER_SIZE);
 	if(rl < 0) {
@@ -619,7 +619,7 @@ try {
 }
 
 
-void proto_replace_stream::OfferStreamHandler::submit_message(rpc::msgobj msg, rpc::auto_zone& z)
+void proto_replace_stream::stream_handler::submit_message(rpc::msgobj msg, rpc::auto_zone& z)
 {
 	msgpack::type::tuple<msgtype::DBKey, msgtype::DBValue> kv(msg);
 	msgtype::DBKey key = kv.get<0>();

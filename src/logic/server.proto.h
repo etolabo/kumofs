@@ -220,37 +220,38 @@ public:
 	void stop_stream();
 
 private:
-	class OfferStorage;
-	struct SharedOfferMapComp;
-	typedef mp::shared_ptr<OfferStorage> SharedOfferStorage;
-	typedef std::vector<SharedOfferStorage> SharedOfferMap;
+	class stream_accumulator;
+	typedef mp::shared_ptr<stream_accumulator> shared_stream_accumulator;
+	typedef std::vector<shared_stream_accumulator> accum_set_t;
 
 public:
-	class OfferStorageMap {
+	class offer_storage {
 	public:
-		OfferStorageMap(const std::string& basename, ClockTime replace_time);
-		~OfferStorageMap();
+		offer_storage(const std::string& basename, ClockTime replace_time);
+		~offer_storage();
 	public:
 		void add(const address& addr,
 				const char* key, size_t keylen,
 				const char* val, size_t vallen);
-		void commit(SharedOfferMap* dst);
+		void commit(accum_set_t* dst);
 	private:
-		SharedOfferMap m_map;
+		accum_set_t m_set;
 		const std::string& m_basename;
 		ClockTime m_replace_time;
 	private:
-		OfferStorageMap();
-		OfferStorageMap(const OfferStorageMap&);
+		offer_storage();
+		offer_storage(const offer_storage&);
 	};
 
-	void send_offer(OfferStorageMap& offer, ClockTime replace_time);
+	void send_offer(offer_storage& offer, ClockTime replace_time);
 
 private:
 	mp::pthread_mutex m_offer_map_mutex;
-	SharedOfferMap m_offer_map;
-	static SharedOfferMap::iterator find_offer_map(
-			SharedOfferMap& map, const address& addr);
+	accum_set_t m_accum_set;
+
+	struct accum_set_comp;
+	static accum_set_t::iterator accum_set_find(
+			accum_set_t& map, const address& addr);
 
 	RPC_REPLY_DECL(ReplaceOffer_1, from, res, err, life,
 			ClockTime replace_time, address addr);
@@ -259,8 +260,8 @@ private:
 	void stream_connected(int fd, int err);
 
 	std::auto_ptr<mp::wavy::core> m_stream_core;
-	class OfferStreamHandler;
-	friend class OfferStreamHandler;
+	class stream_handler;
+	friend class stream_handler;
 @end
 
 
