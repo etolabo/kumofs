@@ -151,30 +151,34 @@ GATEWAY_CATCH(Delete, delete_response)
 template <typename Parameter>
 struct scope_store::retry_after_callback {
 	retry_after_callback(scope_store* self,
-			rpc::retry<Parameter>* retry,
-			uint64_t for_hash, shared_zone life) :
-		m_self(self), m_retry(retry), m_for_hash(for_hash), m_life(life) { }
+			rpc::retry<Parameter>* retry, shared_zone life,
+			uint64_t for_hash, unsigned int offset = 0) :
+		m_self(self),
+		m_for_hash(for_hash), m_offset(offset),
+		m_retry(retry), m_life(life) { }
 
 	void operator() ()
 	{
 		m_retry->call(
-				m_self->server_for<scope_store::HS_WRITE>(m_for_hash),
+				m_self->server_for<scope_store::HS_WRITE>(m_for_hash, m_offset),
 				m_life, 10);
 	}
 
 private:
 	scope_store* m_self;
-	rpc::retry<Parameter>* m_retry;
 	uint64_t m_for_hash;
+	unsigned int m_offset;
+	rpc::retry<Parameter>* m_retry;
 	shared_zone m_life;
 };
 
 template <typename Parameter>
-void scope_store::retry_after(unsigned int steps, rpc::retry<Parameter>* retry,
-		uint64_t for_hash, shared_zone life)
+void scope_store::retry_after(unsigned int steps,
+		rpc::retry<Parameter>* retry, shared_zone life,
+		uint64_t for_hash, unsigned int offset)
 {
 	net->do_after(steps,
-			retry_after_callback<Parameter>(this, retry, for_hash, life));
+			retry_after_callback<Parameter>(this, retry, life, for_hash, offset));
 }
 
 
@@ -207,7 +211,11 @@ try {
 	} else if( retry->retry_incr((NUM_REPLICATION+1) * share->cfg_get_retry_num() - 1) ) {
 		incr_error_count();
 		unsigned short offset = retry->num_retried() % (NUM_REPLICATION+1);
-		retry->call(server_for<HS_READ>(key.hash(), offset), life, 10);
+		if(offset == 0) {
+			retry_after(1*framework::DO_AFTER_BY_SECONDS, retry, life, key.hash(), offset);
+		} else {
+			retry->call(server_for<HS_READ>(key.hash(), offset), life, 10);
+		}
 		LOG_INFO("Get error: ",err,", fallback to offset +",offset," node");
 
 	} else {
@@ -257,7 +265,7 @@ try {
 
 	} else if( retry->retry_incr(share->cfg_set_retry_num()) ) {
 		incr_error_count();
-		retry_after(1*framework::DO_AFTER_BY_SECONDS, retry, key.hash(), life);
+		retry_after(1*framework::DO_AFTER_BY_SECONDS, retry, life, key.hash());
 		LOG_WARN("Set error: ",err,", retry ",retry->num_retried());
 
 	} else {
@@ -305,7 +313,7 @@ try {
 
 	} else if( retry->retry_incr(share->cfg_delete_retry_num()) ) {
 		incr_error_count();
-		retry_after(1*framework::DO_AFTER_BY_SECONDS, retry, key.hash(), life);
+		retry_after(1*framework::DO_AFTER_BY_SECONDS, retry, life, key.hash());
 		LOG_WARN("Delete error: ",err,", retry ",retry->num_retried());
 
 	} else {
@@ -336,7 +344,6 @@ void scope_store::incr_error_count()
 	if(m_error_count >= share->cfg_renew_threshold()) {
 		m_error_count = 0;
 		net->scope_proto_network().renew_hash_space();
-		sleep(1);   // FIXME ad-hoc delay
 	} else {
 		++m_error_count;
 	}

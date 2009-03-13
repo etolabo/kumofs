@@ -51,8 +51,9 @@ private:
 	unsigned short m_error_count;
 
 	template <typename Parameter>
-	void retry_after(unsigned int steps, rpc::retry<Parameter>* retry,
-			uint64_t for_hash, shared_zone life);
+	void retry_after(unsigned int steps,
+			rpc::retry<Parameter>* retry, shared_zone life,
+			uint64_t for_hash, unsigned int offset = 0);
 
 	template <typename Parameter>
 	struct retry_after_callback;
