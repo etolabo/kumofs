@@ -1,12 +1,11 @@
 #include "server/framework.h"
 #include "server/proto_replace_stream.h"
+#include "server/zmmap_stream.h"
+#include <sys/sendfile.h>
 #include <mp/exception.h>
 #include <mp/utility.h>
-#include <sys/sendfile.h>
-#include <sys/mman.h>
 #include <fcntl.h>
 #include <algorithm>
-#include <zlib.h>
 
 #ifndef KUMO_OFFER_INITIAL_MAP_SIZE
 #define KUMO_OFFER_INITIAL_MAP_SIZE 32768
@@ -70,8 +69,8 @@ private:
 	static int openfd(const std::string& basename);
 	scoped_fd m_fd;
 
-	class mmap_stream;
-	std::auto_ptr<mmap_stream> m_mmap;
+	std::auto_ptr<zmmap_stream> m_mmap_stream;
+
 private:
 	stream_accumulator();
 	stream_accumulator(const stream_accumulator&);
@@ -138,151 +137,6 @@ RPC_REPLY_IMPL(proto_replace_stream, ReplaceOffer_1, from, res, err, life,
 	m_accum_set.erase(it);
 }
 
-
-
-class proto_replace_stream::stream_accumulator::mmap_stream {
-public:
-	mmap_stream(int fd);
-	~mmap_stream();
-	size_t size() const;
-
-	void write(const void* buf, size_t len);
-	void flush();
-
-private:
-	z_stream m_z;
-
-	char* m_map;
-	int m_fd;
-	void expand_map(size_t req);
-
-private:
-	msgpack::packer<mmap_stream> m_mpk;
-
-public:
-	msgpack::packer<mmap_stream>& get() { return m_mpk; }
-
-private:
-	mmap_stream();
-	mmap_stream(const mmap_stream&);
-};
-
-proto_replace_stream::stream_accumulator::mmap_stream::mmap_stream(int fd) :
-	m_fd(fd),
-	m_mpk(*this)
-{
-	m_z.zalloc = Z_NULL;
-	m_z.zfree = Z_NULL;
-	m_z.opaque = Z_NULL;
-	if(deflateInit(&m_z, Z_DEFAULT_COMPRESSION) != Z_OK) {
-		throw std::runtime_error(m_z.msg);
-	}
-
-	if(::ftruncate(m_fd, KUMO_OFFER_INITIAL_MAP_SIZE) < 0) {
-		deflateEnd(&m_z);
-		throw mp::system_error(errno, "failed to truncate offer storage");
-	}
-
-	m_map = (char*)::mmap(NULL, KUMO_OFFER_INITIAL_MAP_SIZE,
-			PROT_WRITE, MAP_SHARED, m_fd, 0);
-	if(m_map == MAP_FAILED) {
-		deflateEnd(&m_z);
-		throw mp::system_error(errno, "failed to mmap offer storage");
-	}
-
-	m_z.avail_out = KUMO_OFFER_INITIAL_MAP_SIZE;
-	m_z.next_out = (Bytef*)m_map;
-}
-
-proto_replace_stream::stream_accumulator::mmap_stream::~mmap_stream()
-{
-	size_t used = (char*)m_z.next_out - m_map;
-	size_t csize = used + m_z.avail_out;
-	::munmap(m_map, csize);
-	//::ftruncate(m_fd, used);
-	deflateEnd(&m_z);
-}
-
-size_t proto_replace_stream::stream_accumulator::mmap_stream::size() const
-{
-	return (char*)m_z.next_out - m_map;
-}
-
-void proto_replace_stream::stream_accumulator::mmap_stream::write(const void* buf, size_t len)
-{
-	m_z.next_in = (Bytef*)buf;
-	m_z.avail_in = len;
-
-	while(true) {
-		if(m_z.avail_out < RPC_BUFFER_RESERVATION_SIZE) { // FIXME size
-			expand_map(KUMO_OFFER_INITIAL_MAP_SIZE); // FIXME size
-		}
-
-		if(deflate(&m_z, Z_NO_FLUSH) != Z_OK) {
-			throw std::runtime_error("deflate failed");
-		}
-
-		if(m_z.avail_in == 0) {
-			break;
-		}
-	}
-}
-
-void proto_replace_stream::stream_accumulator::mmap_stream::flush()
-{
-	while(true) {
-		switch(deflate(&m_z, Z_FINISH)) {
-
-		case Z_STREAM_END:
-			return;
-
-		case Z_OK:
-			break;
-
-		default:
-			throw std::runtime_error("deflate flush failed");
-		}
-
-		expand_map(m_z.avail_in);
-	}
-}
-
-void proto_replace_stream::stream_accumulator::mmap_stream::expand_map(size_t req)
-{
-	size_t used = (char*)m_z.next_out - m_map;
-	size_t csize = used + m_z.avail_out;
-	size_t nsize = csize * 2;
-	while(nsize < req) { nsize *= 2; }
-
-	if(::ftruncate(m_fd, nsize) < 0 ) {
-		throw mp::system_error(errno, "failed to resize offer storage");
-	}
-
-#ifdef __linux__
-	void* tmp = ::mremap(m_map, csize, nsize, MREMAP_MAYMOVE);
-	if(tmp == MAP_FAILED) {
-		throw mp::system_error(errno, "failed to mremap offer storage");
-	}
-	m_map = (char*)tmp;
-
-#else
-	if(::munmap(m_map, csize) < 0) {
-		throw mp::system_error(errno, "failed to munmap offer storage");
-	}
-	m_map = NULL;
-	m_z.next_out = NULL;
-	m_z.avail_out = 0;
-
-	m_map = (char*)::mmap(NULL, nsize,
-			PROT_WRITE, MAP_SHARED, m_fd, 0);
-	if(m_map == MAP_FAILED) {
-		throw mp::system_error(errno, "failed to mmap");
-	}
-
-#endif
-	m_z.next_out = (Bytef*)(m_map + used);
-	m_z.avail_out = nsize - used;
-}
 
 
 struct proto_replace_stream::accum_set_comp {
@@ -363,7 +217,7 @@ proto_replace_stream::stream_accumulator::stream_accumulator(const std::string& 
 	m_addr(addr),
 	m_replace_time(replace_time),
 	m_fd(openfd(basename)),
-	m_mmap(new mmap_stream(m_fd.get()))
+	m_mmap_stream(new zmmap_stream(m_fd.get()))
 {
 	LOG_TRACE("create stream_accumulator for ",addr);
 }
@@ -375,7 +229,7 @@ void proto_replace_stream::stream_accumulator::add(
 		const char* key, size_t keylen,
 		const char* val, size_t vallen)
 {
-	msgpack::packer<mmap_stream>& pk(m_mmap->get());
+	msgpack::packer<zmmap_stream> pk(*m_mmap_stream);
 	pk.pack_array(2);
 	pk.pack_raw(keylen);
 	pk.pack_raw_body(key, keylen);
@@ -385,9 +239,9 @@ void proto_replace_stream::stream_accumulator::add(
 
 void proto_replace_stream::stream_accumulator::send(int sock)
 {
-	m_mmap->flush();
-	size_t size = m_mmap->size();
-	//m_mmap.reset(NULL);  // FIXME needed?
+	m_mmap_stream->flush();
+	size_t size = m_mmap_stream->size();
+	//m_mmap_stream.reset(NULL);  // FIXME needed?
 	while(size > 0) {
 		// FIXME linux
 		ssize_t rl = ::sendfile(sock, m_fd.get(), NULL, size);

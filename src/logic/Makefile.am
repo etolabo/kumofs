@@ -52,6 +52,7 @@ kumo_manager_LDADD  = \
 kumo_server_SOURCES = \
 		server/framework.cc \
 		server/main.cc \
+		server/zmmap_stream.cc \
 		server/proto_control.cc \
 		server/proto_network.cc \
 		server/proto_replace.cc \
@@ -107,6 +108,7 @@ noinst_HEADERS = \
 		manager/init.h \
 		server/framework.h \
 		server/init.h \
+		server/zmmap_stream.h \
 		gateway/framework.h \
 		gateway/init.h \
 		gateway/interface.h \
