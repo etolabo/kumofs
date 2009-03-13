@@ -246,7 +246,7 @@ public:
 	void send_offer(offer_storage& offer, ClockTime replace_time);
 
 private:
-	mp::pthread_mutex m_offer_map_mutex;
+	mp::pthread_mutex m_accum_set_mutex;
 	accum_set_t m_accum_set;
 
 	struct accum_set_comp;

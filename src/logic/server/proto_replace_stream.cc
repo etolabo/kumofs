@@ -96,7 +96,7 @@ RPC_CATCH(ReplaceDeleteStart, response)
 
 void proto_replace_stream::send_offer(proto_replace_stream::offer_storage& offer, ClockTime replace_time)
 {
-	pthread_scoped_lock oflk(m_offer_map_mutex);
+	pthread_scoped_lock oflk(m_accum_set_mutex);
 	offer.commit(&m_accum_set);
 
 	pthread_scoped_lock relk(net->scope_proto_replace().state_mutex());
@@ -124,7 +124,7 @@ RPC_REPLY_IMPL(proto_replace_stream, ReplaceOffer_1, from, res, err, life,
 	LOG_TRACE("ResReplaceOffer from ",addr," res:",res," err:",err);
 	// Note: this request always timed out
 
-	pthread_scoped_lock oflk(m_offer_map_mutex);
+	pthread_scoped_lock oflk(m_accum_set_mutex);
 
 	accum_set_t::iterator it = accum_set_find(m_accum_set, addr);
 	if(it == m_accum_set.end()) {
@@ -297,7 +297,7 @@ try {
 	// take out stream_accumulator from m_accum_set
 	shared_stream_accumulator accum;
 	{
-		pthread_scoped_lock oflk(m_offer_map_mutex);
+		pthread_scoped_lock oflk(m_accum_set_mutex);
 		accum_set_t::iterator it = accum_set_find(m_accum_set, iaddr);
 		if(it == m_accum_set.end()) {
 			LOG_DEBUG("storage offer to ",iaddr," is already timed out");
