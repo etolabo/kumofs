@@ -65,7 +65,7 @@ struct arg_t : rpc_server_args {
 		get_retry_num(5),
 		set_retry_num(20),
 		delete_retry_num(20),
-		renew_threshold(1)
+		renew_threshold(4)
 	{
 		using namespace kazuhiki;
 		set_basic_args();
