@@ -1,15 +1,12 @@
 #include "server/framework.h"
 #include "server/proto_replace_stream.h"
 #include "server/zmmap_stream.h"
+#include "server/zconnection.h"
 #include <sys/sendfile.h>
 #include <mp/exception.h>
 #include <mp/utility.h>
 #include <fcntl.h>
 #include <algorithm>
-
-#ifndef KUMO_OFFER_INITIAL_MAP_SIZE
-#define KUMO_OFFER_INITIAL_MAP_SIZE 32768
-#endif
 
 namespace kumo {
 namespace server {
@@ -375,103 +372,15 @@ try {
 }
 
 
-class proto_replace_stream::stream_handler : public mp::wavy::handler {
+class proto_replace_stream::stream_handler : public zconnection<stream_handler> {
 public:
-	stream_handler(int fd);
-	~stream_handler();
+	stream_handler(int fd) :
+		zconnection<stream_handler>(fd) { }
 
-	void read_event();
+	~stream_handler() { }
+
 	void submit_message(rpc::msgobj msg, rpc::auto_zone& z);
-
-private:
-	msgpack::unpacker m_pac;
-	z_stream m_z;
-	char* m_buffer;
-
-private:
-	stream_handler();
-	stream_handler(const stream_handler&);
 };
-
-proto_replace_stream::stream_handler::stream_handler(int fd) :
-	mp::wavy::handler(fd),
-	m_pac(RPC_INITIAL_BUFFER_SIZE)
-{
-	m_buffer = (char*)::malloc(RPC_INITIAL_BUFFER_SIZE);
-	if(!m_buffer) {
-		throw std::bad_alloc();
-	}
-
-	m_z.zalloc = Z_NULL;
-	m_z.zfree = Z_NULL;
-	m_z.opaque = Z_NULL;
-
-	if(inflateInit(&m_z) != Z_OK) {
-		::free(m_buffer);
-		throw std::runtime_error(m_z.msg);
-	}
-}
-
-proto_replace_stream::stream_handler::~stream_handler()
-{
-	inflateEnd(&m_z);
-	::free(m_buffer);
-}
-
-void proto_replace_stream::stream_handler::read_event()
-try {
-	ssize_t rl = ::read(fd(), m_buffer, RPC_INITIAL_BUFFER_SIZE);
-	if(rl < 0) {
-		if(errno == EAGAIN || errno == EINTR) {
-			return;
-		} else {
-			throw std::runtime_error("read error");
-		}
-	} else if(rl == 0) {
-		throw std::runtime_error("connection closed");
-	}
-
-	m_z.next_in = (Bytef*)m_buffer;
-	m_z.avail_in = rl;
-
-	while(true) {
-		if(m_pac.buffer_capacity() < RPC_BUFFER_RESERVATION_SIZE) { // FIXME size
-			m_pac.reserve_buffer(KUMO_OFFER_INITIAL_MAP_SIZE); // FIXME size
-		}
-
-		m_z.next_out = (Bytef*)m_pac.buffer();
-		m_z.avail_out = m_pac.buffer_capacity();
-
-		int ret = inflate(&m_z, Z_SYNC_FLUSH);
-		if(ret != Z_OK && ret != Z_STREAM_END) {
-			throw std::runtime_error("inflate failed");
-		}
-
-		m_pac.buffer_consumed( m_pac.buffer_capacity() - m_z.avail_out );
-
-		if(m_z.avail_in == 0) {
-			break;
-		}
-	}
-
-	while(m_pac.execute()) {
-		rpc::msgobj msg = m_pac.data();
-		std::auto_ptr<msgpack::zone> z( m_pac.release_zone() );
-		m_pac.reset();
-		submit_message(msg, z);
-	}
-
-} catch(msgpack::type_error& e) {
-	LOG_ERROR("rpc packet: type error");
-	throw;
-} catch(std::exception& e) {
-	LOG_WARN("rpc packet: ", e.what());
-	throw;
-} catch(...) {
-	LOG_ERROR("rpc packet: unknown error");
-	throw;
-}
-
 
 void proto_replace_stream::stream_handler::submit_message(rpc::msgobj msg, rpc::auto_zone& z)
 {

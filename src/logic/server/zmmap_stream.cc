@@ -1,14 +1,6 @@
 #include "server/zmmap_stream.h"
 #include <sys/mman.h>
 
-#ifndef ZMMAP_STREAM_INITIAL_SIZE
-#define ZMMAP_STREAM_INITIAL_SIZE (1024*1024)
-#endif
-
-#ifndef ZMMAP_STREAM_RESERVE_SIZE
-#define ZMMAP_STREAM_RESERVE_SIZE (8*1024)
-#endif
-
 namespace kumo {
 namespace server {
 
@@ -46,31 +38,6 @@ zmmap_stream::~zmmap_stream()
 	::munmap(m_map, csize);
 	//::ftruncate(m_fd, used);
 	deflateEnd(&m_z);
-}
-
-size_t zmmap_stream::size() const
-{
-	return (char*)m_z.next_out - m_map;
-}
-
-void zmmap_stream::write(const void* buf, size_t len)
-{
-	m_z.next_in = (Bytef*)buf;
-	m_z.avail_in = len;
-
-	while(true) {
-		if(m_z.avail_out < ZMMAP_STREAM_RESERVE_SIZE) {
-			expand_map(ZMMAP_STREAM_INITIAL_SIZE);
-		}
-
-		if(deflate(&m_z, Z_NO_FLUSH) != Z_OK) {
-			throw std::runtime_error("deflate failed");
-		}
-
-		if(m_z.avail_in == 0) {
-			break;
-		}
-	}
 }
 
 void zmmap_stream::flush()
