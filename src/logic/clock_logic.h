@@ -11,6 +11,7 @@ public:
 	clock_logic() : m_time(time(NULL)) { }
 	~clock_logic() { }
 
+	// interrupt rpc_server::timer_handler and call me regularly.
 	void clock_update_time()
 	{
 		m_time = time(NULL);
@@ -24,8 +25,7 @@ public:
 
 	ClockTime clocktime_now() const
 	{
-		//return ClockTime(m_clock.get(), m_time);  // FIXME
-		return ClockTime(m_clock.get(), time(NULL));
+		return ClockTime(m_clock.get(), m_time);
 	}
 
 	Clock clock_incr()
@@ -35,8 +35,7 @@ public:
 
 	ClockTime clock_incr_clocktime()
 	{
-		//return ClockTime(m_clock.get_incr(), m_time); // FIXME
-		return ClockTime(m_clock.get_incr(), time(NULL)); // FIXME
+		return ClockTime(m_clock.get_incr(), m_time);
 	}
 
 private:

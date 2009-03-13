@@ -65,6 +65,13 @@ public:
 		scope_proto_network().keep_alive();
 	}
 
+	// override rpc_server<framework>::timer_handler
+	void timer_handler()
+	{
+		clock_logic::clock_update_time();
+		rpc_server<framework>::timer_handler();
+	}
+
 private:
 	proto_network m_proto_network;
 	proto_control m_proto_control;

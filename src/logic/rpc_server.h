@@ -53,7 +53,7 @@ protected:
 		LOG_TRACE("start timeout stepping interval = ",interval_usec," usec");
 	}
 
-private:
+protected:
 	void timer_handler()
 	{
 		if(m_timer_remain_steps == 0) {
