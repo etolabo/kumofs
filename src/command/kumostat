@@ -26,6 +26,9 @@ class KumoServer < KumoRPC
 	STAT_DB_ITEMS    = 7
 end
 
+if $0 == __FILE__
+
+
 def usage
 	puts "Usage: #{File.basename($0)} address[:port=#{KumoRPC::SERVER_DEFAULT_PORT}] command [options]"
 	puts "command:"
@@ -88,3 +91,5 @@ else
 
 end
 
+
+end   # if $0 == __FILE__

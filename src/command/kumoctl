@@ -170,9 +170,6 @@ class KumoRPC
 	SERVER_DEFAULT_PORT  = 19800
 end
 
-if $0 == __FILE__
-
-
 
 class KumoManager < KumoRPC
 	def initialize(host, port)
@@ -199,6 +196,9 @@ class KumoManager < KumoRPC
 		send_request_sync_ex(Protocol::ControlStartReplace, [])
 	end
 end
+
+if $0 == __FILE__
+
 
 
 $now = Time.now.strftime("%Y%m%d")
