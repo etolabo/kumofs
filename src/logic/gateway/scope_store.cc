@@ -148,6 +148,36 @@ try {
 GATEWAY_CATCH(Delete, delete_response)
 
 
+template <typename Parameter>
+struct scope_store::retry_after_callback {
+	retry_after_callback(scope_store* self,
+			rpc::retry<Parameter>* retry,
+			uint64_t for_hash, shared_zone life) :
+		m_self(self), m_retry(retry), m_for_hash(for_hash), m_life(life) { }
+
+	void operator() ()
+	{
+		m_retry->call(
+				m_self->server_for<scope_store::HS_WRITE>(m_for_hash),
+				m_life, 10);
+	}
+
+private:
+	scope_store* m_self;
+	rpc::retry<Parameter>* m_retry;
+	uint64_t m_for_hash;
+	shared_zone m_life;
+};
+
+template <typename Parameter>
+void scope_store::retry_after(unsigned int steps, rpc::retry<Parameter>* retry,
+		uint64_t for_hash, shared_zone life)
+{
+	net->do_after(steps,
+			retry_after_callback<Parameter>(this, retry, for_hash, life));
+}
+
+
 RPC_REPLY_IMPL(scope_store, Get_1, from, res, err, life,
 		rpc::retry<server::proto_store::Get_1>* retry,
 		void (*callback)(void*, get_response&), void* user)
@@ -227,14 +257,7 @@ try {
 
 	} else if( retry->retry_incr(share->cfg_set_retry_num()) ) {
 		incr_error_count();
-		if(!SESSION_IS_ACTIVE(from)) {
-			//FIXME this check is not atomic. it may throw "session not bound" error
-			//FIXME XXX noew rpc::basic_session::call does'nt throw "session not bound" error.
-			// FIXME renew hash space?
-			// FIXME delayed retry
-			from = server_for<HS_WRITE>(key.hash());
-		}
-		retry->call(from, life, 10);
+		retry_after(1*framework::DO_AFTER_BY_SECONDS, retry, key.hash(), life);
 		LOG_WARN("Set error: ",err,", retry ",retry->num_retried());
 
 	} else {
@@ -282,14 +305,7 @@ try {
 
 	} else if( retry->retry_incr(share->cfg_delete_retry_num()) ) {
 		incr_error_count();
-		if(!SESSION_IS_ACTIVE(from)) {
-			//FIXME this check is not atomic. it may throw "session not bound" error
-			//FIXME XXX noew rpc::basic_session::call does'nt throw "session not bound" error.
-			// FIXME renew hash space?
-			// FIXME delayed retry
-			from = server_for<HS_WRITE>(key.hash());
-		}
-		retry->call(from, life, 10);
+		retry_after(1*framework::DO_AFTER_BY_SECONDS, retry, key.hash(), life);
 		LOG_WARN("Delete error: ",err,", retry ",retry->num_retried());
 
 	} else {

@@ -49,6 +49,13 @@ private:
 
 	void incr_error_count();
 	unsigned short m_error_count;
+
+	template <typename Parameter>
+	void retry_after(unsigned int steps, rpc::retry<Parameter>* retry,
+			uint64_t for_hash, shared_zone life);
+
+	template <typename Parameter>
+	struct retry_after_callback;
 };
 
 
