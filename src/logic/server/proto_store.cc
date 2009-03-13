@@ -101,6 +101,9 @@ bool proto_store::SetByRhsWhs(weak_responder response, auto_zone& z,
 		check_coordinator_assign(share->whs(), key.hash());
 
 		pthread_scoped_rdlock rhlk(share->rhs_mutex());
+		if(share->rhs().empty()) {  // FIXME more elegant way
+			throw std::runtime_error("server not ready");
+		}
 
 		if(share->whs().clocktime() == share->rhs().clocktime()) {
 			return false;
@@ -275,6 +278,9 @@ bool proto_store::DeleteByRhsWhs(weak_responder response, auto_zone& z,
 		check_coordinator_assign(share->whs(), key.hash());
 
 		pthread_scoped_rdlock rhlk(share->rhs_mutex());
+		if(share->rhs().empty()) {  // FIXME more elegant way
+			throw std::runtime_error("server not ready");
+		}
 
 		if(share->whs().clocktime() == share->rhs().clocktime()) {
 			return false;
