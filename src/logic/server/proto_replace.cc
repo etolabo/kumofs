@@ -112,11 +112,11 @@ struct proto_replace::for_each_replace_copy {
 	for_each_replace_copy(
 			const address& addr,
 			const HashSpace& src, const HashSpace& dst,
-			proto_replace_stream::OfferStorageMap& accumulator,
+			proto_replace_stream::offer_storage& offer_storage,
 			const addrvec_t& faults) :
 		self(addr),
 		srchs(src), dsths(dst),
-		offer(accumulator), fault_nodes(faults)
+		offer(offer_storage), fault_nodes(faults)
 	{
 		Sa.reserve(NUM_REPLICATION+1);
 		Da.reserve(NUM_REPLICATION+1);
@@ -137,7 +137,7 @@ private:
 	const HashSpace& srchs;
 	const HashSpace& dsths;
 
-	proto_replace_stream::OfferStorageMap& offer;
+	proto_replace_stream::offer_storage& offer;
 	const addrvec_t& fault_nodes;
 
 private:
@@ -207,7 +207,7 @@ void proto_replace::replace_copy(const address& manager_addr, HashSpace& hs)
 	}
 
 	{
-		proto_replace_stream::OfferStorageMap offer(share->cfg_offer_tmpdir(), replace_time);
+		proto_replace_stream::offer_storage offer(share->cfg_offer_tmpdir(), replace_time);
 
 		share->db().for_each(
 				for_each_replace_copy(net->addr(), srchs, dsths, offer, fault_nodes),
