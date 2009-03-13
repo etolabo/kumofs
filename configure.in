@@ -79,6 +79,16 @@ fi
 #fi
 
 
+AC_MSG_CHECKING([if tcbdb is enabled])
+AC_ARG_ENABLE(tcbdb,
+	AS_HELP_STRING([--enable-tcbdb],
+				   [use tcbdb instead of tchdb.]) )
+if test "$enable_tcbdb" = "yes"; then
+	storage_type="tcbdb"
+fi
+AC_MSG_RESULT($enable_tcbdb)
+
+
 AC_MSG_CHECKING([if tcadb is enabled])
 AC_ARG_ENABLE(tcadb,
 	AS_HELP_STRING([--enable-tcadb],
@@ -127,10 +137,11 @@ AC_MSG_CHECKING([storage type])
 AC_MSG_RESULT($storage_type)
 
 AM_CONDITIONAL(STORAGE_TCHDB, test "$storage_type" = "tchdb")
+AM_CONDITIONAL(STORAGE_TCBDB, test "$storage_type" = "tcbdb")
 AM_CONDITIONAL(STORAGE_TCADB, test "$storage_type" = "tcadb")
 AM_CONDITIONAL(STORAGE_LUXIO, test "$storage_type" = "luxio")
 
-if test "$storage_type" = "tchdb" -o "$storage_type" = "tcadb"; then
+if test "$storage_type" = "tchdb" -o "$storage_type" = "tcbdb" -o "$storage_type" = "tcadb"; then
 	AC_CHECK_HEADERS(tchdb.h,,
 		AC_MSG_ERROR([Can't find tokyo cabinet header]))
 	AC_CHECK_LIB(tokyocabinet,tchdbget,,
