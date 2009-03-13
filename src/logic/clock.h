@@ -48,12 +48,6 @@ public:
 		//}
 	}
 
-	void increment()
-	{
-		//++m;
-		__sync_add_and_fetch(&m, 1);
-	}
-
 	bool operator< (const Clock& o) const
 	{
 		return clock_less(m, o.m);

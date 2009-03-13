@@ -3,28 +3,13 @@ export RUBY
 export RAGEL
 
 # work around for dependency
-SUBDIRS = protogen
+SUBDIRS = manager server gateway
 
 noinst_LIBRARIES = libkumo_logic.a
 bin_PROGRAMS = kumo-manager kumo-server kumo-gateway
 
 AM_CPPFLAGS   = -I..
 AM_C_CPPFLAGS = -I..
-
-
-PROTOGEN_AUTOGEN_FILES = \
-		manager/proto.h \
-		manager/proto_control.h \
-		manager/proto_network.h \
-		manager/proto_replace.h \
-		server/proto.h \
-		server/proto_control.h \
-		server/proto_network.h \
-		server/proto_replace.h \
-		server/proto_replace_stream.h \
-		server/proto_store.h \
-		gateway/proto.h \
-		gateway/proto_network.h
 
 
 libkumo_logic_a_SOURCES = \
@@ -52,7 +37,6 @@ kumo_manager_LDADD  = \
 kumo_server_SOURCES = \
 		server/framework.cc \
 		server/main.cc \
-		server/zmmap_stream.cc \
 		server/proto_control.cc \
 		server/proto_network.cc \
 		server/proto_replace.cc \
@@ -108,7 +92,6 @@ noinst_HEADERS = \
 		manager/init.h \
 		server/framework.h \
 		server/init.h \
-		server/zmmap_stream.h \
 		gateway/framework.h \
 		gateway/init.h \
 		gateway/interface.h \
@@ -119,10 +102,8 @@ noinst_HEADERS = \
 		gateway/memproto/memproto.h \
 		gateway/memproto/memtext.h
 
-nodist_noinst_HEADERS = \
-		$(PROTOGEN_AUTOGEN_FILES)
-
 EXTRA_DIST = \
+		protogen \
 		gateway.proto.h \
 		manager.proto.h \
 		server.proto.h \
@@ -133,7 +114,6 @@ gateway/memproto/memtext.c: gateway/memproto/memtext.rl
 	mv $@.tmp $@
 
 MOSTLYCLEANFILES = \
-		$(PROTOGEN_AUTOGEN_FILES) \
 		gateway/memproto/memtext.c
 
 

@@ -165,7 +165,9 @@ AC_OUTPUT([src/mp/Makefile
 		   src/log/Makefile
 		   src/kazuhiki/Makefile
 		   src/rpc/Makefile
-		   src/logic/protogen/Makefile
+		   src/logic/manager/Makefile
+		   src/logic/server/Makefile
+		   src/logic/gateway/Makefile
 		   src/logic/Makefile
 		   src/command/Makefile
 		   src/Makefile
