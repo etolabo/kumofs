@@ -40,13 +40,6 @@ private:
 			rpc::retry<server::proto_store::Delete_1>* retry,
 			void (*callback)(void*, delete_response&), void* user);
 
-	enum hash_space_type {
-		HS_WRITE,
-		HS_READ,
-	};
-	template <hash_space_type Hs>
-	shared_session server_for(uint64_t h, unsigned int offset = 0);
-
 	void incr_error_count();
 	unsigned short m_error_count;
 

@@ -10,16 +10,10 @@ RPC_IMPL(proto_network, HashSpacePush_1, req, z, response)
 try {
 	LOG_DEBUG("HashSpacePush");
 
-	pthread_scoped_wrlock hslk(share->hs_rwlock());
-
-	if(share->whs().empty() ||
-			share->whs().clocktime() <= req.param().wseed.clocktime()) {
-		share->whs() = HashSpace(req.param().wseed);
-	}
-
-	if(share->rhs().empty() ||
-			share->rhs().clocktime() <= req.param().rseed.clocktime()) {
-		share->rhs() = HashSpace(req.param().rseed);
+	{
+		pthread_scoped_wrlock hslk(share->hs_rwlock());
+		share->update_whs(req.param().wseed, hslk);
+		share->update_rhs(req.param().wseed, hslk);
 	}
 
 	response.result(true);
@@ -65,15 +59,10 @@ RPC_REPLY_IMPL(proto_network, HashSpaceRequest_1, from, res, err, life)
 		}  // retry on Gateway::session_lost() if the node is lost
 	} else {
 		gateway::proto_network::HashSpacePush_1 st(res.convert());
-
-		pthread_scoped_wrlock hslk(share->hs_rwlock());
-		if(share->whs().empty() ||
-				share->whs().clocktime() <= st.wseed.clocktime()) {
-			share->whs() = HashSpace(st.wseed);
-		}
-		if(share->rhs().empty() ||
-				share->rhs().clocktime() <= st.rseed.clocktime()) {
-			share->rhs() = HashSpace(st.rseed);
+		{
+			pthread_scoped_wrlock hslk(share->hs_rwlock());
+			share->update_whs(st.wseed, hslk);
+			share->update_rhs(st.rseed, hslk);
 		}
 	}
 }

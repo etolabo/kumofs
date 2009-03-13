@@ -38,7 +38,6 @@ namespace kumo {
 namespace server {
 
 
-
 class framework : public cluster_logic<framework>, public clock_logic {
 public:
 	template <typename Config>

@@ -11,22 +11,21 @@ scope_store::scope_store() : m_error_count(0)
 scope_store::~scope_store() { }
 
 
-template <scope_store::hash_space_type Hs>
-framework::shared_session scope_store::server_for(uint64_t h, unsigned int offset)
+template <resource::hash_space_type Hs>
+framework::shared_session resource::server_for(uint64_t h, unsigned int offset)
 {
 #if NUM_REPLICATION != 2
 #error fix following code
 #endif
 	assert(offset == 0 || offset == 1 || offset == 2);
 
-	pthread_scoped_rdlock hslk(share->hs_rwlock());
+	pthread_scoped_rdlock hslk(m_hs_rwlock);
 
-	if((Hs == HS_WRITE ? share->whs() : share->rhs()).empty()) {
+	if((Hs == HS_WRITE ? m_whs : m_rhs).empty()) {
 		net->scope_proto_network().renew_hash_space();  // FIXME may burst
 		throw std::runtime_error("No server");
 	}
-	HashSpace::iterator it =
-		(Hs == HS_WRITE ? share->whs() : share->rhs()).find(h);
+	HashSpace::iterator it = (Hs == HS_WRITE ? m_whs : m_rhs).find(h);
 
 	{
 		if(offset == 0) {
@@ -100,7 +99,7 @@ try {
 					));
 
 	retry->set_callback( BIND_RESPONSE(scope_store, Get_1, retry, callback, user) );
-	retry->call(server_for<HS_READ>(hash), life, 10);
+	retry->call(share->server_for<resource::HS_READ>(hash), life, 10);
 }
 GATEWAY_CATCH(Get, get_response)
 
@@ -123,7 +122,7 @@ try {
 				);
 
 	retry->set_callback( BIND_RESPONSE(scope_store, Set_1, retry, callback, user) );
-	retry->call(server_for<HS_WRITE>(hash), life, 10);
+	retry->call(share->server_for<resource::HS_WRITE>(hash), life, 10);
 }
 GATEWAY_CATCH(Set, set_response)
 
@@ -143,29 +142,27 @@ try {
 				);
 
 	retry->set_callback( BIND_RESPONSE(scope_store, Delete_1, retry, callback, user) );
-	retry->call(server_for<HS_WRITE>(hash), life, 10);
+	retry->call(share->server_for<resource::HS_WRITE>(hash), life, 10);
 }
 GATEWAY_CATCH(Delete, delete_response)
 
 
 template <typename Parameter>
 struct scope_store::retry_after_callback {
-	retry_after_callback(scope_store* self,
+	retry_after_callback(
 			rpc::retry<Parameter>* retry, shared_zone life,
 			uint64_t for_hash, unsigned int offset = 0) :
-		m_self(self),
 		m_for_hash(for_hash), m_offset(offset),
 		m_retry(retry), m_life(life) { }
 
 	void operator() ()
 	{
 		m_retry->call(
-				m_self->server_for<scope_store::HS_WRITE>(m_for_hash, m_offset),
+				share->server_for<resource::HS_WRITE>(m_for_hash, m_offset),
 				m_life, 10);
 	}
 
 private:
-	scope_store* m_self;
 	uint64_t m_for_hash;
 	unsigned int m_offset;
 	rpc::retry<Parameter>* m_retry;
@@ -178,7 +175,7 @@ void scope_store::retry_after(unsigned int steps,
 		uint64_t for_hash, unsigned int offset)
 {
 	net->do_after(steps,
-			retry_after_callback<Parameter>(this, retry, life, for_hash, offset));
+			retry_after_callback<Parameter>(retry, life, for_hash, offset));
 }
 
 
@@ -212,9 +209,10 @@ try {
 		incr_error_count();
 		unsigned short offset = retry->num_retried() % (NUM_REPLICATION+1);
 		if(offset == 0) {
+			// FIXME configurable steps
 			retry_after(1*framework::DO_AFTER_BY_SECONDS, retry, life, key.hash(), offset);
 		} else {
-			retry->call(server_for<HS_READ>(key.hash(), offset), life, 10);
+			retry->call(share->server_for<resource::HS_READ>(key.hash(), offset), life, 10);
 		}
 		LOG_INFO("Get error: ",err,", fallback to offset +",offset," node");
 
@@ -265,6 +263,7 @@ try {
 
 	} else if( retry->retry_incr(share->cfg_set_retry_num()) ) {
 		incr_error_count();
+		// FIXME configurable steps
 		retry_after(1*framework::DO_AFTER_BY_SECONDS, retry, life, key.hash());
 		LOG_WARN("Set error: ",err,", retry ",retry->num_retried());
 
@@ -313,6 +312,7 @@ try {
 
 	} else if( retry->retry_incr(share->cfg_delete_retry_num()) ) {
 		incr_error_count();
+		// FIXME configurable steps
 		retry_after(1*framework::DO_AFTER_BY_SECONDS, retry, life, key.hash());
 		LOG_WARN("Delete error: ",err,", retry ",retry->num_retried());
 

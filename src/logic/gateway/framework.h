@@ -70,13 +70,21 @@ private:
 	const unsigned short m_cfg_renew_threshold;
 
 public:
-	// FIXME update_rhs(const HashSpace::Seed&, REQUIRE_HSLK);
-	// FIXME update_whs(const HashSpace::Seed&, REQUIRE_HSLK);
-	// FIXME server_for
 	RESOURCE_ACCESSOR(mp::pthread_rwlock, hs_rwlock);
-	RESOURCE_ACCESSOR(HashSpace, rhs);
-	RESOURCE_ACCESSOR(HashSpace, whs);
+	bool update_rhs(const HashSpace::Seed& seed, REQUIRE_HSLK_WRLOCK);
+	bool update_whs(const HashSpace::Seed& seed, REQUIRE_HSLK_WRLOCK);
 
+	enum hash_space_type {
+		HS_WRITE,
+		HS_READ,
+	};
+
+	// scope_store.cc
+	// Note: hslk is not required
+	template <hash_space_type Hs>
+	shared_session server_for(uint64_t h, unsigned int offset = 0);
+
+public:
 	RESOURCE_CONST_ACCESSOR(address, manager1);
 	RESOURCE_CONST_ACCESSOR(address, manager2);
 
@@ -97,6 +105,27 @@ private:
 
 extern std::auto_ptr<framework> net;
 extern std::auto_ptr<resource> share;
+
+
+inline bool resource::update_rhs(const HashSpace::Seed& seed, REQUIRE_HSLK_WRLOCK)
+{
+	if(m_rhs.empty() || m_rhs.clocktime() <= seed.clocktime()) {
+		m_rhs = HashSpace(seed);
+		return true;
+	} else {
+		return false;
+	}
+}
+
+inline bool resource::update_whs(const HashSpace::Seed& seed, REQUIRE_HSLK_WRLOCK)
+{
+	if(m_whs.empty() || m_whs.clocktime() <= seed.clocktime()) {
+		m_whs = HashSpace(seed);
+		return true;
+	} else {
+		return false;
+	}
+}
 
 
 }  // namespace gateway

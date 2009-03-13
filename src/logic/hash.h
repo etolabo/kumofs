@@ -18,7 +18,7 @@ public:
 	class Seed;
 
 	HashSpace(ClockTime clocktime = ClockTime(0,0));
-	HashSpace(Seed& seed);
+	HashSpace(const Seed& seed);
 	~HashSpace();
 
 public:
@@ -204,7 +204,7 @@ public:
 	bool           empty()     const { return get<0>().empty(); }
 };
 
-inline HashSpace::HashSpace(Seed& seed) :
+inline HashSpace::HashSpace(const Seed& seed) :
 	m_nodes(seed.nodes()), m_timestamp(seed.clocktime())
 {
 	rehash();

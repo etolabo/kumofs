@@ -69,6 +69,9 @@ private:
 #define REQUIRE_RELK const pthread_scoped_lock& relk
 #define REQUIRE_STLK const pthread_scoped_lock& stlk
 
+#define REQUIRE_HSLK_RDLOCK const pthread_scoped_rdlock& hslk
+#define REQUIRE_HSLK_WRLOCK const pthread_scoped_wrlock& hslk
+
 
 }  // namespace kumo
 
