@@ -57,7 +57,8 @@ class KumoRPC
 	end
 
 	def process_request(seqid, cmd, param)
-		raise "request received, excpect response"
+		#raise "request received, excpect response"
+		# ignore it
 	end
 
 	def process_response(seqid, res, err)
