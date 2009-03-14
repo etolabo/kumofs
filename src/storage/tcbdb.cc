@@ -1,6 +1,37 @@
 #include "storage/interface.h"  // FIXME
 #include <tcbdb.h>
+#include <tcutil.h>
 #include <mp/pthread.h>
+#include <string.h>
+
+
+static char* parse_param(char* str,
+		bool* lcnum_set, int32_t* lcnum,
+		bool* ncnum_set, int32_t* ncnum,
+		bool* xmsiz_set, int64_t* xmsiz)
+{
+	char* key;
+	char* val;
+	while((key = ::strrchr(str, '#')) != NULL) {
+		*key++ = '\0';
+		if((val = strchr(key, '=')) == NULL) {
+			return NULL;
+		}
+		*val++ = '\0';
+
+		if(::strcmp(key, "lcnum") == 0) {
+			*lcnum_set = true;
+			*lcnum = tcatoix(val);  // FIXME error check?
+		} else if(::strcmp(key, "ncnum") == 0) {
+			*ncnum_set = true;
+			*ncnum = tcatoix(val);  // FIXME error check?
+		} else if(::strcmp(key, "xmsiz") == 0) {
+			*xmsiz_set = true;
+			*xmsiz = tcatoix(val);  // FIXME error check?
+		}
+	}
+	return str;
+}
 
 
 struct kumo_tcbdb {
@@ -10,8 +41,11 @@ struct kumo_tcbdb {
 		if(!db) {
 			throw std::bad_alloc();
 		}
-		//tcbdbsetcache(db, 32000);   FIXME
-		//tcbdbsetxmsiz(db, 1024*1024);   FIXME
+
+		if(!tcbdbsetmutex(db)) {
+			tcbdbdel(db);
+			throw std::bad_alloc();
+		}
 	}
 
 	~kumo_tcbdb()
@@ -45,15 +79,41 @@ static bool kumo_tcbdb_open(void* data, const char* path)
 {
 	kumo_tcbdb* ctx = reinterpret_cast<kumo_tcbdb*>(data);
 
-	if(!tcbdbsetmutex(ctx->db)) {
+	int32_t lcnum = -1;
+	int32_t ncnum = -1;  bool cnum_set = false;
+	int64_t xmsiz;       bool xmsiz_set = false;
+
+	char* str = ::strdup(path);
+	if(!str) {
 		return false;
+	}
+
+	path = parse_param(str,
+			&cnum_set, &lcnum,
+			&cnum_set, &ncnum,
+			&xmsiz_set, &xmsiz);
+	if(!path) {
+		goto param_error;
+	}
+
+	if(cnum_set && !tcbdbsetcache(ctx->db, lcnum, ncnum)) {
+		goto param_error;
+	}
+
+	if(xmsiz_set && !tcbdbsetxmsiz(ctx->db, xmsiz)) {
+		goto param_error;
 	}
 
 	if(!tcbdbopen(ctx->db, path, BDBOWRITER|BDBOCREAT)) {
-		return false;
+		goto param_error;
 	}
 
+	::free(str);
 	return true;
+
+param_error:
+	::free(str);
+	return false;
 }
 
 static void kumo_tcbdb_close(void* data)

@@ -61,6 +61,7 @@ private:
 	shared_session get_session_impl(const address& addr);
 
 private:
+	// FIXME performance: partitioning + rwlock->mutex?
 	mp::pthread_rwlock m_sessions_rwlock;
 	typedef std::multimap<address, weak_session> sessions_t;
 	sessions_t m_sessions;

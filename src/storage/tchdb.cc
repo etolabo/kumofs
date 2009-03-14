@@ -1,6 +1,33 @@
 #include "storage/interface.h"  // FIXME
 #include <tchdb.h>
+#include <tcutil.h>
 #include <mp/pthread.h>
+#include <string.h>
+
+
+static char* parse_param(char* str,
+		bool* rcnum_set, int32_t* rcnum,
+		bool* xmsiz_set, int64_t* xmsiz)
+{
+	char* key;
+	char* val;
+	while((key = ::strrchr(str, '#')) != NULL) {
+		*key++ = '\0';
+		if((val = strchr(key, '=')) == NULL) {
+			return NULL;
+		}
+		*val++ = '\0';
+
+		if(::strcmp(key, "rcnum") == 0) {
+			*rcnum_set = true;
+			*rcnum = tcatoix(val);  // FIXME error check?
+		} else if(::strcmp(key, "xmsiz") == 0) {
+			*xmsiz_set = true;
+			*xmsiz = tcatoix(val);  // FIXME error check?
+		}
+	}
+	return str;
+}
 
 
 struct kumo_tchdb {
@@ -10,8 +37,11 @@ struct kumo_tchdb {
 		if(!db) {
 			throw std::bad_alloc();
 		}
-		//tchdbsetcache(db, 32000);   FIXME
-		//tchdbsetxmsiz(db, 1024*1024);   FIXME
+
+		if(!tchdbsetmutex(db)) {
+			tchdbdel(db);
+			throw std::bad_alloc();
+		}
 	}
 
 	~kumo_tchdb()
@@ -46,15 +76,39 @@ static bool kumo_tchdb_open(void* data, const char* path)
 {
 	kumo_tchdb* ctx = reinterpret_cast<kumo_tchdb*>(data);
 
-	if(!tchdbsetmutex(ctx->db)) {
+	char* str = ::strdup(path);
+	if(!str) {
 		return false;
+	}
+
+	int32_t rcnum;  bool rcnum_set = false;
+	int64_t xmsiz;  bool xmsiz_set = false;
+
+	path = parse_param(str,
+			&rcnum_set, &rcnum,
+			&xmsiz_set, &xmsiz);
+	if(!path) {
+		goto param_error;
+	}
+
+	if(rcnum_set && !tchdbsetcache(ctx->db, rcnum)) {
+		goto param_error;
+	}
+
+	if(xmsiz_set && !tchdbsetxmsiz(ctx->db, xmsiz)) {
+		goto param_error;
 	}
 
 	if(!tchdbopen(ctx->db, path, HDBOWRITER|HDBOCREAT)) {
-		return false;
+		goto param_error;
 	}
 
+	::free(str);
 	return true;
+
+param_error:
+	::free(str);
+	return false;
 }
 
 static void kumo_tchdb_close(void* data)
