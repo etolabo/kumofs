@@ -34,7 +34,7 @@ void framework::subsystem_dispatch(
 	// FIXME try & catch
 	switch(method.get()) {
 	RPC_DISPATCH(proto_network, HashSpaceRequest_1);
-	RPC_DISPATCH(proto_control, GetStatus_1);
+	RPC_DISPATCH(proto_control, GetNodesInfo_1);
 	RPC_DISPATCH(proto_control, AttachNewServers_1);
 	RPC_DISPATCH(proto_control, DetachFaultServers_1);
 	RPC_DISPATCH(proto_control, CreateBackup_1);

@@ -9,7 +9,7 @@ proto_control::proto_control() { }
 proto_control::~proto_control() { }
 
 
-RPC_IMPL(proto_control, GetStatus_1, req, z, response)
+RPC_IMPL(proto_control, GetNodesInfo_1, req, z, response)
 try {
 	Status res;
 
@@ -30,7 +30,7 @@ try {
 
 	response.result(res);
 }
-RPC_CATCH(GetStatus_1, response)
+RPC_CATCH(GetNodesInfo_1, response)
 
 RPC_IMPL(proto_control, AttachNewServers_1, req, z, response)
 try {

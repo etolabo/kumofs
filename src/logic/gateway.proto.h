@@ -9,7 +9,7 @@ namespace kumo {
 namespace gateway {
 
 
-@message proto_network::HashSpacePush       = 48
+@message proto_network::HashSpacePush       = 3
 
 
 @rpc proto_network

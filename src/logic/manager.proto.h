@@ -9,21 +9,20 @@ namespace kumo {
 namespace manager {
 
 
-@message proto_network::KeepAlive           = 0
-@message proto_network::HashSpaceRequest    = 1
-@message proto_network::WHashSpaceRequest   = 34
-@message proto_network::RHashSpaceRequest   = 35
-@message proto_network::HashSpaceSync       = 81
-@message proto_replace::ReplaceCopyEnd      = 32
-@message proto_replace::ReplaceDeleteEnd    = 33
-@message proto_replace::ReplaceElection     = 80
-
-@message proto_control::GetStatus			= 84
-@message proto_control::AttachNewServers	= 85
-@message proto_control::DetachFaultServers	= 86
-@message proto_control::CreateBackup		= 87
-@message proto_control::SetAutoReplace		= 88
-@message proto_control::StartReplace		= 89
+@message proto_network::KeepAlive           =   0
+@message proto_network::HashSpaceRequest    =   1
+@message proto_network::HashSpaceSync       =   2
+@message proto_network::WHashSpaceRequest   =   4
+@message proto_network::RHashSpaceRequest   =   5
+@message proto_replace::ReplaceCopyEnd      =  10
+@message proto_replace::ReplaceDeleteEnd    =  11
+@message proto_replace::ReplaceElection     =  12
+@message proto_control::GetNodesInfo        =  99
+@message proto_control::AttachNewServers    = 100
+@message proto_control::DetachFaultServers  = 101
+@message proto_control::CreateBackup        = 102
+@message proto_control::SetAutoReplace      = 103
+@message proto_control::StartReplace        = 104
 
 
 @rpc proto_network
@@ -139,7 +138,7 @@ private:
 
 
 @rpc proto_control
-	message GetStatus.1 {
+	message GetNodesInfo.1 {
 	};
 
 	message AttachNewServers.1 {

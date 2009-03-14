@@ -9,19 +9,19 @@ namespace kumo {
 namespace server {
 
 
-@message proto_network::KeepAlive           = 0
-@message proto_network::HashSpaceSync       = 81
-@message proto_store::Get                   = 96
-@message proto_store::Set                   = 97
-@message proto_store::Delete                = 98
-@message proto_store::ReplicateSet          = 64
-@message proto_store::ReplicateDelete       = 65
-@message proto_replace::ReplaceCopyStart    = 16
-@message proto_replace::ReplaceDeleteStart  = 17
-@message proto_replace_stream::ReplaceOffer = 66
-@message proto_control::CreateBackup        = 18
-@message proto_control::GetStatus           = 112
-@message proto_control::SetConfig           = 113
+@message proto_network::KeepAlive           =   0
+@message proto_network::HashSpaceSync       =   2
+@message proto_replace::ReplaceCopyStart    =   8
+@message proto_replace::ReplaceDeleteStart  =   9
+@message proto_replace_stream::ReplaceOffer =  16
+@message proto_store::ReplicateSet          =  32
+@message proto_store::ReplicateDelete       =  33
+@message proto_store::Get                   =  34
+@message proto_store::Set                   =  35
+@message proto_store::Delete                =  36
+@message proto_control::CreateBackup        =  96
+@message proto_control::GetStatus           =  97
+@message proto_control::SetConfig           =  98
 
 
 @rpc proto_network

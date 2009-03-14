@@ -111,7 +111,7 @@ class KumoRPC
 
 	public
 	def GetStatus
-		res = send_request_sync_ex(Protocol::ControlGetStatus, [])
+		res = send_request_sync_ex(Protocol::GetNodesInfo, [])
 		form = {}
 		nodes = res[0]
 
@@ -135,34 +135,34 @@ class KumoRPC
 	end
 
 	def AttachNewServers(replace)
-		send_request_sync_ex(Protocol::ControlAttachNewServers, [replace])
+		send_request_sync_ex(Protocol::AttachNewServers, [replace])
 	end
 
 	def DetachFaultServers(replace)
-		send_request_sync_ex(Protocol::ControlDetachFaultServers, [replace])
+		send_request_sync_ex(Protocol::DetachFaultServers, [replace])
 	end
 
 	def CreateBackup(suffix)
-		send_request_sync_ex(Protocol::ControlCreateBackup, [suffix])
+		send_request_sync_ex(Protocol::CreateBackup, [suffix])
 	end
 
 	def SetAutoReplace(enable)
-		send_request_sync_ex(Protocol::ControlSetAutoReplace, [enable])
+		send_request_sync_ex(Protocol::SetAutoReplace, [enable])
 	end
 
 	def StartReplace()
-		send_request_sync_ex(Protocol::ControlStartReplace, [])
+		send_request_sync_ex(Protocol::StartReplace, [])
 	end
 
 	module Protocol
-		ControlGetStatus           = 84 << 16 | 1
-		ControlAttachNewServers    = 85 << 16 | 1
-		ControlDetachFaultServers  = 86 << 16 | 1
-		ControlCreateBackup        = 87 << 16 | 1
-		ControlSetAutoReplace      = 88 << 16 | 1
-		ControlStartReplace        = 89 << 16 | 1
-		GetStatus  = 112 << 16 | 1
-		SetConfig  = 112 << 16 | 1
+		GetNodesInfo        =  99 << 16 | 1
+		AttachNewServers    = 100 << 16 | 1
+		DetachFaultServers  = 101 << 16 | 1
+		CreateBackup        = 102 << 16 | 1
+		SetAutoReplace      = 103 << 16 | 1
+		StartReplace        = 104 << 16 | 1
+		GetStatus           =  97 << 16 | 1
+		SetConfig           =  98 << 16 | 1
 	end
 
 	MANAGER_DEFAULT_PORT = 19700
@@ -176,23 +176,23 @@ class KumoManager < KumoRPC
 	end
 
 	def AttachNewServers(replace)
-		send_request_sync_ex(Protocol::ControlAttachNewServers, [replace])
+		send_request_sync_ex(Protocol::AttachNewServers, [replace])
 	end
 
 	def DetachFaultServers(replace)
-		send_request_sync_ex(Protocol::ControlDetachFaultServers, [replace])
+		send_request_sync_ex(Protocol::DetachFaultServers, [replace])
 	end
 
 	def CreateBackup(suffix)
-		send_request_sync_ex(Protocol::ControlCreateBackup, [suffix])
+		send_request_sync_ex(Protocol::CreateBackup, [suffix])
 	end
 
 	def SetAutoReplace(enable)
-		send_request_sync_ex(Protocol::ControlSetAutoReplace, [enable])
+		send_request_sync_ex(Protocol::SetAutoReplace, [enable])
 	end
 
 	def StartReplace()
-		send_request_sync_ex(Protocol::ControlStartReplace, [])
+		send_request_sync_ex(Protocol::StartReplace, [])
 	end
 end
 
