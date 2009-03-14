@@ -5,7 +5,7 @@
 #include "logic/clock_logic.h"
 #include "manager/proto_network.h"
 #include "manager/proto_replace.h"
-#include "manager/control_framework.h"
+#include "manager/proto_control.h"
 
 
 #define EACH_ACTIVE_SERVERS_BEGIN(NODE) \
@@ -56,13 +56,12 @@ public:
 private:
 	proto_network m_proto_network;
 	proto_replace m_proto_replace;
+	proto_control m_proto_control;
 
 public:
 	proto_network& scope_proto_network() { return m_proto_network; }
 	proto_replace& scope_proto_replace() { return m_proto_replace; }
-
-private:
-	control_framework m_control_framework;
+	proto_control& scope_proto_control() { return m_proto_control; }
 
 private:
 	framework();

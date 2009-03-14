@@ -18,9 +18,5 @@
 #define SERVER_STREAM_DEFAULT_PORT  19900
 #endif
 
-#ifndef CONTROL_DEFAULT_PORT
-#define CONTROL_DEFAULT_PORT  19750
-#endif
-
 #endif /* logic/global.h */
 

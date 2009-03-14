@@ -19,7 +19,6 @@ libkumo_logic_a_SOURCES = \
 
 
 kumo_manager_SOURCES = \
-		manager/control_framework.cc \
 		manager/framework.cc \
 		manager/main.cc \
 		manager/proto_control.cc \
@@ -88,7 +87,6 @@ noinst_HEADERS = \
 		role.h \
 		rpc_server.h \
 		wavy_server.h \
-		manager/control_framework.h \
 		manager/framework.h \
 		manager/init.h \
 		server/framework.h \

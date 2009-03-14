@@ -165,7 +165,6 @@ class KumoRPC
 		SetConfig  = 112 << 16 | 1
 	end
 
-	CONTROL_DEFAULT_PORT = 19750
 	MANAGER_DEFAULT_PORT = 19700
 	SERVER_DEFAULT_PORT  = 19800
 end
@@ -204,7 +203,7 @@ if $0 == __FILE__
 $now = Time.now.strftime("%Y%m%d")
 
 def usage
-	puts "Usage: #{File.basename($0)} address[:port=#{KumoRPC::CONTROL_DEFAULT_PORT}] command [options]"
+	puts "Usage: #{File.basename($0)} address[:port=#{KumoRPC::MANAGER_DEFAULT_PORT}] command [options]"
 	puts "command:"
 	puts "   status                     get status"
 	puts "   attach                     attach all new servers and start replace"
@@ -224,7 +223,7 @@ end
 
 addr = ARGV.shift
 host, port = addr.split(':', 2)
-port ||= KumoRPC::CONTROL_DEFAULT_PORT
+port ||= KumoRPC::MANAGER_DEFAULT_PORT
 
 cmd = ARGV.shift
 

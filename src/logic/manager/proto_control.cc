@@ -1,5 +1,4 @@
 #include "manager/framework.h"
-#include "manager/control_framework.h"
 #include "server/proto_control.h"
 
 namespace kumo {

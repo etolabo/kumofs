@@ -22,7 +22,6 @@ framework::framework(const Config& cfg) :
 			"addr", cfg.cluster_addr,
 			"Padd", share->partner());
 	listen_cluster(cfg.cluster_lsock);  // cluster_logic
-	m_control_framework.listen_control(cfg.ctlsock_lsock);
 	start_timeout_step(cfg.clock_interval_usec);  // rpc_server
 	start_keepalive(cfg.keepalive_interval_usec);  // cluster_logic
 }

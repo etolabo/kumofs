@@ -34,6 +34,12 @@ void framework::subsystem_dispatch(
 	// FIXME try & catch
 	switch(method.get()) {
 	RPC_DISPATCH(proto_network, HashSpaceRequest_1);
+	RPC_DISPATCH(proto_control, GetStatus_1);
+	RPC_DISPATCH(proto_control, AttachNewServers_1);
+	RPC_DISPATCH(proto_control, DetachFaultServers_1);
+	RPC_DISPATCH(proto_control, CreateBackup_1);
+	RPC_DISPATCH(proto_control, SetAutoReplace_1);
+	RPC_DISPATCH(proto_control, StartReplace_1);
 	default:
 		// FIXME exception class
 		throw std::runtime_error("unknown method");
