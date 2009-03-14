@@ -33,6 +33,8 @@ FORMAT =  %[%23s %9s %9s %9s %8s %8s %8s %8s %10s %20s %8s]
 TIME_FORMAT = "%Y-%m-%d %H:%M:%S"
 
 class Node
+	require "timeout"
+
 	def initialize(host, port)
 		@host = host
 		@port = port
@@ -45,7 +47,9 @@ class Node
 
 	def param
 		unless @con
-			@con = KumoServer.new(@host, @port)
+			Timeout.timeout(0.5) {
+				@con = KumoServer.new(@host, @port)
+			}
 		end
 
 		get   = @con.GetStatus(KumoServer::STAT_CMD_GET)
@@ -87,6 +91,8 @@ class Node
 		]
 
 	rescue
+		@con.close rescue nil
+		@con = nil
 		ar = Array.new(INDEX.length)
 		ar[0] = "#{@host}:#{@port}"
 		ar[1] = $!.to_s
@@ -132,8 +138,12 @@ begin
 	th = Thread.start {
 		begin
 			while true
+				before = Time.now
 				refresh
-				sleep 0.5
+				elapse = Time.now - before
+				if elapse < 0.5
+					sleep 0.5 - elapse
+				end
 			end
 		rescue
 			$stderr.puts $!.inspect

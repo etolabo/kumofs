@@ -18,6 +18,10 @@ class KumoRPC
 		@callback = {}
 	end
 
+	def close
+		@sock.close
+	end
+
 	private
 	module MessageType
 		Request     = 0
