@@ -28,8 +28,8 @@ if ARGV.empty?
 end
 
 
-INDEX  = %w[address #Get #Set #Del Get/s Set/s Del/s QPS items time]
-FORMAT =  %[%23s %9s %9s %9s %8s %8s %8s %8s %10s %20s]
+INDEX  = %w[address #Get #Set #Del Get/s Set/s Del/s QPS items time clock]
+FORMAT =  %[%23s %9s %9s %9s %8s %8s %8s %8s %10s %20s %8s]
 TIME_FORMAT = "%Y-%m-%d %H:%M:%S"
 
 class Node
@@ -51,8 +51,10 @@ class Node
 		get   = @con.GetStatus(KumoServer::STAT_CMD_GET)
 		set   = @con.GetStatus(KumoServer::STAT_CMD_SET)
 		del   = @con.GetStatus(KumoServer::STAT_CMD_DELETE)
-		time  = @con.GetStatus(KumoServer::STAT_TIME)
 		items = @con.GetStatus(KumoServer::STAT_DB_ITEMS)
+		clocktime  = @con.GetStatus(KumoServer::STAT_CLOCKTIME)
+		time  = clocktime >> 32
+		clock = clocktime & 0xffffffff
 
 		now = Time.now
 		elapse = @time - now
@@ -80,7 +82,8 @@ class Node
 			int_format(del_per_s),
 			q_per_s.to_i,
 			items,
-			Time.at(time).strftime(TIME_FORMAT)
+			Time.at(time).strftime(TIME_FORMAT),
+			clock
 		]
 
 	rescue

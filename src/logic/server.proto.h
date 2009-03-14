@@ -275,6 +275,7 @@ enum status_type {
 	STAT_CMD_SET		= 5,
 	STAT_CMD_DELETE		= 6,
 	STAT_DB_ITEMS		= 7,
+	STAT_CLOCKTIME		= 8,
 };
 @end
 

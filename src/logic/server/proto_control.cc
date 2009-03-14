@@ -54,6 +54,10 @@ try {
 		response.result( share->db().rnum() );
 		break;
 
+	case STAT_CLOCKTIME:
+		response.result( net->clocktime_now() );
+		break;
+
 	default:
 		response.result(msgpack::type::nil());
 		break;
