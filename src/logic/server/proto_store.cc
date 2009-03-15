@@ -461,13 +461,18 @@ RPC_REPLY_IMPL(proto_store, ReplicateSet_1, from, res, err, life,
 		}
 		if(!retry->param().flags.is_rhs()) {  // FIXME ?
 			response.null();
-			LOGPACK("ers",2,
+			LOGPACK("ers",3,
 					"key",msgtype::raw_ref(
 						retry->param().dbkey.data(),
 						retry->param().dbkey.size()),
 					"val",msgtype::raw_ref(
 						retry->param().dbval.data(),
-						retry->param().dbval.size()));
+						retry->param().dbval.size()),
+					"hash",retry->param().dbkey.hash(),
+					"cktm",retry->param().dbval.clocktime(),
+					"to",(from ?
+						mp::static_pointer_cast<rpc::node>(from)->addr():
+						rpc::address()));
 			LOG_ERROR("ReplicateSet failed: ",err);
 			return;
 		}
@@ -497,10 +502,14 @@ RPC_REPLY_IMPL(proto_store, ReplicateDelete_1, from, res, err, life,
 		}
 		if(!retry->param().flags.is_rhs()) {  // FIXME ?
 			response.null();
-			LOGPACK("erd",2,
+			LOGPACK("erd",3,
 					"key",msgtype::raw_ref(
 						retry->param().dbkey.data(),
-						retry->param().dbkey.size()));
+						retry->param().dbkey.size()),
+					"hash",retry->param().dbkey.hash(),
+					"to",(from ?
+						mp::static_pointer_cast<rpc::node>(from)->addr():
+						rpc::address()));
 			LOG_ERROR("ReplicateDelete failed: ",err);
 			return;
 		}

@@ -138,7 +138,10 @@ do_parse(File.read(ARGV[0]), 1<<30) {|name, version, hash|
 	if filter = filterdb["#{name}.#{version}"]
 		filter.each_pair {|key, proc|
 			val = hash.delete(key)
-			hash[proc[0]] = proc[1].call(val)
+			begin
+				hash[proc[0]] = proc[1].call(val)
+			rescue
+			end
 		}
 	end
 
@@ -209,4 +212,9 @@ filter:
 		addr: [address, *addr]
 	lS.2:
 		addr: [address, *addr]
+	ers.3:
+		to:   [to, *addr]
+		cktm: [clocktime, *clocktime]
+	erd.3:
+		to:   [to, *addr]
 
