@@ -16,8 +16,8 @@
 namespace kumo {
 
 
-static const size_t CLOUDY_INITIAL_ALLOCATION_SIZE = 16*1024;
-static const size_t CLOUDY_RESERVE_SIZE = 1024;
+static const size_t CLOUDY_INITIAL_ALLOCATION_SIZE = 32*1024;
+static const size_t CLOUDY_RESERVE_SIZE = 4*1024;
 
 Cloudy::Cloudy(int lsock) :
 	m_lsock(lsock) { }

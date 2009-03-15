@@ -17,8 +17,8 @@
 namespace kumo {
 
 
-static const size_t MEMTEXT_INITIAL_ALLOCATION_SIZE = 16*1024;
-static const size_t MEMTEXT_RESERVE_SIZE = 1024;
+static const size_t MEMTEXT_INITIAL_ALLOCATION_SIZE = 32*1024;
+static const size_t MEMTEXT_RESERVE_SIZE = 4*1024;
 
 
 Memtext::Memtext(int lsock) :

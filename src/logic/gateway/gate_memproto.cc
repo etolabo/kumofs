@@ -17,8 +17,8 @@
 namespace kumo {
 
 
-static const size_t MEMPROTO_INITIAL_ALLOCATION_SIZE = 2048;
-static const size_t MEMPROTO_RESERVE_SIZE = 1024;
+static const size_t MEMPROTO_INITIAL_ALLOCATION_SIZE = 32*1024;
+static const size_t MEMPROTO_RESERVE_SIZE = 4*1024;
 
 
 Memproto::Memproto(int lsock) :
