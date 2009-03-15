@@ -37,8 +37,9 @@
     <p>keyが保存されていなかった場合はエラーにならないが、タイムアウトした場合はエラーになる。</p>
     <h4>delete(key)</h4>
     <p>keyを削除する。</p>
-    <p>再配置処理を行っている間にdeleteを行うと、削除されないことがある。また同じkeyに対してdeleteとsetをほぼ同時に行うと、削除されないことがある。これはレプリケーションを行うServer同士のやりとりが、Gatewayが送出したdeleteリクエストと入れ違う可能性があるため。</p>
-    <p>Serverの引数を調整することで、deleteが一貫性を保たない確率を減らすことができる。</p>
+    <p>deleteを行ってもkeyが削除されないことがある。</p>
+    <p>Serverはkeyがいつ削除されたかを記憶しているが、時間が経過すると記憶を破棄する。一斉に大量にkeyが削除されるとメモリ使用量の上限に達し、より速く記憶を破棄するようになる。このとき遅延していたレプリケーションや、遅延していた再配置が介入すると、deleteされるはずのkeyが古いkeyによって上書きされる。</p>
+    <p>記憶を破棄するまでの時間とメモリの使用量はServerの引数で指定できる。</p>
     <br />
     <h3>動作環境と制限</h3>
     <h4>サーバーの時刻設定</h4>
@@ -61,28 +62,18 @@
     <ul class="ul1">
       <li>g++ &gt;= 4.1</li>
       <li>ragel &gt;= 6.3</li>
-      <li>git &gt;= XXX</li>
     </ul>
     <h4>コンパイル時と実行時に必要なもの</h4>
     <ul class="ul1">
       <li>ruby &gt;= 1.8</li>
-      <li>rubygems</li>
       <li>libcrypto(openssl)</li>
       <li>zlib &gt;= XXX</li>
       <li>Tokyo Cabinet &gt;= 1.4.10</li>
+      <li>MessagePack for C++ &gt;= 0.3.1</li>
+      <li>MessagePack for Ruby &gt;= 0.3.1</li>
     </ul>
     <h3>コンパイル</h3>
-    <p>まず最新のMessagePackをインストールする。</p>
-    <pre class="code_sh">$ git clone git://git.sourceforge.jp/gitroot/msgpack/msgpack.git
-$ cd msgpack
-$ ./bootstrap &amp;&amp; ./configure &amp;&amp; make
-$ sudo make install
-$ cd ruby
-$ ./gengem
-$ sudo gem install gem/pkg/msgpack-*.gem
-</pre>
-    <p class="title">MessagePackのインストール</p>
-    <p>次にkumofsをインストールする。</p>
+    <p>シンプルに./configure &amp;&amp; make &amp;&amp; make installでインストールできる。</p>
     <pre class="code_sh">$ ./configure &amp;&amp; make &amp;&amp; make install
 </pre>
     <p>以下の4つのコマンドがインストールされる：</p>
@@ -95,6 +86,10 @@ $ sudo gem install gem/pkg/msgpack-*.gem
       <dd>Gatewayノード。memcachedプロトコルのサーバーで、アプリケーションからの要求をServerノードに中継する。</dd>
       <dt>kumoctl</dt>
       <dd>Managerノードを制御するための管理コマンド</dd>
+      <dt>kumostat</dt>
+      <dd>Serverノードの状態を取得する</dd>
+      <dt>kumotop</dt>
+      <dd>Serverノードの状態を定期的に更新しながら表示する</dd>
       <dt>kumolog</dt>
       <dd>バイナリフォーマットのログをテキストフォーマットに変換する</dd>
       <dt>kumomergedb</dt>
@@ -145,9 +140,9 @@ $ sudo gem install gem/pkg/msgpack-*.gem
       <dt>-v</dt>
       <dd>WARNよりレベルの低いメッセージを出力する</dd>
       <dt>-Ci &lt;sec&gt;</dt>
-      <dd>タイマークロックの間隔を秒で指定する。小数を指定できる</dd>
+      <dd>タイマークロックの間隔を指定する。単位は秒で小数を指定できる</dd>
       <dt>-Ys &lt;sec&gt;</dt>
-      <dd>connect(2)のタイムアウト時間を秒で指定する。小数を指定できる</dd>
+      <dd>connect(2)のタイムアウト時間を指定する。単位は秒で小数を指定できる</dd>
       <dt>-Yn &lt;num&gt;</dt>
       <dd>connect(2)のリトライ回数を指定する</dd>
       <dt>-TR &lt;num&gt;</dt>
@@ -163,8 +158,10 @@ $ sudo gem install gem/pkg/msgpack-*.gem
       <dd>もし存在するなら、もう一台のkumo-managerのホスト名とポート番号を指定する</dd>
       <dt>-c &lt;port&gt;</dt>
       <dd>kumoctlからのコマンドを受け付けるポート番号を指定する</dd>
-      <dt>--auto-replace</dt>
-      <dd>Serverが追加・切断されたときに、マニュアル操作を待たずにレプリケーションの再配置を自動的に行うようにする。実行中でもkumoctlコマンドを使って変更できる</dd>
+      <dt>-a</dt>
+      <dd>Serverが追加・離脱されたときに、マニュアル操作を待たずにレプリケーションの再配置を自動的に行うようにする。実行中でもkumoctlコマンドを使って変更できる</dd>
+      <dt>-Rs</dt>
+      <dd>自動的な再配置が有効なときに、サーバーの追加・離脱を検出してからレプリケーションの再配置を開始するまでの待ち時間を指定する。単位は秒</dd>
     </dl>
     <h4>kumo-server</h4>
     <dl>
@@ -176,7 +173,7 @@ $ sudo gem install gem/pkg/msgpack-*.gem
       <dd>kumo-managerのホスト名とポート番号を指定する</dd>
       <dt>-p &lt;address&gt;</dt>
       <dd>もし存在するなら、もう一台のkumo-managerのホスト名とポート番号を指定する</dd>
-      <dt>-s &lt;path.tch&gt;</dt>
+      <dt>-s &lt;path.tch[#xmsiz=SIZE][#rcnum=SIZE]&gt;</dt>
       <dd>データを保存するデータベースファイルのパスを指定する</dd>
       <dt>-f &lt;dir&gt;</dt>
       <dd>レプリケーションの再配置に使う一時ファイルを保存するディレクトリを指定する。データベースファイルのサイズに応じて十分な空き容量が必要</dd>
@@ -195,6 +192,8 @@ $ sudo gem install gem/pkg/msgpack-*.gem
       <dd>もし存在するなら、もう一台のkumo-managerのホスト名とポート番号を指定する</dd>
       <dt>-t &lt;port&gt;</dt>
       <dd>memcachedテキストプロトコルを待ち受けるポート番号を指定する</dd>
+      <dt>-b &lt;port&gt;</dt>
+      <dd>memcachedバイナリプロトコルを待ち受けるポート番号を指定する（EXPERIMENTAL）</dd>
       <dt>-G &lt;number&gt;</dt>
       <dd>getの最大リトライ回数を指定する</dd>
       <dt>-S &lt;number&gt;</dt>
@@ -211,7 +210,8 @@ $ sudo gem install gem/pkg/msgpack-*.gem
         <a id="footnote4-1" href="#footnote4-1-anchor">*1</a>ハッシュ関数はSHA-1で、下位64ビットのみ使う。仮想ノードは128台</p>
     </div>
     <br />
-    <h2>kumoctl</h2>
+    <h2>管理コマンド</h2>
+    <h3>kumoctl</h3>
     <p>kumoctlコマンドを使うとManagerの状態を取得したり、コマンドを送ったりできる。</p>
     <p>Rubyで書かれたスクリプト。実行するにはgemでmsgpackパッケージをインストールする。</p>
     <p>第1引数にManagerのホスト名とポート番号を指定し、第2引数にコマンドを指定する。</p>
@@ -228,7 +228,7 @@ command:
    enable-auto-replace        enable auto replace
    disable-auto-replace       disable auto replace
 </pre>
-    <h3>status</h3>
+    <h4>status</h4>
     <p>Managerが持っているハッシュ空間を取得して表示する。</p>
     <pre>$ kumoctl localhost status
 hash space timestamp:
@@ -247,18 +247,18 @@ not attached node:
     <p>レプリケーションの再配置を行ったとき、Managerが２台起動していれば２つのManager間で新しいハッシュ空間が同期される。ただし新しいハッシュ空間が空の時は同期されない。</p>
     <p>この理由は、障害が発生していたManagerを復旧したときに空のハッシュ空間が同期されてしまう可能性があるため。起動した直後はクロック（後述）が調整されていないために、ハッシュ空間の新旧の比較が正常に機能しない。このため空のハッシュ空間を受け取ったときは無視するようになっている。 # FIXME この動作は正しい？もっと良い回避方法は無いか？</p>
     <br />
-    <h3>attach</h3>
+    <h4>attach</h4>
     <p>statusで<strong>not attached node</strong>に表示されているServerをハッシュ空間に組み入れ、レプリケーションの再配置を開始する。</p>
-    <h3>attach-noreplace</h3>
+    <h4>attach-noreplace</h4>
     <p>attachと同じだがレプリケーションの再配置を開始しない。ただし再配置をしないまま長い間放置してはいけない。</p>
     <p>再配置を行わないと、エラーが積もってGatewayから最新のハッシュ空間を要求されたとき（後述）、Gatewayが持っているハッシュ空間とServerが持っているハッシュ空間が食い違ってしまう。食い違うとsetやdeleteがいつまで経っても成功しなくなってしまう。</p>
-    <h3>detach</h3>
+    <h4>detach</h4>
     <p>statusで<strong>attached node</strong>に表示されていて(fault)状態のServerをハッシュ空間から取り除き、レプリケーションの再配置を開始する。</p>
-    <h3>detach-noreplace</h3>
+    <h4>detach-noreplace</h4>
     <p>detachと同じだがレプリケーションの再配置を開始しない。再配置をしないまま長い間放置してはいけない。</p>
-    <h3>replace</h3>
+    <h4>replace</h4>
     <p>レプリケーションの再配置を開始する。</p>
-    <h3>backup</h3>
+    <h4>backup</h4>
     <p>コールドバックアップを作成する。バックアップはServerで作成され、元のデータベース名にsuffixを付けた名前のファイルにデータベースがコピーされる。手元にバックアップを持ってくるには、rsyncやscpなどを使ってServerからダウンロードする。</p>
     <p>suffixは省略するとその日の日付（YYMMDD）が使われる。</p>
     <p>作成されたバックアップファイルは、kumomergedbコマンドを使って１つのファイルに結合することができる。</p>
@@ -267,7 +267,7 @@ not attached node:
 </pre>
     <p class="title">kumomergedbコマンドの実行例</p>
     <br />
-    <h2>kumostat</h2>
+    <h3>kumostat</h3>
     <p>kumostatコマンドを使うとServerの状態を取得することができる。</p>
     <p>Rubyで書かれたスクリプト。実行するにはgemでmsgpackパッケージをインストールする。</p>
     <p>第1引数にServerのホスト名とポート番号を指定し、第2引数にコマンドを指定する。</p>
@@ -282,20 +282,34 @@ command:
    cmd_delete                 get number of delete requests
    items                      get number of stored items
 </pre>
-    <h3>pid</h3>
-    <p>kumo-serverプロセスのpidを取得する</p>
-    <h3>uptime</h3>
-    <p>kumo-serverプロセスの起動時間を取得する。単位は秒。</p>
-    <h3>time</h3>
-    <p>kumo-serverプロセスが走っているホストのUNIXタイムを取得する。</p>
-    <h3>version</h3>
-    <p>バージョンを取得する。</p>
-    <h3>cmd_get / cmd_set / cmd_delete</h3>
-    <p>それぞれGatewayからのGetリクエスト、Setリクエスト、Deleteリクエストを処理した回数を取得する。</p>
-    <h3>items</h3>
-    <p>データベースに入っているエントリの数を取得する。</p>
+    <dl>
+      <dt>pid</dt>
+      <dd>kumo-serverプロセスのpidを取得する</dd>
+      <dt>uptime</dt>
+      <dd>kumo-serverプロセスの起動時間を取得する。単位は秒</dd>
+      <dt>time</dt>
+      <dd>kumo-serverプロセスが走っているホストのUNIXタイムを取得する</dd>
+      <dt>version</dt>
+      <dd>バージョンを取得する</dd>
+      <dt>cmd_get</dt>
+      <dd>GatewayからのGetリクエストを処理した回数を取得する</dd>
+      <dt>cmd_set</dt>
+      <dd>GatewayからのSetリクエストを処理した回数を取得する</dd>
+      <dt>cmd_delete</dt>
+      <dd>GatewayからのDeleteリクエストを処理した回数を取得する</dd>
+      <dt>items</dt>
+      <dd>データベースに入っているエントリの数を取得する</dd>
+    </dl>
     <br />
-    <br />
+    <h3>kumolog</h3>
+    <p>kumologコマンドを使うとバイナリログをテキストに変換することができる。</p>
+    <pre>Usage: kumolog &lt;logfile.mpac&gt;
+</pre>
+    <h3>kumotop</h3>
+    <p>kumotopコマンドを使うとServerの状態を定期的に更新しながら表示することができる。</p>
+    <p>引数に監視したいServerのアドレスを指定する。Serverのアドレスは複数指定できる。</p>
+    <pre>Usage: kumotop address[:port=19800] ...
+</pre>
     <h2>ログ</h2>
     <p>kumo-manager, kumo-server, kumo-gatewayは、それぞれ2種類のログを出力する:</p>
     <dl>
@@ -319,6 +333,10 @@ command:
     <pre class="code_sh">$ tchmgr create /path/to/database.tch 1048568  # バケット数を2097136個にして作成
 $ kumo-server -m localhost -s /path/to/database.tch
 </pre>
+    <h3>キャッシュサイズのチューニング</h3>
+    <p>Tokyo Cabinetの一部のパラメータは起動時に指定する。</p>
+    <p> -sオプションにしているパスの後ろに<strong>#xmsiz=XXX</strong>と指定すると、拡張マップメモリのサイズを指定できる。<strong>#rcnum=XXX</strong>と指定すると、キャッシュ機構を有効化できる。両方指定するには<strong>#xmsiz=XXX#rcnum=XXX</strong>と指定する。XXXは整数か小数で、k,m,gなどの単位を使える。</p>
+    <p>拡張メモリマップとキャッシュ機構の効果についてはTokyo Cabinetのドキュメント参照。</p>
     <h3>タイムアウト時間とkeepalive間隔の調整</h3>
     <p># TODO</p>
     <br />

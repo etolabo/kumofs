@@ -1,0 +1,9 @@
+*? kumotop
+*NAME
+kumotop
+
+*SYNOPSIS
+kumotop address[:port=19800] ...
+
+*DESCRIPTION
+

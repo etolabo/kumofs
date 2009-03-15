@@ -7,6 +7,7 @@ DOC_WFDOC = \
 		doc/memo.txt \
 		doc/kumoctl.1.txt \
 		doc/kumolog.1.txt \
+		doc/kumotop.1.txt \
 		doc/kumostat.1.txt
 
 DOC_FILES = \
@@ -14,6 +15,7 @@ DOC_FILES = \
 		doc/memo.html \
 		doc/kumoctl.1 \
 		doc/kumolog.1 \
+		doc/kumotop.1 \
 		doc/kumostat.1
 
 EXTRA_DIST = $(DOC_WFDOC) $(DOC_FILES)
@@ -21,5 +23,6 @@ EXTRA_DIST = $(DOC_WFDOC) $(DOC_FILES)
 man_MANS = \
 		doc/kumoctl.1 \
 		doc/kumolog.1 \
+		doc/kumotop.1 \
 		doc/kumostat.1
 
