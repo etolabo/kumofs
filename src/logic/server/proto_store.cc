@@ -56,7 +56,7 @@ void proto_store::check_coordinator_assign(HashSpace& hs, uint64_t h)
 
 
 RPC_IMPL(proto_store, Get_1, req, z, response)
-try {
+{
 	msgtype::DBKey key(req.param().dbkey);
 	LOG_DEBUG("Get '",
 			/*std::string(key.data(),key.size()),*/"' with hash ",
@@ -84,7 +84,6 @@ try {
 
 	++share->stat_num_get();
 }
-RPC_CATCH(Get_1, response)
 
 
 bool proto_store::SetByRhsWhs(weak_responder response, auto_zone& z,
@@ -242,7 +241,7 @@ void proto_store::SetByWhs(weak_responder response, auto_zone& z,
 }
 
 RPC_IMPL(proto_store, Set_1, req, z, response)
-try {
+{
 	msgtype::DBKey key(req.param().dbkey);
 	msgtype::DBValue val(req.param().dbval);
 	LOG_DEBUG("Set '",
@@ -260,7 +259,6 @@ try {
 
 	++share->stat_num_set();
 }
-RPC_CATCH(Set_1, response)
 
 
 
@@ -426,7 +424,7 @@ void proto_store::DeleteByWhs(weak_responder response, auto_zone& z,
 }
 
 RPC_IMPL(proto_store, Delete_1, req, z, response)
-try {
+{
 	msgtype::DBKey key(req.param().dbkey);
 	LOG_DEBUG("Delete '",
 			std::string(key.data(),key.size()),"' with hash",
@@ -442,7 +440,6 @@ try {
 
 	++share->stat_num_delete();
 }
-RPC_CATCH(Delete_1, response)
 
 
 
@@ -522,7 +519,7 @@ RPC_REPLY_IMPL(proto_store, ReplicateDelete_1, from, res, err, life,
 
 
 RPC_IMPL(proto_store, ReplicateSet_1, req, z, response)
-try {
+{
 	msgtype::DBKey key = req.param().dbkey;
 	msgtype::DBValue val = req.param().dbval;
 	LOG_TRACE("ReplicateSet");
@@ -543,11 +540,10 @@ try {
 
 	response.result(updated);
 }
-RPC_CATCH(ReplicateSet_1, response)
 
 
 RPC_IMPL(proto_store, ReplicateDelete_1, req, z, response)
-try {
+{
 	msgtype::DBKey key = req.param().dbkey;
 	LOG_TRACE("ReplicateDelete");
 
@@ -566,7 +562,6 @@ try {
 
 	response.result(deleted);
 }
-RPC_CATCH(ReplicateDelete_1, response)
 
 
 

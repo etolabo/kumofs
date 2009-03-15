@@ -73,6 +73,9 @@ protected:
 };
 
 
+struct unknown_method_error : msgpack::type_error { };
+
+
 #define RESOURCE_CONST_ACCESSOR(TYPE, NAME) \
 	inline const TYPE& NAME() const { return m_##NAME; }
 
@@ -136,6 +139,37 @@ catch (msgpack::type_error& e) { \
 	throw; \
 }
 // FIXME more specific error
+
+#define DISPATCH_CATCH(method, response) \
+catch (unknown_method_error& e) { \
+	try { \
+		response.error((uint8_t)rpc::protocol::PROTOCOL_ERROR); \
+	} catch (...) { } \
+	LOG_ERROR("method ",method.protocol(),".",method.version(), \
+			" error : unknown method"); \
+	throw; \
+} catch (msgpack::type_error& e) { \
+	try { \
+		response.error((uint8_t)rpc::protocol::PROTOCOL_ERROR); \
+	} catch (...) { } \
+	LOG_ERROR("method ",method.protocol(),".",method.version(), \
+			" error: type error"); \
+	throw; \
+} catch (std::exception& e) { \
+	try { \
+		response.error((uint8_t)rpc::protocol::SERVER_ERROR); \
+	} catch (...) { } \
+	LOG_ERROR("method ",method.protocol(),".",method.version(), \
+			" error: ",e.what()); \
+	throw; \
+} catch (...) { \
+	try { \
+		response.error((uint8_t)rpc::protocol::UNKNOWN_ERROR); \
+	} catch (...) { } \
+	LOG_ERROR("method ",method.protocol(),".",method.version(), \
+			" error: unknown error"); \
+	throw; \
+}
 
 
 }  // namespace kumo

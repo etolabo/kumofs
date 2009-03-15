@@ -255,7 +255,7 @@ RPC_REPLY_IMPL(proto_replace, ReplaceCopyStart_1, from, res, err, life)
 
 
 RPC_IMPL(proto_replace, ReplaceElection_1, req, z, response)
-try {
+{
 	LOG_DEBUG("ReplaceElection");
 
 	if(req.node()->addr() != share->partner()) {
@@ -293,12 +293,11 @@ try {
 		}
 	}
 }
-RPC_CATCH(ReplaceElection_1, response)
 
 
 
 RPC_IMPL(proto_replace, ReplaceCopyEnd_1, req, z, response)
-try {
+{
 	pthread_scoped_lock relk(m_replace_mutex);
 
 	net->clock_update(req.param().clock);
@@ -311,11 +310,10 @@ try {
 	relk.unlock();
 	response.result(true);
 }
-RPC_CATCH(ReplaceCopyEnd_1, response)
 
 
 RPC_IMPL(proto_replace, ReplaceDeleteEnd_1, req, z, response)
-try {
+{
 	pthread_scoped_lock relk(m_replace_mutex);
 
 	net->clock_update(req.param().clock);
@@ -328,7 +326,6 @@ try {
 	relk.unlock();
 	response.result(true);
 }
-RPC_CATCH(ReplaceDeleteEnd_1, response)
 
 
 void proto_replace::finish_replace_copy(REQUIRE_RELK)

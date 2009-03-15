@@ -11,14 +11,14 @@ std::auto_ptr<resource> share;
 void framework::dispatch(
 		shared_session from, weak_responder response,
 		rpc::method_id method, rpc::msgobj param, auto_zone z)
-{
+try {
 	switch(method.get()) {
 	RPC_DISPATCH(proto_network, HashSpacePush_1);
 	default:
-		// FIXME exception class
-		throw std::runtime_error("unknown method");
+		throw unknown_method_error();
 	}
 }
+DISPATCH_CATCH(method, response)
 
 
 void framework::session_lost(const address& addr, shared_session& s)

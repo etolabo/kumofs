@@ -71,7 +71,7 @@ void proto_replace::replace_offer_pop(ClockTime replace_time, REQUIRE_STLK)
 
 
 RPC_IMPL(proto_replace, ReplaceCopyStart_1, req, z, response)
-try {
+{
 	net->clock_update(req.param().clock);
 
 	HashSpace hs(req.param().hsseed);
@@ -86,11 +86,10 @@ try {
 		LOG_ERROR("replace copy failed: unknown error");
 	}
 }
-RPC_CATCH(ReplaceCopyStart, response)
 
 
 RPC_IMPL(proto_replace, ReplaceDeleteStart_1, req, z, response)
-try {
+{
 	net->clock_update(req.param().clock);
 
 	HashSpace hs(req.param().hsseed);
@@ -105,7 +104,6 @@ try {
 		LOG_ERROR("replace delete failed: unknown error");
 	}
 }
-RPC_CATCH(ReplaceDeleteStart, response)
 
 
 struct proto_replace::for_each_replace_copy {

@@ -31,6 +31,9 @@ struct method_id {
 
 	uint32_t get() const { return m; }
 
+	uint16_t protocol() const { return m >> 16; }
+	uint16_t version()  const { return m & 0xffff; }
+
 	void msgpack_unpack(uint32_t id) { m = id; }
 
 	template <typename Packer>

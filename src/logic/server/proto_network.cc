@@ -7,11 +7,10 @@ namespace server {
 
 
 RPC_IMPL(proto_network, KeepAlive_1, req, z, response)
-try {
+{
 	net->clock_update(req.param().clock);
 	response.null();
 }
-RPC_CATCH(KeepAlive_1, response)
 
 
 void proto_network::keep_alive()
@@ -44,7 +43,7 @@ RPC_REPLY_IMPL(proto_network, KeepAlive_1, from, res, err, life)
 
 
 RPC_IMPL(proto_network, HashSpaceSync_1, req, z, response)
-try {
+{
 	LOG_DEBUG("HashSpaceSync_1");
 
 	net->clock_update(req.param().clock);
@@ -74,7 +73,6 @@ try {
 		response.null();
 	}
 }
-RPC_CATCH(HashSpaceSync_1, response)
 
 
 

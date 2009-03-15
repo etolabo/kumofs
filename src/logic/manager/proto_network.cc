@@ -20,15 +20,14 @@ namespace manager {
 
 
 RPC_IMPL(proto_network, KeepAlive_1, req, z, response)
-try {
+{
 	net->clock_update(req.param().clock);
 	response.null();
 }
-RPC_CATCH(KeepAlive_1, response)
 
 
 RPC_IMPL(proto_network, HashSpaceRequest_1, req, z, response)
-try {
+{
 	HashSpace::Seed* wseed;
 	HashSpace::Seed* rseed;
 	{
@@ -40,11 +39,10 @@ try {
 	gateway::proto_network::HashSpacePush_1 arg(*wseed, *rseed);
 	response.result(arg, z);
 }
-RPC_CATCH(HashSpaceRequest_1, response)
 
 
 RPC_IMPL(proto_network, WHashSpaceRequest_1, req, z, response)
-try {
+{
 	HashSpace::Seed* seed;
 	{
 		pthread_scoped_lock hslk(share->hs_mutex());
@@ -52,11 +50,10 @@ try {
 	}
 	response.result(*seed, z);
 }
-RPC_CATCH(WHashSpaceRequest_1, response)
 
 
 RPC_IMPL(proto_network, RHashSpaceRequest_1, req, z, response)
-try {
+{
 	HashSpace::Seed* seed;
 	{
 		pthread_scoped_lock hslk(share->hs_mutex());
@@ -64,7 +61,6 @@ try {
 	}
 	response.result(*seed, z);
 }
-RPC_CATCH(RHashSpaceRequest_1, response)
 
 
 
@@ -143,7 +139,7 @@ RPC_REPLY_IMPL(proto_network, HashSpacePush_1, from, res, err, life)
 
 
 RPC_IMPL(proto_network, HashSpaceSync_1, req, z, response)
-try {
+{
 	if(req.node()->addr() != share->partner()) {
 		throw std::runtime_error("unknown partner node");
 	}
@@ -186,7 +182,6 @@ try {
 		response.null();
 	}
 }
-RPC_CATCH(HashSpaceSync_1, response)
 
 
 void proto_network::keep_alive()

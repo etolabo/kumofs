@@ -6,7 +6,7 @@ namespace server {
 
 
 RPC_IMPL(proto_control, CreateBackup_1, req, z, response)
-try {
+{
 	std::string dst = share->cfg_db_backup_basename() + req.param().suffix;
 	LOG_INFO("create backup: ",dst);
 
@@ -14,11 +14,10 @@ try {
 
 	response.result(true);
 }
-RPC_CATCH(CreateBackup, response)
 
 
 RPC_IMPL(proto_control, GetStatus_1, req, z, response)
-try {
+{
 	LOG_DEBUG("GetStatus_1");
 
 	switch((status_type)req.param().command) {
@@ -63,7 +62,6 @@ try {
 		break;
 	}
 }
-RPC_CATCH(GetStatus_1, response)
 
 
 

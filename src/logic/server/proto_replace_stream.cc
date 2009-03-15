@@ -75,7 +75,7 @@ private:
 
 
 RPC_IMPL(proto_replace_stream, ReplaceOffer_1, req, z, response)
-try {
+{
 	address stream_addr = req.node()->addr();
 	stream_addr.set_port(req.param().port);
 	char addrbuf[stream_addr.addrlen()];
@@ -91,7 +91,6 @@ try {
 	// Note: don't return any result
 	LOG_TRACE("connect replace offer to ",req.node()->addr()," with stream port ",req.param().port);
 }
-RPC_CATCH(ReplaceDeleteStart, response)
 
 
 void proto_replace_stream::send_offer(proto_replace_stream::offer_storage& offer, ClockTime replace_time)

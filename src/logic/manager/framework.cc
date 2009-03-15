@@ -11,7 +11,7 @@ std::auto_ptr<resource> share;
 void framework::cluster_dispatch(
 		shared_node from, weak_responder response,
 		rpc::method_id method, rpc::msgobj param, auto_zone z)
-{
+try {
 	// FIXME try & catch
 	switch(method.get()) {
 	RPC_DISPATCH(proto_network, KeepAlive_1);
@@ -22,15 +22,15 @@ void framework::cluster_dispatch(
 	RPC_DISPATCH(proto_replace, ReplaceDeleteEnd_1);
 	RPC_DISPATCH(proto_replace, ReplaceElection_1);
 	default:
-		// FIXME exception class
-		throw std::runtime_error("unknown method");
+		throw unknown_method_error();
 	}
 }
+DISPATCH_CATCH(method, response)
 
 void framework::subsystem_dispatch(
 		shared_peer from, weak_responder response,
 		rpc::method_id method, rpc::msgobj param, auto_zone z)
-{
+try {
 	// FIXME try & catch
 	switch(method.get()) {
 	RPC_DISPATCH(proto_network, HashSpaceRequest_1);
@@ -41,10 +41,10 @@ void framework::subsystem_dispatch(
 	RPC_DISPATCH(proto_control, SetAutoReplace_1);
 	RPC_DISPATCH(proto_control, StartReplace_1);
 	default:
-		// FIXME exception class
-		throw std::runtime_error("unknown method");
+		throw unknown_method_error();
 	}
 }
+DISPATCH_CATCH(method, response)
 
 
 void framework::new_node(address addr, role_type id, shared_node n)

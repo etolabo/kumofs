@@ -7,7 +7,7 @@ namespace gateway {
 
 
 RPC_IMPL(proto_network, HashSpacePush_1, req, z, response)
-try {
+{
 	LOG_DEBUG("HashSpacePush");
 
 	{
@@ -18,7 +18,6 @@ try {
 
 	response.result(true);
 }
-RPC_CATCH(HashSpacePush, response)
 
 
 void proto_network::renew_hash_space()
