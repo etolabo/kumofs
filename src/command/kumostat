@@ -1,0 +1,96 @@
+#!/usr/bin/env ruby
+
+load File.dirname(__FILE__) + "/kumoctl"
+
+
+class KumoServer < KumoRPC
+	def initialize(host, port)
+		super(host, port)
+	end
+
+	def GetStatus(key)
+		send_request_sync_ex(Protocol::GetStatus, [key])
+	end
+
+	def SetConfig(*args)
+		send_request_sync_ex(Protocol::ControlDetachFaultServers, args)
+	end
+
+	STAT_PID         = 0
+	STAT_UPTIME      = 1
+	STAT_TIME        = 2
+	STAT_VERSION     = 3
+	STAT_CMD_GET     = 4
+	STAT_CMD_SET     = 5
+	STAT_CMD_DELETE  = 6
+	STAT_DB_ITEMS    = 7
+	STAT_CLOCKTIME   = 8
+end
+
+if $0 == __FILE__
+
+
+def usage
+	puts "Usage: #{File.basename($0)} address[:port=#{KumoRPC::SERVER_DEFAULT_PORT}] command [options]"
+	puts "command:"
+	puts "   pid                        get pid of server process"
+	puts "   uptime                     get uptime"
+	puts "   time                       get UNIX time"
+	puts "   version                    get version"
+	puts "   cmd_get                    get number of get requests"
+	puts "   cmd_set                    get number of set requests"
+	puts "   cmd_delete                 get number of delete requests"
+	puts "   items                      get number of stored items"
+	exit 1
+end
+
+if ARGV.length < 2
+	usage
+end
+
+addr = ARGV.shift
+host, port = addr.split(':', 2)
+port ||= KumoRPC::SERVER_DEFAULT_PORT
+
+cmd = ARGV.shift
+
+case cmd
+when "pid"
+	usage if ARGV.length != 0
+	p KumoServer.new(host, port).GetStatus(KumoServer::STAT_PID)
+
+when "uptime"
+	usage if ARGV.length != 0
+	p KumoServer.new(host, port).GetStatus(KumoServer::STAT_UPTIME)
+
+when "time"
+	usage if ARGV.length != 0
+	p KumoServer.new(host, port).GetStatus(KumoServer::STAT_TIME)
+
+when "version"
+	usage if ARGV.length != 0
+	p KumoServer.new(host, port).GetStatus(KumoServer::STAT_VERSION)
+
+when "cmd_get"
+	usage if ARGV.length != 0
+	p KumoServer.new(host, port).GetStatus(KumoServer::STAT_CMD_GET)
+
+when "cmd_set"
+	usage if ARGV.length != 0
+	p KumoServer.new(host, port).GetStatus(KumoServer::STAT_CMD_SET)
+
+when "cmd_delete"
+	usage if ARGV.length != 0
+	p KumoServer.new(host, port).GetStatus(KumoServer::STAT_CMD_DELETE)
+
+when "items"
+	usage if ARGV.length != 0
+	p KumoServer.new(host, port).GetStatus(KumoServer::STAT_DB_ITEMS)
+
+else
+	usage
+
+end
+
+
+end   # if $0 == __FILE__

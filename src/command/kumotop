@@ -1,0 +1,158 @@
+#!/usr/bin/env ruby
+
+load File.dirname(__FILE__) + "/kumostat"
+
+
+class Top
+	def initialize
+		@win = Curses.stdscr.subwin(5,30,2,2)
+		@str = ""
+	end
+
+	def refresh
+		@str << "a"
+		@win.box(?|,?-,?*)
+		@win.setpos(2,2)
+		@win.addstr(@str)
+		@win.refresh
+	end
+end
+
+def usage
+	puts "Usage: #{File.basename($0)} address[:port=#{KumoRPC::SERVER_DEFAULT_PORT}] ..."
+	exit 1
+end
+
+if ARGV.empty?
+	usage
+end
+
+
+INDEX  = %w[address #Get #Set #Del Get/s Set/s Del/s QPS items time clock]
+FORMAT =  %[%23s %9s %9s %9s %8s %8s %8s %8s %10s %20s %8s]
+TIME_FORMAT = "%Y-%m-%d %H:%M:%S"
+
+class Node
+	require "timeout"
+
+	def initialize(host, port)
+		@host = host
+		@port = port
+		@time = Time.at(0)
+		@before_get = 0
+		@before_set = 0
+		@before_del = 0
+		@con = nil
+	end
+
+	def param
+		unless @con
+			Timeout.timeout(0.5) {
+				@con = KumoServer.new(@host, @port)
+			}
+		end
+
+		get   = @con.GetStatus(KumoServer::STAT_CMD_GET)
+		set   = @con.GetStatus(KumoServer::STAT_CMD_SET)
+		del   = @con.GetStatus(KumoServer::STAT_CMD_DELETE)
+		items = @con.GetStatus(KumoServer::STAT_DB_ITEMS)
+		clocktime  = @con.GetStatus(KumoServer::STAT_CLOCKTIME)
+		time  = clocktime >> 32
+		clock = clocktime & 0xffffffff
+
+		now = Time.now
+		elapse = @time - now
+		@time = now
+
+		get_incr = @before_get - get
+		set_incr = @before_set - set
+		del_incr = @before_del - del
+		get_per_s = get_incr / elapse
+		set_per_s = set_incr / elapse
+		del_per_s = del_incr / elapse
+		q_per_s = (get_incr + set_incr + del_incr) / elapse
+
+		@before_get = get
+		@before_set = set
+		@before_del = del
+
+		[
+			"#{@host}:#{@port}",
+			int_format(get),
+			int_format(set),
+			int_format(del),
+			int_format(get_per_s),
+			int_format(set_per_s),
+			int_format(del_per_s),
+			q_per_s.to_i,
+			items,
+			Time.at(time).strftime(TIME_FORMAT),
+			clock
+		]
+
+	rescue
+		@con.close rescue nil
+		@con = nil
+		ar = Array.new(INDEX.length)
+		ar[0] = "#{@host}:#{@port}"
+		ar[1] = $!.to_s
+		ar
+	end
+
+	def int_format(n)
+		n.to_i
+		#if n < 10**3
+		#	n.to_i
+		#elsif n < 10**6
+		#	"%.1fK" % [n.to_f/(10**3)]
+		#elsif n < 10**12
+		#	"%.1fG" % [n.to_f/(10**6)]
+		#else
+		#	"%.1fT" % [n.to_f/(10**9)]
+		#end
+	end
+end
+
+@nodes = ARGV.map {|addr|
+	host, port = addr.split(':', 2)
+	port ||= KumoRPC::SERVER_DEFAULT_PORT
+	Node.new(host, port)
+}
+
+require "curses"
+Curses.init_screen
+
+def refresh
+	Curses.setpos(0, 0)
+	Curses.addstr FORMAT % INDEX
+
+	@nodes.each_with_index {|node, i|
+		Curses.setpos(1+i, 0)
+		Curses.addstr FORMAT % node.param
+	}
+	Curses.refresh
+end
+
+
+begin
+	th = Thread.start {
+		begin
+			while true
+				before = Time.now
+				refresh
+				elapse = Time.now - before
+				if elapse < 0.5
+					sleep 0.5 - elapse
+				end
+			end
+		rescue
+			$stderr.puts $!.inspect
+		end
+	}
+
+	Curses.getch
+
+ensure
+	Curses.close_screen
+end
+

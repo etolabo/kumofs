@@ -5,8 +5,8 @@
     <meta content="application/xhtml+xml; charset=UTF-8" http-equiv="content-type" />
     <meta content="text/css" http-equiv="content-style-type" />
     <meta content="text/javascript" http-equiv="content-script-type" />
-    <title>Kumofs memo -- Kumo Fast Storage rev.948</title>
-    <meta name="author" content="FURUHASHI Sadayuki" />
+    <title>Kumofs memo -- Kumo Fast Storage rev.1012</title>
+    <meta content="FURUHASHI Sadayuki" name="author" />
   </head>
   <body>
     <h2>概要</h2>
@@ -19,7 +19,7 @@
     <br />
     <h3>Consistent Hashing</h3>
     <p>Consistent Hashingを使ってデータを分散して保存する<sup class="footnote">
-        <a title="ハッシュ関数はSHA-1で、下位64ビットのみ使う。仮想ノードは128台" href="#footnote4-1" id="footnote4-1-anchor">*1</a>
+        <a title="ハッシュ関数はSHA-1で、下位64ビットのみ使う。仮想ノードは128台" id="footnote4-1-anchor" href="#footnote4-1">*1</a>
       </sup>。</p>
     <p>Serverがダウンしたときは、そのServerの仮想ノードに<strong>faultフラグ</strong>がセットされる。set/get/deleteはfaultフラグがセットされたServerをスキップして行われる。つまり、通常動作時はレプリケーションは3つ作成されるが、1台がfault状態ならコピーは2つ、2台がfault状態ならコピーは1つしか作成されないkeyが存在することになる。fault状態のServerが3台以上になると、get/set/deleteが失敗し続けるkeyが存在することになる。</p>
     <p>Serverがダウンしてもfaultフラグがセットされるだけで、レプリケーションの再配置は行われない。faultフラグがセットされたServerが存在する状態で、kumoctlコマンドを使って<strong>detach</strong>コマンドをManagerに送信すると、faultフラグがセットされたServerがハッシュ空間から取り除かれる。同時にレプリケーションの再配置が行われ、すべてのkeyに対してレプリケーションが3つ作成されるようにデータがコピーされる。</p>
@@ -47,7 +47,7 @@
     <br />
     <div class="footnote_view">
       <p>
-        <a href="#footnote4-1-anchor" id="footnote4-1">*1</a>ハッシュ関数はSHA-1で、下位64ビットのみ使う。仮想ノードは128台</p>
+        <a id="footnote4-1" href="#footnote4-1-anchor">*1</a>ハッシュ関数はSHA-1で、下位64ビットのみ使う。仮想ノードは128台</p>
     </div>
     <br />
     <h2>インストールと実行</h2>
@@ -69,7 +69,7 @@
       <li>rubygems</li>
       <li>libcrypto(openssl)</li>
       <li>zlib &gt;= XXX</li>
-      <li>Tokyo Cabinet &gt;= 1.4.9</li>
+      <li>Tokyo Cabinet &gt;= 1.4.10</li>
     </ul>
     <h3>コンパイル</h3>
     <p>まず最新のMessagePackをインストールする。</p>
@@ -208,7 +208,7 @@ $ sudo gem install gem/pkg/msgpack-*.gem
     </dl>
     <div class="footnote_view">
       <p>
-        <a href="#footnote4-1-anchor" id="footnote4-1">*1</a>ハッシュ関数はSHA-1で、下位64ビットのみ使う。仮想ノードは128台</p>
+        <a id="footnote4-1" href="#footnote4-1-anchor">*1</a>ハッシュ関数はSHA-1で、下位64ビットのみ使う。仮想ノードは128台</p>
     </div>
     <br />
     <h2>kumoctl</h2>
@@ -325,18 +325,18 @@ $ kumo-server -m localhost -s /path/to/database.tch
     <h2>死活監視と再配置</h2>
     <h3>障害の検出</h3>
     <p>ManagerとServerの接続では、あるノードにリクエストまたはレスポンスを送信しようとしたときに、そのノードとのコネクションが一本も存在せず、さらにconnect(2)が4回<sup class="footnote">
-        <a title="--connect-retry-limitで指定" href="#footnote4-2" id="footnote4-2-anchor">*2</a>
+        <a title="--connect-retry-limitで指定" id="footnote4-2-anchor" href="#footnote4-2">*2</a>
       </sup>連続して失敗したら、そのノードはダウンしたと見なす。</p>
     <p>ManagerとServerは2秒間隔<sup class="footnote">
-        <a title="--keep-alive-interval引数で指定" href="#footnote4-3" id="footnote4-3-anchor">*3</a>
+        <a title="--keep-alive-interval引数で指定" id="footnote4-3-anchor" href="#footnote4-3">*3</a>
       </sup>でkeepaliveメッセージをやりとりしているので、いつも何らかのリクエストかレスポンスを送ろうとしている状態になっている。</p>
     <p>connect(2)は次の条件で失敗する：</p>
     <ul class="ul1">
       <li>接続相手から明示的に接続を拒否された（Connection Refused）</li>
       <li>接続相手からの応答がない時間が3ステップ<sup class="footnote">
-          <a title="--connect-timeout-steps引数で指定" href="#footnote4-4" id="footnote4-4-anchor">*4</a>
+          <a title="--connect-timeout-steps引数で指定" id="footnote4-4-anchor" href="#footnote4-4">*4</a>
         </sup>続いた。1ステップは0.5秒<sup class="footnote">
-          <a title="--clock-interval引数で指定" href="#footnote4-5" id="footnote4-5-anchor">*5</a>
+          <a title="--clock-interval引数で指定" id="footnote4-5-anchor" href="#footnote4-5">*5</a>
         </sup>
       </li>
     </ul>
@@ -372,42 +372,42 @@ $ kumo-server -m localhost -s /path/to/database.tch
     <br />
     <h3>タイムアウト</h3>
     <p>GatewayでもServerでもManagerでも、リクエストを送ってから10ステップ（1ステップは0.5秒<sup class="footnote">
-        <a title="--clock-interval引数で指定" href="#footnote4-6" id="footnote4-6-anchor">*6</a>
+        <a title="--clock-interval引数で指定" id="footnote4-6-anchor" href="#footnote4-6">*6</a>
       </sup>）の間にレスポンスが返ってこないと、そのリクエストはタイムアウトしてエラーになる。</p>
     <p>プログラムから見てTCPコネクションが確立しているか否かはタイムアウトには関係しない。コネクションが確立していなくても時間以内に再接続してレスポンスが返れば正常通り処理が続行され、コネクションが確立していても時間以内にレスポンスが返ってこなければタイムアウトする。</p>
     <p>GatewayはServerに送ったリクエストがエラーになった回数が5回<sup class="footnote">
-        <a title="--renew-threashold引数で指定" href="#footnote4-7" id="footnote4-7-anchor">*7</a>
+        <a title="--renew-threashold引数で指定" id="footnote4-7-anchor" href="#footnote4-7">*7</a>
       </sup>以上失敗すると、Managerから最新のハッシュ空間を取得する。</p>
     <br />
     <h3>リトライ</h3>
     <p>Gatewayはsetは最大20回<sup class="footnote">
-        <a title="--set-retry引数で指定" href="#footnote4-8" id="footnote4-8-anchor">*8</a>
+        <a title="--set-retry引数で指定" id="footnote4-8-anchor" href="#footnote4-8">*8</a>
       </sup>まで、deleteは最大20回<sup class="footnote">
-        <a title="--delete-retry引数で指定" href="#footnote4-9" id="footnote4-9-anchor">*9</a>
+        <a title="--delete-retry引数で指定" id="footnote4-9-anchor" href="#footnote4-9">*9</a>
       </sup>まで、getは最大5×(レプリケーション数==3 + 1)回<sup class="footnote">
-        <a title="係数は--get-retry引数で指定" href="#footnote4-10" id="footnote4-10-anchor">*10</a>
+        <a title="係数は--get-retry引数で指定" id="footnote4-10-anchor" href="#footnote4-10">*10</a>
       </sup>までリトライする。制限回数までリトライしても失敗したらアプリケーションにエラーが返される。</p>
     <div class="footnote_view">
       <p>
-        <a href="#footnote4-1-anchor" id="footnote4-1">*1</a>ハッシュ関数はSHA-1で、下位64ビットのみ使う。仮想ノードは128台</p>
+        <a id="footnote4-1" href="#footnote4-1-anchor">*1</a>ハッシュ関数はSHA-1で、下位64ビットのみ使う。仮想ノードは128台</p>
       <p>
-        <a href="#footnote4-2-anchor" id="footnote4-2">*2</a>--connect-retry-limitで指定</p>
+        <a id="footnote4-2" href="#footnote4-2-anchor">*2</a>--connect-retry-limitで指定</p>
       <p>
-        <a href="#footnote4-3-anchor" id="footnote4-3">*3</a>--keep-alive-interval引数で指定</p>
+        <a id="footnote4-3" href="#footnote4-3-anchor">*3</a>--keep-alive-interval引数で指定</p>
       <p>
-        <a href="#footnote4-4-anchor" id="footnote4-4">*4</a>--connect-timeout-steps引数で指定</p>
+        <a id="footnote4-4" href="#footnote4-4-anchor">*4</a>--connect-timeout-steps引数で指定</p>
       <p>
-        <a href="#footnote4-5-anchor" id="footnote4-5">*5</a>--clock-interval引数で指定</p>
+        <a id="footnote4-5" href="#footnote4-5-anchor">*5</a>--clock-interval引数で指定</p>
       <p>
-        <a href="#footnote4-6-anchor" id="footnote4-6">*6</a>--clock-interval引数で指定</p>
+        <a id="footnote4-6" href="#footnote4-6-anchor">*6</a>--clock-interval引数で指定</p>
       <p>
-        <a href="#footnote4-7-anchor" id="footnote4-7">*7</a>--renew-threashold引数で指定</p>
+        <a id="footnote4-7" href="#footnote4-7-anchor">*7</a>--renew-threashold引数で指定</p>
       <p>
-        <a href="#footnote4-8-anchor" id="footnote4-8">*8</a>--set-retry引数で指定</p>
+        <a id="footnote4-8" href="#footnote4-8-anchor">*8</a>--set-retry引数で指定</p>
       <p>
-        <a href="#footnote4-9-anchor" id="footnote4-9">*9</a>--delete-retry引数で指定</p>
+        <a id="footnote4-9" href="#footnote4-9-anchor">*9</a>--delete-retry引数で指定</p>
       <p>
-        <a href="#footnote4-10-anchor" id="footnote4-10">*10</a>係数は--get-retry引数で指定</p>
+        <a id="footnote4-10" href="#footnote4-10-anchor">*10</a>係数は--get-retry引数で指定</p>
     </div>
     <br />
     <h2>クロック</h2>
@@ -445,25 +445,25 @@ clocktime
     <p>Managerが2台動作しているとき、どちらが持っているハッシュ空間が最新なのかを比べる必要がある。ハッシュ空間を更新するときに更新した時のクロックを付与しておき、比較するときにこのクロックを利用する。</p>
     <div class="footnote_view">
       <p>
-        <a href="#footnote4-1-anchor" id="footnote4-1">*1</a>ハッシュ関数はSHA-1で、下位64ビットのみ使う。仮想ノードは128台</p>
+        <a id="footnote4-1" href="#footnote4-1-anchor">*1</a>ハッシュ関数はSHA-1で、下位64ビットのみ使う。仮想ノードは128台</p>
       <p>
-        <a href="#footnote4-2-anchor" id="footnote4-2">*2</a>--connect-retry-limitで指定</p>
+        <a id="footnote4-2" href="#footnote4-2-anchor">*2</a>--connect-retry-limitで指定</p>
       <p>
-        <a href="#footnote4-3-anchor" id="footnote4-3">*3</a>--keep-alive-interval引数で指定</p>
+        <a id="footnote4-3" href="#footnote4-3-anchor">*3</a>--keep-alive-interval引数で指定</p>
       <p>
-        <a href="#footnote4-4-anchor" id="footnote4-4">*4</a>--connect-timeout-steps引数で指定</p>
+        <a id="footnote4-4" href="#footnote4-4-anchor">*4</a>--connect-timeout-steps引数で指定</p>
       <p>
-        <a href="#footnote4-5-anchor" id="footnote4-5">*5</a>--clock-interval引数で指定</p>
+        <a id="footnote4-5" href="#footnote4-5-anchor">*5</a>--clock-interval引数で指定</p>
       <p>
-        <a href="#footnote4-6-anchor" id="footnote4-6">*6</a>--clock-interval引数で指定</p>
+        <a id="footnote4-6" href="#footnote4-6-anchor">*6</a>--clock-interval引数で指定</p>
       <p>
-        <a href="#footnote4-7-anchor" id="footnote4-7">*7</a>--renew-threashold引数で指定</p>
+        <a id="footnote4-7" href="#footnote4-7-anchor">*7</a>--renew-threashold引数で指定</p>
       <p>
-        <a href="#footnote4-8-anchor" id="footnote4-8">*8</a>--set-retry引数で指定</p>
+        <a id="footnote4-8" href="#footnote4-8-anchor">*8</a>--set-retry引数で指定</p>
       <p>
-        <a href="#footnote4-9-anchor" id="footnote4-9">*9</a>--delete-retry引数で指定</p>
+        <a id="footnote4-9" href="#footnote4-9-anchor">*9</a>--delete-retry引数で指定</p>
       <p>
-        <a href="#footnote4-10-anchor" id="footnote4-10">*10</a>係数は--get-retry引数で指定</p>
+        <a id="footnote4-10" href="#footnote4-10-anchor">*10</a>係数は--get-retry引数で指定</p>
     </div>
   </body>
 </html>

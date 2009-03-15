@@ -1,0 +1,220 @@
+#!/usr/bin/env ruby
+begin
+	require 'rubygems'
+rescue LoadError
+end
+require 'msgpack'
+require 'yaml'
+require 'pp'
+
+def fixstr(code)
+	r = ""
+	8.times {|i|
+		c = ((code >> (8*(7-i))) & 0xff)
+		r << c.chr if c != 0
+	}
+	r
+end
+
+def do_recover(src, off)
+	puts "recover at #{off}"
+	sz = src.length
+	pk = MessagePack::Unpacker.new
+
+	while (sz - off) >= 4
+		br = src[off,4].unpack('N')[0]
+		doff = off + 4
+
+		failed = false
+		begin
+			#noff = pk.execute_limit(src, doff, doff+br)
+			noff = pk.execute(src, doff)
+		rescue
+			failed = true
+		end
+
+		if !failed && pk.finished? && noff - doff == br
+			return off
+		end
+
+		pk.reset
+		off += 1
+	end
+	return sz
+end
+
+def do_parse(src, count, &block)
+	off = 0
+	noff = 0
+	sz = src.length
+
+	pk = MessagePack::Unpacker.new
+
+	while true
+		return if (sz - off) < 4
+
+		br = src[off,4].unpack('N')[0]
+		off += 4
+
+		if (sz - off) < br
+			off = do_recover(src, off-3)
+			next
+		end
+
+		failed = false
+		begin
+			pk.reset
+			#noff = pk.execute_limit(src, off, off+br)
+			noff = pk.execute(src, off)
+		rescue
+			failed = true
+		end
+
+		if failed || !pk.finished? || noff - off != br
+			off = do_recover(src, off-3)
+			next
+		end
+
+		obj = pk.data
+
+		name = nil
+		version = 0
+		hash = {}
+		begin
+			unless obj.is_a?(Array) && obj.length == 3 &&
+					obj[0].is_a?(Numeric) && obj[1].is_a?(Numeric) &&
+					obj[2].is_a?(Hash)
+				off = do_recover(src, off-3)
+				next
+			end
+			name = fixstr(obj[0])
+			version = obj[1]
+			obj[2].each_pair {|k,v|
+				hash[fixstr(k)] = v
+			}
+		rescue
+			off = do_recover(src, off-3)
+			next
+		end
+
+		off += br
+
+		block.call(name, version, hash)
+	end
+end
+
+class Hash
+	def hmap(&block)
+		m = {}
+		each_pair {|k, v|
+			m[k] = block.call(k, v)
+		}
+		m
+	end
+end
+
+
+if ARGV.length == 0
+	puts "usage: #{File.basename($0)} <logfile.mpac>"
+	exit 1
+end
+
+
+conf = YAML.load DATA.read.gsub(/(^\t+)/) {
+	'  ' * $+.length
+}
+
+msgdb = conf["message"]
+
+filterdb = conf["filter"].hmap {|name, hash|
+	hash.hmap {|key, proc|
+		[ proc[0], eval("lambda{|val|#{proc[1]}}") ]
+	}
+}
+
+do_parse(File.read(ARGV[0]), 1<<30) {|name, version, hash|
+	msg = msgdb[name] || "#{name}.#{version}"
+
+	if filter = filterdb["#{name}.#{version}"]
+		filter.each_pair {|key, proc|
+			val = hash.delete(key)
+			begin
+				hash[proc[0]] = proc[1].call(val)
+			rescue
+			end
+		}
+	end
+
+	vals = hash.map {|k, v|
+		pv = v.pretty_inspect.rstrip
+		pv = v if pv[1..-2] == v
+		"#{k}=[#{pv}]"
+	}.sort_by{|kv| kv[0] }.join('  ')
+
+	puts "%s.%s  %-15s  %s" % [name, version, msg, vals]
+}
+
+
+__END__
+proc:
+	- &addr |
+		require 'socket'
+		if val.length == 6
+			addr = Socket.pack_sockaddr_in(0, '0.0.0.0')
+			addr[2,6] = val[0,6]
+		else
+			addr = Socket.pack_sockaddr_in(0, '::')
+			addr[2,2]  = val[0,2]
+			addr[8,20] = val[2,20]
+		end
+		Socket.unpack_sockaddr_in(addr).reverse.join(':')
+
+	- &time |
+		Time.at(val).strftime("%Y-%m-%d %H:%M:%S")
+
+	- &clocktime |
+		Time.at(val>>32).strftime("%Y-%m-%d %H:%M:%S") + " clock #{val & 0xffffffff}"
+
+message:
+	SM: Manager start
+	SS: Server start
+	SW: Gateway start
+	eP: unknown partner
+	nS: new server
+	lS: lost server
+	ers: replicate-set failed
+	erd: replicate-delete failed
+	eg: Get failed
+	es: Set failed
+	ed: Delete failed
+
+filter:
+	SM.2:
+		time: [time, *time]
+		addr: [address, *addr]
+		Padd: [partner, *addr]
+	SS.2:
+		time: [time, *time]
+		addr: [address, *addr]
+		db:   [database, val]
+		mgr1: [manager1, *addr]
+		mgr2: [manager2, *addr]
+		sadd: [stream_listen, *addr]
+		tmpd: [tmp_dir, val]
+		bkup: [backup_prefix, val]
+	SW.2:
+		time: [time, *time]
+		mgr1: [manager1, *addr]
+		mgr2: [manager2, *addr]
+	eP.2:
+		addr: [address, *addr]
+	nS.2:
+		addr: [address, *addr]
+	lS.2:
+		addr: [address, *addr]
+	ers.3:
+		to:   [to, *addr]
+		cktm: [clocktime, *clocktime]
+	erd.3:
+		to:   [to, *addr]
+
