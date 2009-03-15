@@ -73,7 +73,7 @@ public:
 public:
 	// call all registered callback functions with specified arguments
 	// and set is_lost == true
-	void force_lost(msgobj res, msgobj err);
+	void force_lost(basic_shared_session& s, msgobj res, msgobj err);
 
 public:
 	// return true if the destructor of this session is already running or

@@ -168,7 +168,8 @@ void client<Transport, Session>::transport_lost(shared_session& s)
 	err.type = msgpack::type::POSITIVE_INTEGER;
 	err.via.u64 = protocol::NODE_LOST_ERROR;
 
-	s->force_lost(res, err);
+	basic_shared_session bs = mp::static_pointer_cast<basic_session>(s);
+	s->force_lost(bs, res, err);
 }
 
 

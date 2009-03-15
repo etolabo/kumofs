@@ -68,7 +68,7 @@ void server::transport_lost_notify(basic_shared_session& s)
 		m_peers.erase(k);
 	}
 
-	s->force_lost(res, err);
+	s->force_lost(s, res, err);
 }
 
 

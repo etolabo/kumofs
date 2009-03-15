@@ -64,7 +64,8 @@ basic_session::~basic_session()
 	err.type = msgpack::type::POSITIVE_INTEGER;
 	err.via.u64 = protocol::TRANSPORT_LOST_ERROR;
 
-	force_lost(res, err);
+	basic_shared_session nulls;  // FIXME nulls
+	force_lost(nulls, res, err);
 }
 
 session::~session()
@@ -189,25 +190,27 @@ void basic_session::shutdown()
 
 namespace {
 	struct each_callback_submit {
-		each_callback_submit(msgobj r, msgobj e) :
-			res(r), err(e) { }
+		each_callback_submit(basic_shared_session& s,
+				msgobj r, msgobj e) :
+			self(s), res(r), err(e) { }
 		template <typename T>
 		void operator() (T& pair) const
 		{
-			basic_shared_session nulls;
-			pair.second.callback_submit(nulls, res, err);
+			pair.second.callback_submit(self, res, err);
 		}
 	private:
+		basic_shared_session& self;
 		msgobj res;
 		msgobj err;
 		each_callback_submit();
 	};
 }
 
-void basic_session::force_lost(msgobj res, msgobj err)
+void basic_session::force_lost(basic_shared_session& s,
+		msgobj res, msgobj err)
 {
 	m_lost = true;
-	m_cbtable.for_each_clear(each_callback_submit(res, err));
+	m_cbtable.for_each_clear(each_callback_submit(s, res, err));
 }
 
 
