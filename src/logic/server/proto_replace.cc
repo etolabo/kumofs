@@ -226,7 +226,7 @@ void proto_replace::for_each_replace_copy::operator() (Storage::iterator& kv)
 	const char* raw_val = kv.val();
 	size_t raw_vallen = kv.vallen();
 
-	// FIXME do it in storage module.
+	// Note: it is done in storage wrapper.
 	//if(raw_vallen < Storage::VALUE_META_SIZE) { return; }
 	//if(raw_keylen < Storage::KEY_META_SIZE) { return; }
 
@@ -247,10 +247,10 @@ void proto_replace::for_each_replace_copy::operator() (Storage::iterator& kv)
 		}
 	}
 
-	// FIXME 再配置中にServerがダウンしたときコピーが正常に行われないかもしれない
-	//if(current_owners.empty() || current_owners.front() != self) { return; }
-	if(std::find(current_owners.begin(), current_owners.end(), self)
-			== current_owners.end()) { return; }
+	// FIXME 再配置中にServerがダウンしたときコピーが正常に行われないかもしれない？
+	if(current_owners.empty() || current_owners.front() != self) { return; }
+	//if(std::find(current_owners.begin(), current_owners.end(), self)
+	//		== current_owners.end()) { return; }
 
 	newbies.clear();
 	for(addrvec_iterator it(Da.begin()); it != Da.end(); ++it) {
@@ -293,7 +293,7 @@ void proto_replace::finish_replace_copy(ClockTime replace_time, REQUIRE_STLK)
 RPC_REPLY_IMPL(proto_replace, ReplaceCopyEnd_1, from, res, err, life)
 {
 	if(!err.is_nil()) { LOG_ERROR("ReplaceCopyEnd failed: ",err); }
-	// FIXME
+	// FIXME retry
 }
 
 
@@ -340,7 +340,7 @@ void proto_replace::replace_delete(shared_node& manager, HashSpace& hs)
 
 void proto_replace::for_each_replace_delete::operator() (Storage::iterator& kv)
 {
-	// FIXME do it in storage module.
+	// Note: it is done in storage wrapper.
 	//if(kv.keylen() < Storage::KEY_META_SIZE ||
 	//		kv.vallen() < Storage::VALUE_META_SIZE) {
 	//	LOG_TRACE("delete invalid key: ",kv.key());
@@ -358,7 +358,7 @@ RPC_REPLY_IMPL(proto_replace, ReplaceDeleteEnd_1, from, res, err, life)
 	if(!err.is_nil()) {
 		LOG_ERROR("ReplaceDeleteEnd failed: ",err);
 	}
-	// FIXME retry?
+	// FIXME retry
 }
 
 

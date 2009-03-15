@@ -337,7 +337,6 @@ RPC_IMPL(proto_replace, ReplaceDeleteEnd_1, req, z, response)
 
 void proto_replace::finish_replace_copy(REQUIRE_RELK)
 {
-	// FIXME
 	ClockTime replace_time = m_copying.clocktime();
 	LOG_INFO("start replace delete time(",replace_time.get(),")");
 
@@ -374,7 +373,6 @@ RPC_REPLY_IMPL(proto_replace, ReplaceDeleteStart_1, from, res, err, life)
 
 inline void proto_replace::finish_replace(REQUIRE_RELK)
 {
-	// FIXME
 	LOG_INFO("replace finished time(",m_deleting.clocktime().get(),")");
 	m_deleting.invalidate();
 }
