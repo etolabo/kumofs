@@ -118,28 +118,6 @@ struct unknown_method_error : msgpack::type_error { };
 
 
 
-#define RPC_CATCH(NAME, response) \
-catch (msgpack::type_error& e) { \
-	LOG_ERROR(#NAME " FAILED: type error"); \
-	try { \
-		response.error((uint8_t)rpc::protocol::SERVER_ERROR); \
-	} catch (...) { } \
-	throw; \
-} catch (std::exception& e) { \
-	LOG_WARN(#NAME " FAILED: ",e.what()); \
-	try { \
-		response.error((uint8_t)rpc::protocol::SERVER_ERROR); \
-	} catch (...) { } \
-	throw; \
-} catch (...) { \
-	LOG_ERROR(#NAME " FAILED: unknown error"); \
-	try { \
-		response.error((uint8_t)rpc::protocol::UNKNOWN_ERROR); \
-	} catch (...) { } \
-	throw; \
-}
-// FIXME more specific error
-
 #define DISPATCH_CATCH(method, response) \
 catch (unknown_method_error& e) { \
 	try { \

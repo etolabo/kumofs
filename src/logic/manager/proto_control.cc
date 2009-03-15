@@ -10,7 +10,7 @@ proto_control::~proto_control() { }
 
 
 RPC_IMPL(proto_control, GetNodesInfo_1, req, z, response)
-try {
+{
 	Status res;
 
 	{
@@ -30,10 +30,9 @@ try {
 
 	response.result(res);
 }
-RPC_CATCH(GetNodesInfo_1, response)
 
 RPC_IMPL(proto_control, AttachNewServers_1, req, z, response)
-try {
+{
 	{
 		pthread_scoped_lock hslk(share->hs_mutex());
 		net->scope_proto_replace().attach_new_servers(hslk);
@@ -41,10 +40,9 @@ try {
 	}
 	response.null();
 }
-RPC_CATCH(AttachNewServers, response);
 
 RPC_IMPL(proto_control, DetachFaultServers_1, req, z, response)
-try {
+{
 	{
 		pthread_scoped_lock hslk(share->hs_mutex());
 		net->scope_proto_replace().detach_fault_servers(hslk);
@@ -52,10 +50,9 @@ try {
 	}
 	response.null();
 }
-RPC_CATCH(DetachFaultServers, response);
 
 RPC_IMPL(proto_control, CreateBackup_1, req, z, response)
-try {
+{
 	if(req.param().suffix.empty()) {
 		std::string msg("empty suffix");
 		response.error(msg);
@@ -73,13 +70,12 @@ try {
 
 	response.null();
 }
-RPC_CATCH(CreateBackup, response);
 
 RPC_REPLY_IMPL(proto_control, CreateBackup_1, from, res, err, life)
 { }
 
 RPC_IMPL(proto_control, SetAutoReplace_1, req, z, response)
-try {
+{
 	if(share->cfg_auto_replace() && !req.param().enable) {
 		share->cfg_auto_replace() = false;
 		response.result(false);
@@ -96,10 +92,9 @@ try {
 	}
 	response.null();
 }
-RPC_CATCH(SetAutoReplace, response);
 
 RPC_IMPL(proto_control, StartReplace_1, req, z, response)
-try {
+{
 	{
 		pthread_scoped_lock hslk(share->hs_mutex());
 		net->scope_proto_replace().start_replace(hslk);
@@ -107,7 +102,6 @@ try {
 
 	response.null();
 }
-RPC_CATCH(StartReplace, response);
 
 
 }  // namespace manager
