@@ -97,12 +97,12 @@ struct arg_t : rpc_server_args {
 	void show_usage()
 	{
 std::cout <<
-"usage: "<<prog<<" -m <addr[:port]> -p <addr[:port]> [-t port="<<MEMTEXT_DEFAULT_PORT<<"]\n"
+"usage: "<<prog<<" -m <addr[:port]> -p <addr[:port]> [-t port] [-b port] [-c port]\n"
 "\n"
 "  -m  <addr[:port="<<MANAGER_DEFAULT_PORT<<"]>   "       "--manager1        address of manager 1\n"
 "  -p  <addr[:port="<<MANAGER_DEFAULT_PORT<<"]>   "       "--manager2        address of manager 2\n"
 "  -t  <[addr:]port="<<MEMTEXT_DEFAULT_PORT<<">   "       "--memproto-text   memcached text protocol listen port\n"
-"  -b  <[addr:]port="<<MEMPROTO_DEFAULT_PORT<<">   "      "--memprpto-binary memcached binary protocol listen port\n"
+"  -b  <[addr:]port="<<MEMPROTO_DEFAULT_PORT<<">   "      "--memproto-binary memcached binary protocol listen port\n"
 "  -c  <[addr:]port="<<CLOUDY_DEFAULT_PORT<<">   "        "--cloudy          asynchronous memcached binary protocol listen port\n"
 "  -As               "                                    "--async-replicate-set    send response without waiting replication on set\n"
 "  -Ad               "                                    "--async-replicate-delete send response without waiting replication on delete\n"

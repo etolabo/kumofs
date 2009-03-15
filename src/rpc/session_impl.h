@@ -78,22 +78,25 @@ void basic_session::call(
 		unsigned short timeout_steps)
 {
 	LOG_DEBUG("send request method=",Message::method::id);
-	if(is_lost()) { throw std::runtime_error("lost session"); }
-	//if(!life) { life.reset(new msgpack::zone()); }
 
+	//if(!life) { life.reset(new msgpack::zone()); }
 	std::auto_ptr<vrefbuffer> buf(new vrefbuffer());
 	msgid_t msgid = pack(*buf, param);
+
+	m_cbtable.insert(msgid, callback_entry(callback, life, timeout_steps));
+
+	if(is_lost()) {
+		//throw std::runtime_error("lost session");
+		// FIXME XXX forget the error for robustness and wait timeout.
+		return;
+	}
 
 	pthread_scoped_lock blk(m_binds_mutex);
 	if(m_binds.empty()) {
 		//throw std::runtime_error("session not bound");
-		// FIXME XXX forget the error for robustness.
-		// FIXME XXX wait timeout:
-		m_cbtable.insert(msgid, callback_entry(callback, life, timeout_steps));
-		buf.release();
+		// FIXME XXX forget the error for robustness and wait timeout.
 
 	} else {
-		m_cbtable.insert(msgid, callback_entry(callback, life, timeout_steps));
 		// ad-hoc load balancing
 		m_binds[m_msgid_rr % m_binds.size()]->send_datav(buf.get(),
 				&mp::object_delete<vrefbuffer>, buf.get());
@@ -109,13 +112,18 @@ void session::call(
 		unsigned short timeout_steps)
 {
 	LOG_DEBUG("send request method=",Message::method::id);
-	if(is_lost()) { throw std::runtime_error("lost session"); }
-	//if(!life) { life.reset(new msgpack::zone()); }
 
+	//if(!life) { life.reset(new msgpack::zone()); }
 	std::auto_ptr<vrefbuffer> buf(new vrefbuffer());
 	msgid_t msgid = pack(*buf, param);
 
 	m_cbtable.insert(msgid, callback_entry(callback, life, timeout_steps));
+
+	if(is_lost()) {
+		//throw std::runtime_error("lost session");
+		// FIXME XXX forget the error for robustness and wait timeout.
+		return;
+	}
 
 	pthread_scoped_lock blk(m_binds_mutex);
 	if(m_binds.empty()) {
