@@ -64,7 +64,6 @@ RPC_IMPL(proto_control, GetStatus_1, req, z, response)
 }
 
 
-
 }  // namespace server
 }  // namespace kumo
 

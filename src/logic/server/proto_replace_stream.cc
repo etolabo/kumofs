@@ -110,7 +110,7 @@ void proto_replace_stream::send_offer(proto_replace_stream::offer_storage& offer
 
 		using namespace mp::placeholders;
 		net->get_node(addr)->call(param, nullz,
-				BIND_RESPONSE(proto_replace_stream, ReplaceOffer_1, replace_time, addr), 160);  // FIXME 160
+				BIND_RESPONSE(proto_replace_stream, ReplaceOffer_1, addr), 160);  // FIXME 160
 
 		net->scope_proto_replace().replace_offer_push(replace_time, relk);
 	}
@@ -118,7 +118,7 @@ void proto_replace_stream::send_offer(proto_replace_stream::offer_storage& offer
 
 
 RPC_REPLY_IMPL(proto_replace_stream, ReplaceOffer_1, from, res, err, life,
-		ClockTime replace_time, address addr)
+		address addr)
 {
 	LOG_TRACE("ResReplaceOffer from ",addr," res:",res," err:",err);
 	// Note: this request always timed out

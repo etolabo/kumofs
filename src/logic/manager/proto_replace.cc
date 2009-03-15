@@ -178,34 +178,42 @@ void proto_replace::detach_fault_servers(REQUIRE_HSLK)
 }
 
 
-proto_replace::ReplaceContext::ReplaceContext() :
-	m_num(0), m_clocktime(0) {}
+proto_replace::progress::progress() :
+	m_clocktime(0) { }
 
-proto_replace::ReplaceContext::~ReplaceContext() {}
+proto_replace::progress::~progress() { }
 
-inline ClockTime proto_replace::ReplaceContext::clocktime() const { return m_clocktime; }
-
-inline void proto_replace::ReplaceContext::reset(ClockTime ct, unsigned int num)
+inline ClockTime proto_replace::progress::clocktime() const
 {
-	m_num = num;
-	m_clocktime = ct;
+	return m_clocktime;
 }
 
-bool proto_replace::ReplaceContext::pop(ClockTime ct)
+inline void proto_replace::progress::reset(ClockTime replace_time, const nodes_t& nodes)
 {
-	if(m_clocktime != ct) { return false; }
-	if(m_num == 1) {
-		m_num = 0;
-		return true;
-	}
-	--m_num;
-	return false;
+	m_target_nodes = m_remainder = nodes;
+	m_clocktime = replace_time;
 }
 
-void proto_replace::ReplaceContext::invalidate()
+bool proto_replace::progress::pop(ClockTime replace_time, const rpc::address& node)
+{
+	if(m_clocktime != replace_time) { return false; }
+	if(m_remainder.empty()) { return false; }
+
+	nodes_t::iterator erase_from =
+		std::remove(m_remainder.begin(), m_remainder.end(), node);
+	m_remainder.erase(erase_from, m_remainder.end());
+
+	return m_remainder.empty();
+}
+
+proto_replace::progress::nodes_t proto_replace::progress::invalidate()
 {
 	m_clocktime = ClockTime(0);
-	m_num = 0;
+	m_remainder.clear();
+
+	nodes_t tmp;
+	m_target_nodes.swap(tmp);
+	return tmp;
 }
 
 
@@ -217,24 +225,24 @@ void proto_replace::start_replace(REQUIRE_HSLK)
 	shared_zone life(new msgpack::zone());
 
 	HashSpace::Seed* seed = life->allocate<HashSpace::Seed>(share->whs());
-	ClockTime ct(share->whs().clocktime());
+	ClockTime replace_time(share->whs().clocktime());
 
 	server::proto_replace::ReplaceCopyStart_1 param(*seed, net->clock_incr());
 
 	using namespace mp::placeholders;
 	rpc::callback_t callback( BIND_RESPONSE(proto_replace, ReplaceCopyStart_1) );
 
-	unsigned int num_active = 0;
+	progress::nodes_t target_nodes;
 
 	pthread_scoped_lock sslk(share->servers_mutex());
 	EACH_ACTIVE_SERVERS_BEGIN(n)
 		n->call(param, life, callback, 10);
-		++num_active;
+		target_nodes.push_back(n->addr());
 	EACH_ACTIVE_SERVERS_END
 	sslk.unlock();
 
-	LOG_INFO("active node: ",num_active);
-	m_copying.reset(ct, num_active);
+	LOG_INFO("active node: ",target_nodes.size());
+	m_copying.reset(replace_time, target_nodes);
 	m_deleting.invalidate();
 	relk.unlock();
 
@@ -265,7 +273,6 @@ RPC_IMPL(proto_replace, ReplaceElection_1, req, z, response)
 	net->clock_update(req.param().clock);
 
 	pthread_scoped_lock hslk(share->hs_mutex());
-	ClockTime ct(share->whs().clocktime());
 
 	if(req.param().hsseed.empty() ||
 			ClockTime(req.param().hsseed.clocktime()) < share->whs().clocktime()) {
@@ -302,8 +309,8 @@ RPC_IMPL(proto_replace, ReplaceCopyEnd_1, req, z, response)
 
 	net->clock_update(req.param().clock);
 
-	ClockTime ct(req.param().clocktime);
-	if(m_copying.pop(ct)) {
+	ClockTime replace_time(req.param().replace_time);
+	if(m_copying.pop(replace_time, req.node()->addr())) {
 		finish_replace_copy(relk);
 	}
 
@@ -318,8 +325,8 @@ RPC_IMPL(proto_replace, ReplaceDeleteEnd_1, req, z, response)
 
 	net->clock_update(req.param().clock);
 
-	ClockTime ct(req.param().clocktime);
-	if(m_deleting.pop(ct)) {
+	ClockTime replace_time(req.param().replace_time);
+	if(m_deleting.pop(replace_time, req.node()->addr())) {
 		finish_replace(relk);
 	}
 
@@ -331,9 +338,10 @@ RPC_IMPL(proto_replace, ReplaceDeleteEnd_1, req, z, response)
 void proto_replace::finish_replace_copy(REQUIRE_RELK)
 {
 	// FIXME
-	ClockTime clocktime = m_copying.clocktime();
-	LOG_INFO("start replace delete time(",clocktime.get(),")");
-	m_copying.invalidate();
+	ClockTime replace_time = m_copying.clocktime();
+	LOG_INFO("start replace delete time(",replace_time.get(),")");
+
+	progress::nodes_t target_nodes = m_copying.invalidate();
 
 	shared_zone life(new msgpack::zone());
 	HashSpace::Seed* seed = life->allocate<HashSpace::Seed>(share->whs());
@@ -344,16 +352,13 @@ void proto_replace::finish_replace_copy(REQUIRE_RELK)
 	using namespace mp::placeholders;
 	rpc::callback_t callback( BIND_RESPONSE(proto_replace, ReplaceDeleteStart_1) );
 
-	unsigned int num_active = 0;
-
 	pthread_scoped_lock sslk(share->servers_mutex());
-	EACH_ACTIVE_SERVERS_BEGIN(node)
-		node->call(param, life, callback, 10);
-		++num_active;
-	EACH_ACTIVE_SERVERS_END
-	sslk.unlock();
+	for(progress::nodes_t::iterator it(target_nodes.begin()),
+			it_end(target_nodes.end()); it != it_end; ++it) {
+		net->get_node(*it)->call(param, life, callback, 10);
+	}
 
-	m_deleting.reset(clocktime, num_active);
+	m_deleting.reset(replace_time, target_nodes);
 
 	pthread_scoped_lock hslk(share->hs_mutex());
 	share->rhs() = share->whs();

@@ -137,7 +137,7 @@ catch (unknown_method_error& e) { \
 	try { \
 		response.error((uint8_t)rpc::protocol::SERVER_ERROR); \
 	} catch (...) { } \
-	LOG_ERROR("method ",method.protocol(),".",method.version(), \
+	LOG_WARN("method ",method.protocol(),".",method.version(), \
 			" error: ",e.what()); \
 	throw; \
 } catch (...) { \

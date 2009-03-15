@@ -254,7 +254,7 @@ private:
 			accum_set_t& map, const address& addr);
 
 	RPC_REPLY_DECL(ReplaceOffer_1, from, res, err, life,
-			ClockTime replace_time, address addr);
+			address addr);
 
 	void stream_accepted(int fd, int err);
 	void stream_connected(int fd, int err);

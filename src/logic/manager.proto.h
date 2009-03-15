@@ -71,14 +71,14 @@ class framework;
 @end
 
 @rpc proto_replace
-	message ReplaceCopyEnd.1 {
-		ClockTime clocktime;  // FIXME ClockTime?
+	message ReplaceCopyEnd.1 +cluster {
+		ClockTime replace_time;
 		Clock clock;
 		// acknowledge: true
 	};
 
-	message ReplaceDeleteEnd.1 {
-		ClockTime clocktime;  // FIXME ClockTime?
+	message ReplaceDeleteEnd.1 +cluster {
+		ClockTime replace_time;
 		Clock clock;
 		// acknowledge: true
 	};
@@ -117,23 +117,26 @@ private:
 	void finish_replace(REQUIRE_RELK);
 
 private:
-	class ReplaceContext {
+	class progress {
 	public:
-		ReplaceContext();
-		~ReplaceContext();
+		progress();
+		~progress();
 	public:
+		typedef std::vector<rpc::address> nodes_t;
 		ClockTime clocktime() const;
-		void reset(ClockTime ct, unsigned int num);
-		bool pop(ClockTime ct);
-		void invalidate();
+	public:
+		void reset(ClockTime ct, const nodes_t& nodes);
+		bool pop(ClockTime ct, const rpc::address& node);
+		nodes_t invalidate();
 	private:
-		unsigned int m_num;
+		nodes_t m_remainder;
+		nodes_t m_target_nodes;
 		ClockTime m_clocktime;
 	};
 
 	mp::pthread_mutex m_replace_mutex;
-	ReplaceContext m_copying;
-	ReplaceContext m_deleting;
+	progress m_copying;
+	progress m_deleting;
 @end
 
 
