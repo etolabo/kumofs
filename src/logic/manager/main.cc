@@ -16,8 +16,11 @@ struct arg_t : rpc_cluster_args {
 	virtual void convert()
 	{
 		cluster_addr = rpc::address(cluster_addr_in);
-		cluster_lsock = scoped_listen_tcp::listen(cluster_addr);
+		cluster_addr_in.sin_addr.s_addr = INADDR_ANY;  // listen any
+		cluster_lsock = scoped_listen_tcp::listen(rpc::address(cluster_addr_in));
+
 		partner = rpc::address(partner_in);
+
 		rpc_cluster_args::convert();
 	}
 
