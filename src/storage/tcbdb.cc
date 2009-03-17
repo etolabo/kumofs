@@ -3,6 +3,10 @@
 #include <tcutil.h>
 #include <mp/pthread.h>
 #include <string.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 #define BACKUP_TMP_SUFFIX ".tmp"
 
@@ -246,6 +250,27 @@ static uint64_t kumo_tcbdb_rnum(void* data)
 	return tcbdbrnum(ctx->db);
 }
 
+
+static bool sync_rename(const char* src, const char* dst)
+{
+	int fd = ::open(src, O_WRONLY);
+	if(fd < 0) {
+		return false;
+	}
+
+	if(fsync(fd) < 0) {
+		::close(fd);
+		return false;
+	}
+	::close(fd);
+
+	if(rename(src, dst) < 0) {
+		return false;
+	}
+
+	return true;
+}
+
 static bool kumo_tcbdb_backup(void* data, const char* dstpath)
 {
 	kumo_tcbdb* ctx = reinterpret_cast<kumo_tcbdb*>(data);
@@ -260,15 +285,16 @@ static bool kumo_tcbdb_backup(void* data, const char* dstpath)
 	::strcat(tmppath, BACKUP_TMP_SUFFIX);
 
 	if(!tcbdbcopy(ctx->db, tmppath)) {
+		::free(tmppath);
 		return false;
 	}
-	/* FIXME tcbdbcopy() syncs the file? */
 
-	if(rename(tmppath, dstpath) < 0) {
+	if(!sync_rename(tmppath, dstpath)) {
 		::free(tmppath);
 		return false;
 	}
 	::free(tmppath);
+
 	return true;
 }
 

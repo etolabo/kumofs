@@ -1,6 +1,12 @@
 #include "storage/interface.h"  // FIXME
 #include <tcadb.h>
+#include <tcutil.h>
 #include <mp/pthread.h>
+#include <string.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 #define BACKUP_TMP_SUFFIX ".tmp"
 
@@ -181,6 +187,26 @@ static uint64_t kumo_tcadb_rnum(void* data)
 	return tcadbrnum(ctx->db);
 }
 
+static bool sync_rename(const char* src, const char* dst)
+{
+	int fd = ::open(src, O_WRONLY);
+	if(fd < 0) {
+		return false;
+	}
+
+	if(fsync(fd) < 0) {
+		::close(fd);
+		return false;
+	}
+	::close(fd);
+
+	if(rename(src, dst) < 0) {
+		return false;
+	}
+
+	return true;
+}
+
 static bool kumo_tcadb_backup(void* data, const char* dstpath)
 {
 	kumo_tcadb* ctx = reinterpret_cast<kumo_tcadb*>(data);
@@ -195,15 +221,16 @@ static bool kumo_tcadb_backup(void* data, const char* dstpath)
 	::strcat(tmppath, BACKUP_TMP_SUFFIX);
 
 	if(!tcadbcopy(ctx->db, tmppath)) {
+		::free(tmppath);
 		return false;
 	}
-	/* FIXME tcadbcopy() syncs the file? */
 
-	if(rename(tmppath, dstpath) < 0) {
+	if(!sync_rename(tmppath, dstpath)) {
 		::free(tmppath);
 		return false;
 	}
 	::free(tmppath);
+
 	return true;
 }
 
