@@ -10,9 +10,14 @@ RPC_IMPL(proto_control, CreateBackup_1, req, z, response)
 	std::string dst = share->cfg_db_backup_basename() + req.param().suffix;
 	LOG_INFO("create backup: ",dst);
 
-	share->db().backup(dst.c_str());
+	try {
+		share->db().backup(dst.c_str());
+		response.result(true);
 
-	response.result(true);
+	} catch (storage_backup_error& e) {
+		LOG_ERROR("backup failed ",dst,": ",e.what());
+		response.error(true);
+	}
 }
 
 

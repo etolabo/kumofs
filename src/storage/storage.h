@@ -58,6 +58,22 @@ static inline uint64_t kumo_be64(uint64_t x) {
 namespace kumo {
 
 
+struct storage_error : public std::runtime_error {
+	storage_error(const std::string& msg) :
+		std::runtime_error(msg) { }
+};
+
+struct storage_init_error : public storage_error {
+	storage_init_error(const std::string& msg) :
+		storage_error(msg) { }
+};
+
+struct storage_backup_error : public storage_error {
+	storage_backup_error(const std::string& msg) :
+		storage_error(msg) { }
+};
+
+
 class Storage {
 public:
 	Storage(const char* path,

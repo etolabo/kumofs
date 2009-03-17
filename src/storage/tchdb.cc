@@ -4,6 +4,7 @@
 #include <mp/pthread.h>
 #include <string.h>
 
+#define BACKUP_TMP_SUFFIX ".tmp"
 
 static char* parse_param(char* str,
 		bool* rcnum_set, int32_t* rcnum,
@@ -243,7 +244,27 @@ static uint64_t kumo_tchdb_rnum(void* data)
 static bool kumo_tchdb_backup(void* data, const char* dstpath)
 {
 	kumo_tchdb* ctx = reinterpret_cast<kumo_tchdb*>(data);
-	return tchdbcopy(ctx->db, dstpath);
+
+	char* tmppath = (char*)::malloc(
+			strlen(dstpath)+strlen(BACKUP_TMP_SUFFIX));
+	if(!tmppath) {
+		return false;
+	}
+
+	::strcpy(tmppath, dstpath);
+	::strcat(tmppath, BACKUP_TMP_SUFFIX);
+
+	if(!tchdbcopy(ctx->db, tmppath)) {
+		return false;
+	}
+	/* FIXME tchdbcopy() syncs the file? */
+
+	if(rename(tmppath, dstpath) < 0) {
+		::free(tmppath);
+		return false;
+	}
+	::free(tmppath);
+	return true;
 }
 
 static const char* kumo_tchdb_error(void* data)

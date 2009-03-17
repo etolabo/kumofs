@@ -59,6 +59,10 @@ typedef struct {
 	uint64_t (*rnum)(void* data);
 
 	// success: true;  not-success: false
+	// requred behavior:
+	//   1. backup the file into "dstpath.tmp"
+	//   2. fsync(dstpath.tmp)
+	//   3. rename(dstpath.tmp, dstpath)
 	bool (*backup)(void* data, const char* dstpath);
 
 	const char* (*error)(void* data);

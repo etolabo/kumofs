@@ -2,6 +2,7 @@
 #include <tcadb.h>
 #include <mp/pthread.h>
 
+#define BACKUP_TMP_SUFFIX ".tmp"
 
 struct kumo_tcadb {
 	kumo_tcadb()
@@ -183,7 +184,27 @@ static uint64_t kumo_tcadb_rnum(void* data)
 static bool kumo_tcadb_backup(void* data, const char* dstpath)
 {
 	kumo_tcadb* ctx = reinterpret_cast<kumo_tcadb*>(data);
-	return tcadbcopy(ctx->db, dstpath);
+
+	char* tmppath = (char*)::malloc(
+			strlen(dstpath)+strlen(BACKUP_TMP_SUFFIX));
+	if(!tmppath) {
+		return false;
+	}
+
+	::strcpy(tmppath, dstpath);
+	::strcat(tmppath, BACKUP_TMP_SUFFIX);
+
+	if(!tcadbcopy(ctx->db, tmppath)) {
+		return false;
+	}
+	/* FIXME tcadbcopy() syncs the file? */
+
+	if(rename(tmppath, dstpath) < 0) {
+		::free(tmppath);
+		return false;
+	}
+	::free(tmppath);
+	return true;
 }
 
 static const char* kumo_tcadb_error(void* data)

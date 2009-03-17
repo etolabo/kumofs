@@ -16,13 +16,13 @@ Storage::Storage(const char* path,
 
 	m_data = m_op.create();
 	if(!m_data) {
-		throw std::runtime_error("failed to initialize storage module");
+		throw storage_init_error("failed to initialize storage module");
 	}
 
 	if(!m_op.open(m_data, path)) {
 		std::string msg = error();
 		m_op.free(m_data);
-		throw std::runtime_error(msg);
+		throw storage_init_error(msg);
 	}
 }
 
@@ -40,7 +40,7 @@ void Storage::set(
 	if(!m_op.set(m_data,
 			raw_key, raw_keylen,
 			raw_val, raw_vallen)) {
-		throw std::runtime_error("set failed");
+		throw storage_error("set failed");
 	}
 }
 
@@ -265,7 +265,7 @@ void Storage::for_each_impl(void* obj, void (*callback)(void* obj, iterator& it)
 			reinterpret_cast<void*>(&data), for_each_collect);
 
 	if(ret < 0) {
-		throw std::runtime_error("error while iterating database");
+		throw storage_error("error while iterating database");
 	}
 }
 
@@ -278,7 +278,7 @@ uint64_t Storage::rnum()
 void Storage::backup(const char* dstpath)
 {
 	if(!m_op.backup(m_data, dstpath)) {
-		throw std::runtime_error("backup failed");
+		throw storage_backup_error(error());
 	}
 }
 
