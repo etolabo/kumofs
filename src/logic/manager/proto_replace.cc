@@ -19,12 +19,20 @@ void proto_replace::add_server(const address& addr, shared_node& s)
 	TLOGPACK("nS",3,
 			"addr", addr);
 
-	//if(!share->whs().server_is_fault(addr)) {
-	pthread_scoped_lock nslk(share->new_servers_mutex());
-	share->new_servers().push_back( weak_node(s) );
-	nslk.unlock();
+	bool change = false;
 
-	if(share->cfg_auto_replace()) {
+	pthread_scoped_lock hslk(share->hs_mutex());
+	pthread_scoped_lock nslk(share->new_servers_mutex());
+
+	if(!share->whs().server_is_active(addr)) {
+		change = true;
+		share->new_servers().push_back( weak_node(s) );
+	}
+
+	nslk.unlock();
+	hslk.unlock();
+
+	if(change && share->cfg_auto_replace()) {
 		// delayed replace
 		delayed_replace_election();
 	}
