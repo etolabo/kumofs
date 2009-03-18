@@ -1,11 +1,47 @@
 #!/usr/bin/env ruby
-begin
-	require 'rubygems'
-rescue LoadError
+
+class StringSource
+	def initialize(src)
+		@src = src
+	end
+
+	def read(off, size)
+		if @src.length < off + size
+			throw :finish
+		end
+		@src[off, size]
+	end
+
+	def free_until(off)
+	end
 end
-require 'msgpack'
-require 'yaml'
-require 'pp'
+
+class StreamSource
+	def initialize(io)
+		@io = io
+		@from = 0
+		@buffer = ''
+		@rbuf = ''
+	end
+
+	def read(off, size)
+		while @from + @buffer.length < off + size
+			@buffer << @io.sysread(1024, @rbuf)
+		end
+		@buffer[off - @from, size]
+	rescue Exception
+		throw :finish
+	end
+
+	def free_until(off)
+		free = off - @from
+		if free > 0
+			@buffer.slice!(0, free)
+			@from += free
+		end
+	end
+end
+
 
 def fixstr(code)
 	r = ""
@@ -16,92 +52,154 @@ def fixstr(code)
 	r
 end
 
-def do_recover(src, off)
-	puts "recover at #{off}"
-	sz = src.length
-	pk = MessagePack::Unpacker.new
-
-	while (sz - off) >= 4
-		br = src[off,4].unpack('N')[0]
-		doff = off + 4
-
-		failed = false
-		begin
-			#noff = pk.execute_limit(src, doff, doff+br)
-			noff = pk.execute(src, doff)
-		rescue
-			failed = true
-		end
-
-		if !failed && pk.finished? && noff - doff == br
-			return off
-		end
-
-		pk.reset
-		off += 1
-	end
-	return sz
+def type_check(obj)
+	obj.is_a?(Array) && obj.length == 3 &&
+		obj[0].is_a?(Numeric) && obj[1].is_a?(Numeric) &&
+		obj[2].is_a?(Hash)
 end
 
-def do_parse(src, count, &block)
-	off = 0
-	noff = 0
-	sz = src.length
 
+def do_recover(src, off)
+	puts "recover at #{off}"
 	pk = MessagePack::Unpacker.new
 
 	while true
-		return if (sz - off) < 4
+		br = src.read(off,4).unpack('N')[0]
+		doff = off + 4
 
-		br = src[off,4].unpack('N')[0]
-		off += 4
-
-		if (sz - off) < br
-			off = do_recover(src, off-3)
-			next
-		end
-
-		failed = false
 		begin
 			pk.reset
-			#noff = pk.execute_limit(src, off, off+br)
-			noff = pk.execute(src, off)
+			rl = pk.execute(src.read(doff,br), 0)
+
+			if pk.finished && rl == br && type_check(pk.data)
+				return off
+			end
 		rescue
-			failed = true
+			off += 1
 		end
+	end
+end
 
-		if failed || !pk.finished? || noff - off != br
-			off = do_recover(src, off-3)
-			next
-		end
 
-		obj = pk.data
-
-		name = nil
-		version = 0
-		hash = {}
-		begin
-			unless obj.is_a?(Array) && obj.length == 3 &&
-					obj[0].is_a?(Numeric) && obj[1].is_a?(Numeric) &&
-					obj[2].is_a?(Hash)
+def do_parse(src, skip, count, &block)
+	count = (1<<31) if count < 0
+	catch(:finish) {
+		off = 0
+		rl = 0
+	
+		pk = MessagePack::Unpacker.new
+	
+		while count > 0
+			br = src.read(off,4).unpack('N')[0]
+			off += 4
+	
+			begin
+				pk.reset
+				rl = pk.execute(src.read(off,br), 0)
+	
+				unless pk.finished? && rl == br && type_check(pk.data)
+					raise "format error"
+				end
+	
+				obj = pk.data
+	
+				hash = {}
+				name = fixstr(obj[0])
+				version = obj[1]
+				obj[2].each_pair {|k,v|
+					hash[fixstr(k)] = v
+				}
+	
+			rescue
 				off = do_recover(src, off-3)
 				next
 			end
-			name = fixstr(obj[0])
-			version = obj[1]
-			obj[2].each_pair {|k,v|
-				hash[fixstr(k)] = v
-			}
-		rescue
-			off = do_recover(src, off-3)
-			next
+	
+			off += br
+			src.free_until(off)
+	
+			if skip > 0
+				skip -= 1
+			else
+				block.call(name, version, hash)
+				count -= 1
+			end
 		end
+	}
+end
 
-		off += br
 
-		block.call(name, version, hash)
+require 'optparse'
+
+arg = {
+	:follow => false,
+	:tail   => false,
+	:head   => false,
+	:line   => 10,
+}
+
+op = OptionParser.new
+op.on('-t', '--tail')   {|b| arg[:tail]  = b }
+op.on('-h', '--head')   {|b| arg[:head]  = b }
+op.on('-f', '--follow') {|b| arg[:follow] = b }
+op.on('-n [-]N', '--lines', Integer) {|n| arg[:line] = n }
+op.banner += " <logfile.mpac>"
+
+op.parse!(ARGV)
+
+if ARGV.length != 1
+	puts op.to_s
+	exit 1
+end
+
+
+fname = ARGV[0]
+tail = nil
+head = nil
+skip  = 0
+count = -1
+
+if arg[:tail]
+	if (n = arg[:line]) > 0
+		tail = Array.new(n)
+	else
+		skip = -n
+	end
+elsif arg[:head]
+	if (n = arg[:line]) > 0
+		count = n
+	else
+		head = Array.new(-n)
 	end
 end
+
+
+if arg[:follow]
+	begin
+		require 'shellwords'
+		fname = Shellwords.escape(fname)
+	rescue
+		fname = "'#{fname}'"
+	end
+	stream = IO.popen("tail -f #{fname}")
+elsif fname == "-"
+	stream = $stdin
+else
+	stream = File.open(fname)
+end
+
+src = StreamSource.new(stream)
+#src = StringSource.new(File.read(fname))
+
+
+
+begin
+	require 'rubygems'
+rescue LoadError
+end
+require 'yaml'
+require 'pp'
+require 'msgpack'
 
 class Hash
 	def hmap(&block)
@@ -113,29 +211,23 @@ class Hash
 	end
 end
 
-
-if ARGV.length == 0
-	puts "usage: #{File.basename($0)} <logfile.mpac>"
-	exit 1
-end
-
-
 conf = YAML.load DATA.read.gsub(/(^\t+)/) {
 	'  ' * $+.length
 }
 
-msgdb = conf["message"]
+@msgdb = conf["message"]
 
-filterdb = conf["filter"].hmap {|name, hash|
+@filterdb = conf["filter"].hmap {|name, hash|
 	hash.hmap {|key, proc|
 		[ proc[0], eval("lambda{|val|#{proc[1]}}") ]
 	}
 }
 
-do_parse(File.read(ARGV[0]), 1<<30) {|name, version, hash|
-	msg = msgdb[name] || "#{name}.#{version}"
 
-	if filter = filterdb["#{name}.#{version}"]
+def print_log(name, version, hash)
+	msg = @msgdb[name] || "#{name}.#{version}"
+
+	if filter = @filterdb["#{name}.#{version}"]
 		filter.each_pair {|key, proc|
 			val = hash.delete(key)
 			begin
@@ -152,7 +244,28 @@ do_parse(File.read(ARGV[0]), 1<<30) {|name, version, hash|
 	}.sort_by{|kv| kv[0] }.join('  ')
 
 	puts "%s.%s  %-15s  %s" % [name, version, msg, vals]
-}
+end
+
+
+if tail
+	do_parse(src, skip, count) {|*params|
+		tail.shift
+		tail.push params
+	}
+	tail.each(&method(:print_log))
+
+elsif head
+	do_parse(src, skip, count) {|*params|
+		head.shift
+		head.push params
+		if h = head[0]
+			print_log(h)
+		end
+	}
+
+else
+	do_parse(src, skip, count, &method(:print_log))
+end
 
 
 __END__
