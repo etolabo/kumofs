@@ -22,12 +22,8 @@ private:
 		} \
 	} while(0)
 
-#define MLOGPACK(name, version, message, ...) \
-	do { \
-		if(logpacker::is_active()) { \
-			logpacker::instance().write(name, version, "msg", std::string(message), __VA_ARGS__); \
-		} \
-	} while(0)
+#define TLOGPACK(name, version, ...) \
+	LOGPACK(name, version, "time", time(NULL), __VA_ARGS__)
 
 #endif /* logpacker.h */
 

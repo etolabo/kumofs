@@ -52,7 +52,7 @@ void framework::new_node(address addr, role_type id, shared_node n)
 	LOG_WARN("new node ",id," ",addr);
 	if(id == ROLE_MANAGER) {
 		if(addr != share->partner()) {
-			LOGPACK("eP",2,
+			TLOGPACK("eP",3,
 					"addr",addr);
 			LOG_ERROR("unknown partner node");
 			// FIXME

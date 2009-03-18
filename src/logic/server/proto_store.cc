@@ -461,7 +461,7 @@ RPC_REPLY_IMPL(proto_store, ReplicateSet_1, from, res, err, life,
 		}
 		if(!retry->param().flags.is_rhs()) {  // FIXME ?
 			response.null();
-			LOGPACK("ers",3,
+			TLOGPACK("ers",4,
 					"key",msgtype::raw_ref(
 						retry->param().dbkey.data(),
 						retry->param().dbkey.size()),
@@ -502,7 +502,7 @@ RPC_REPLY_IMPL(proto_store, ReplicateDelete_1, from, res, err, life,
 		}
 		if(!retry->param().flags.is_rhs()) {  // FIXME ?
 			response.null();
-			LOGPACK("erd",3,
+			TLOGPACK("erd",4,
 					"key",msgtype::raw_ref(
 						retry->param().dbkey.data(),
 						retry->param().dbkey.size()),

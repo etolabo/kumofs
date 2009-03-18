@@ -17,8 +17,7 @@ framework::framework(const Config& cfg) :
 			cfg.connect_retry_limit)
 {
 	LOG_INFO("start manager ",addr());
-	LOGPACK("SM",2,
-			"time", time(NULL),
+	TLOGPACK("SM",2,
 			"addr", cfg.cluster_addr,
 			"Padd", share->partner());
 	listen_cluster(cfg.cluster_lsock);  // cluster_logic

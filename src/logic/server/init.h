@@ -18,8 +18,7 @@ framework::framework(const Config& cfg) :
 	m_proto_replace_stream(cfg.stream_addr)
 {
 	LOG_INFO("start server ",addr());
-	LOGPACK("SS",2,
-			"time", time(NULL),
+	TLOGPACK("SS",2,
 			"addr", cfg.cluster_addr,
 			"db",   cfg.dbpath,
 			"mgr1", share->manager1(),

@@ -14,8 +14,7 @@ framework::framework(const Config& cfg) :
 			cfg.connect_timeout_msec,
 			cfg.connect_retry_limit)
 {
-	LOGPACK("SW",2,
-			"time", time(NULL),
+	TLOGPACK("SW",2,
 			"mgr1", share->manager1(),
 			"mgr2", share->manager2());
 	start_timeout_step(cfg.clock_interval_usec);  // rpc_server

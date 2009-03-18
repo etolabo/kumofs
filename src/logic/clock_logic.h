@@ -8,7 +8,11 @@ namespace kumo {
 
 class clock_logic {
 public:
-	clock_logic() : m_time(time(NULL)) { }
+	clock_logic()
+	{
+		clock_update_time();
+	}
+
 	~clock_logic() { }
 
 	// interrupt rpc_server::timer_handler and call me regularly.
@@ -36,6 +40,11 @@ public:
 	ClockTime clock_incr_clocktime()
 	{
 		return ClockTime(m_clock.get_incr(), m_time);
+	}
+
+	uint32_t clock_get_time() const
+	{
+		return m_time;
 	}
 
 private:

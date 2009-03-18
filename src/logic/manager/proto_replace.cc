@@ -16,7 +16,7 @@ proto_replace::~proto_replace() { }
 void proto_replace::add_server(const address& addr, shared_node& s)
 {
 	LOG_INFO("server connected ",s->addr());
-	LOGPACK("nS",2,
+	TLOGPACK("nS",3,
 			"addr", addr);
 
 	//if(!share->whs().server_is_fault(addr)) {
@@ -33,7 +33,7 @@ void proto_replace::add_server(const address& addr, shared_node& s)
 void proto_replace::remove_server(const address& addr)
 {
 	LOG_INFO("server lost ",addr);
-	LOGPACK("lS",2,
+	TLOGPACK("lS",3,
 			"addr", addr);
 
 	ClockTime ct = net->clock_incr_clocktime();

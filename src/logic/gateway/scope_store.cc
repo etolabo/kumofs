@@ -242,7 +242,7 @@ try {
 		ret.vallen    = 0;
 		ret.clocktime = 0;
 		try { (*callback)(user, ret); } catch (...) { }
-		LOGPACK("eg",2,
+		TLOGPACK("eg",3,
 				"key",msgtype::raw_ref(key.data(),key.size()),
 				"err",err.via.u64);
 		LOG_ERROR("Get error: ", err);
@@ -293,7 +293,7 @@ try {
 		ret.vallen    = val.size();
 		ret.clocktime = 0;
 		try { (*callback)(user, ret); } catch (...) { }
-		LOGPACK("es",2,
+		TLOGPACK("es",3,
 				"key",msgtype::raw_ref(key.data(),key.size()),
 				"val",msgtype::raw_ref(val.data(),val.size()),
 				"err",err.via.u64);
@@ -340,7 +340,7 @@ try {
 		ret.hash      = key.hash();
 		ret.deleted   = false;
 		try { (*callback)(user, ret); } catch (...) { }
-		LOGPACK("ed",2,
+		TLOGPACK("ed",3,
 				"key",msgtype::raw_ref(key.data(),key.size()),
 				"err",err.via.u64);
 		LOG_ERROR("Delete error: ",err);

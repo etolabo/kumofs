@@ -330,4 +330,26 @@ filter:
 		cktm: [clocktime, *clocktime]
 	erd.3:
 		to:   [to, *addr]
+	eP.3:
+		addr: [address, *addr]
+		time: [time, *time]
+	nS.3:
+		addr: [address, *addr]
+		time: [time, *time]
+	lS.3:
+		addr: [address, *addr]
+		time: [time, *time]
+	eg.3:
+		time: [time, *time]
+	es.3:
+		time: [time, *time]
+	ed.3:
+		time: [time, *time]
+	ers.4:
+		to:   [to, *addr]
+		cktm: [clocktime, *clocktime]
+		time: [time, *time]
+	erd.4:
+		to:   [to, *addr]
+		time: [time, *time]
 
