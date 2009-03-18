@@ -1,0 +1,301 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use Carp;
+use Data::Dumper;
+$Data::Dumper::Indent = 1;
+$Data::Dumper::Deepcopy = 1;
+$Data::Dumper::Sortkeys = 1;
+use IO::File;
+STDOUT->autoflush(1);
+STDERR->autoflush(1);
+use Getopt::Long;
+use Pod::Usage;
+use Digest::MD5 qw(md5_base64);
+use Cache::Memcached::Fast;
+use Readonly;
+
+BEGIN {
+    my $debug_flag = $ENV{SMART_COMMENTS} || $ENV{SMART_DEBUG} || $ENV{SC};
+    if ($debug_flag) {
+        my @p = map { '#'x$_ } ($debug_flag =~ /([345])\s*/g);
+        use UNIVERSAL::require;
+        Smart::Comments->use(@p);
+    }
+}
+
+sub p(@) {
+    my $d = Dumper(\@_);
+    $d =~ s/\\x{([0-9a-z]+)}/chr(hex($1))/ge;
+    print $d;
+}
+
+# ------------------------------------------------------------------------
+my $Debug       = 0;
+my $Verbose     = 0;
+my $Process_Set = 1;
+my $Max_Set_Count = $ENV{MAX_SET_COUNT} || 1000;
+
+Readonly my $NO_DATA => '__NO_DATA__';
+
+sub verbose (@) {
+    return unless $Verbose;
+    my @m = @_;
+    chomp @m;
+    print STDERR '', @m,"\n";
+}
+
+MAIN: {
+    my %opt = (delete => 1, expire => 0);
+    my $hosts = [];
+    Getopt::Long::Configure("bundling");
+    GetOptions(\%opt,
+               'host|s=s@' => \$hosts,
+               'delete!',
+               'expire!',
+               'verbose|v+' => \$Verbose,
+               'help|h|?'   => sub{ pod2usage(-verbose=>1) },
+              ) or pod2usage();
+    ### opt: %opt
+
+    @{$hosts} > 0 or pod2usage();
+    verbose "servers:";
+    for (@{ $hosts }) {
+        $_ .= ':11211' unless /:/;
+        verbose " - $_\n";
+    }
+    my $mcd = Cache::Memcached::Fast->new({servers    => $hosts,
+                                           io_timeout => 6.0,
+                                       }) or croak $!;
+    verbose "delete: $opt{delete}";
+    verbose "expire: $opt{expire}";
+    verbose "to change check mode:\nkill -USR1 $$\nor exceed $Max_Set_Count";
+    write_pid();
+
+    $SIG{'USR1'} = sub {
+        $Process_Set = 0;
+    };
+
+    my $count  = 0;
+    my $sanity = {}; # sanity data
+
+    # for displaying progress meter
+    my $n_fold = 1000;
+    my $pitch = int($n_fold/50);
+
+    ### 1. continue setting random data
+    while ($Process_Set) {
+        my $op = decide_operation(\%opt);
+
+        if ($count < 10 || $op eq 'set') {
+            my $key    = generate_key($count);
+            my $val    = generate_val($count);
+            my $expire = generate_expire(\%opt);
+            my $retry = 7;
+            ### [set] key,val,expire: $key, $val, $expire
+
+            while ($retry-- > 0) {
+                my $rc = set_to($mcd, $key, $val, $expire);
+                if ($rc) {
+                    $count++;
+                    $sanity->{ $key } = $expire == 0 ? $val : $NO_DATA;
+                    last;
+                }
+                print "retry to set... ($retry)\n";
+                sleep 1;
+            }
+            if ($retry < 0) {
+                print "failed to set. escape from loop.\n";
+                # $Process_Set = 0;
+            }
+
+        } elsif ($op eq 'delete') {
+            my $key = '';
+            my $retry = 7;
+            while (! exists $sanity->{ $key }
+                       || $sanity->{ $key } eq $NO_DATA
+                      ) {
+                $key = generate_key( int(rand($count)) );
+            }
+            ### [delete] key: $key
+
+            while ($retry-- > 0) {
+                my $rc = delete_from($mcd, $key);
+                if ($rc) {
+                    $count++;
+                    delete $sanity->{ $key };
+                    last;
+                }
+                print "retry to delete... ($retry)\n";
+                sleep 1;
+            }
+            if ($retry < 0) {
+                print "failed to delete. escape from loop.\n";
+                # $Process_Set = 0;
+            }
+
+        } else {
+            carp "unknown operation: $op";
+        }
+
+
+        if ($Verbose and ($count % $pitch == 0)) {
+            print '.';
+            printf " [%5d]\n", $count if $count % $n_fold == 0;
+        }
+
+        $Process_Set = 0 if $count+1 > $Max_Set_Count;
+        sleep 1 if $ENV{SC}; # for debugging
+    }
+    printf "number of data: %d\n", $count;
+    sleep 3; # wait for expire data
+
+    ### 2. get value from server
+    my $fail_count = {}; # host => { key1 => got_val1, key2 => got_val2, ... }
+
+    for my $host (@{ $hosts }) {
+        printf "host: %-12s ", $host;
+
+        my $amcd = Cache::Memcached::Fast->new({servers => [ $host ],
+                                                io_timeout => 6.0,
+                                            }) or croak $!;
+
+        ## check value
+        while (my ($key,$val) = each %{ $sanity }) {
+            my $got_val = get_from($amcd, $key);
+            if ($val eq $got_val) {
+                next;
+            } else {
+                $fail_count->{$host}{ $key } = $got_val;
+            }
+        }
+
+        ## display summary of result
+        my $n_fail = keys %{ $fail_count->{$host} };
+        printf "%5d mismatched: ", $n_fail;
+        if ($n_fail > 0) {
+            print "NG\n";
+
+            my $fmt = "  %-10s %-20s %-20s\n";
+            printf $fmt, 'key', 'expected val', 'got val';
+            while (my ($key,$val) = each %{ $fail_count->{$host} }) {
+                printf $fmt, $key, $sanity->{$key}, $val;
+            }
+        } else {
+            print "OK\n";
+        }
+    }
+
+    exit 0;
+}
+
+sub decide_operation {
+    my($flag) = @_;
+    if ($flag->{delete}) {
+        return rand > 0.85 ? 'delete' : 'set';
+    } else {
+        return 'set';
+    }
+}
+
+sub generate_key {
+    my($num) = @_;
+    return sprintf "key_%05d_%05d", $$, $num;
+}
+
+sub generate_val {
+    my($num, $length) = @_;
+    $length ||= 12;
+    my $val = '';
+
+    while (length($val) < $length) {
+        $val .= md5_base64(rand)
+    }
+    return substr $val, 0, $length;
+}
+
+sub generate_expire {
+    my($flag) = @_;
+    if ($flag->{expire}) {
+        my $e = int(rand(10));
+        return $e <= 3 ? $e : 0;
+    } else {
+        return 0;
+    }
+}
+
+sub set_to {
+    my($server, $key, $val, $expire) = @_;
+    $expire ||= 0;
+    $server->set($key, $val, $expire);
+}
+
+sub get_from {
+    my($server, $key) = @_;
+    $server->get($key) || $NO_DATA;
+}
+
+sub delete_from {
+    my($server, $key, $expire) = @_;
+    $server->delete($key, $expire);
+}
+
+sub write_pid {
+    open my $pid, '>', '/tmp/set-and-check.pid' or croak $!;
+    print $pid $$,"\n";
+    close $pid;
+}
+
+END {
+    unlink '/tmp/set-and-check.pid';
+}
+
+__END__
+
+=head1 NAME
+
+B<set-and-check> - set and check
+
+=head1 SYNOPSIS
+
+B<set-and-check> B<--no-delete> B<--no-expire> B<--host|-s> HOST[:PORT]
+
+=head1 DESCRIPTION
+
+  0. start
+  1. continue setting random data to master
+     until catch SIGUSR1 or fail to set request.
+     or exceed $Max_Set_Count.
+  2. get value from server and check on sanity.
+  4. exit
+
+=head1 OPTIONS
+
+=over 4
+
+=item B<-s> B<--host> HOST[:PORT]
+
+server name. defaut port is 11211. you can specify multiple servers.
+
+=item B<--no-delete>
+
+no delete operation in setting phase.
+
+=item B<--no-expire>
+
+set all of expire seconds to 0.
+
+=back
+
+=cut
+
+# for Emacsen
+# Local Variables:
+# mode: cperl
+# cperl-indent-level: 4
+# indent-tabs-mode: nil
+# coding: utf-8
+# End:
+
+# vi: set ts=4 sw=4 sts=0 :

@@ -1,0 +1,19 @@
+#!/bin/sh
+#
+# set-and-check-eternal -s s101:11310
+#
+
+dir=${0%/*}
+set_and_check=${dir}/set-and-check
+
+run=${dir}/run.$$
+
+cleanup() { rm -f ${run}; exit; }
+touch $run
+
+trap "cleanup" EXIT TERM INT
+
+while [ -e $run ]; do
+  $set_and_check "$@"
+done
+
