@@ -103,7 +103,7 @@ MAIN: {
                     last;
                 }
                 print "retry to set... ($retry)\n";
-                sleep 1;
+                sleep 2;
             }
             if ($retry < 0) {
                 print "failed to set. escape from loop.\n";
@@ -128,7 +128,7 @@ MAIN: {
                     last;
                 }
                 print "retry to delete... ($retry)\n";
-                sleep 1;
+                sleep 2;
             }
             if ($retry < 0) {
                 print "failed to delete. escape from loop.\n";

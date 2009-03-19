@@ -146,6 +146,8 @@ while do_loop
     mgr.attach
     dprint "OK\n"
 
+    sleep 15
+
     fc = mgr.fault_count
     dprint "fault server: #{fc}"
     if fc >= 2
@@ -170,5 +172,5 @@ while do_loop
   end
 
   #do_loop = false # fixme
-  sleep 10
+  sleep 5
 end
