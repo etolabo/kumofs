@@ -1,5 +1,7 @@
 #!/usr/bin/env ruby
 
+# めたくそ汚いけど。。。使い捨てだし。。。いっかな。。。
+
 # TODO
 # - 引数で svr と mgr のアドレス受けるように
 # - 引数かenvでsleep時間とループしないのを指定できるように
@@ -59,11 +61,11 @@ class Manager
 
   def active?(ip)
     3.times do |i|
-      warn "#{i}"
+      #warn "#{i}"
       begin
         attached, not_attached, date, clock = _connect.GetStatus
         attached.each do |addr, port, active|
-          puts addr + " vs " + ip + " " + active.to_s
+          #puts addr + " vs " + ip + " " + active.to_s
           if addr == ip && !active
             # warn ip + " is down"
             return true
@@ -78,13 +80,13 @@ class Manager
 
   def not_attach?(ip)
     3.times do |i|
-      warn "#{i}"
+      #warn "#{i}"
       begin
         attached, not_attached, date, clock = _connect.GetStatus
         not_attached.each do |addr, port|
-          warn addr + " vs " + ip
+          #warn addr + " vs " + ip
           if addr == ip
-            warn ip + " is up"
+            #warn ip + " is up"
             return true
           end
         end
@@ -136,8 +138,8 @@ while do_loop
     dprint "pid=" + svr.pid.to_s
 
     if ! mgr.not_attach?(@svr_ip)
-      warn "[WARN] svr down?"
-      break
+      abort "[WARN] svr down?"
+      #break
     end
     #puts "attach server?"; STDIN.gets
     dprint "do attach\n"
@@ -157,8 +159,8 @@ while do_loop
     svr.stdout_join("end")
     svr.join
     if ! mgr.active?(@svr_ip)
-      warn "[WARN] svr running?"
-      break
+      abort "[WARN] svr running?"
+      #break
     end
 
     dprint "renew db file"
