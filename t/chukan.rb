@@ -49,6 +49,7 @@ end
 mac = remote("mymac.local")        # login the remote host using ssh and run
                                    # commands on the host
                                    # use ssh-agent if your key is encrypted
+mac.cd("work/myproject")           # run on "work/myproject" directory
 
 linux = remote("192.168.10.2", "myname", ".id_rsa_linux")
                                    # user name and path of the key is optional
@@ -251,17 +252,26 @@ module Chukan
 			@host = host
 			@user = user
 			@key  = key
+			@dir  = nil
 		end
 		attr_reader :host
+
+		def cd(dir = nil)
+			@dir = dir
+			self
+		end
 
 		def command(*cmdline)
 			ssh = ENV["SSH"] || "ssh"
 			cmd = [ssh, "-o", "Batchmode yes"]
-			cmd.concat ["-i", @key] if @key
+			cmd += ["-i", @key] if @key
 			if @user
 				cmd.push "#{@user}:#{@host}"
 			else
 				cmd.push @host
+			end
+			if @dir
+				cmd += ["cd", @dir, "&&"]
 			end
 			cmd + cmdline
 		end
