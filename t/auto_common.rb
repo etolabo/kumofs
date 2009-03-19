@@ -58,7 +58,7 @@ class Server < Chukan::LocalProcess
 
 		cmd = "#{KUMO_SERVER} -v -l #{@host}:#{@port} -L #{@stream_port}" +
 					" -s #{@storage} -m #{mgr1.host}:#{mgr1.port}"
-		cmd += " -p #{mgr1.host}:#{mgr2.port}" if mgr2
+		cmd += " -p #{mgr2.host}:#{mgr2.port}" if mgr2
 
 		super(cmd)
 	end
@@ -68,7 +68,7 @@ class Gateway < Chukan::LocalProcess
 	def initialize(index, mgr1, mgr2 = nil)
 		@port = MEMCACHE_PORT + index
 		cmd = "#{KUMO_GATEWAY} -v -m #{mgr1.host}:#{mgr1.port} -t #{@port}"
-		cmd += " -p #{mgr1.host}:#{mgr2.port}" if mgr2
+		cmd += " -p #{mgr2.host}:#{mgr2.port}" if mgr2
 
 		super(cmd)
 	end

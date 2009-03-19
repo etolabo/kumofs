@@ -1,19 +1,25 @@
 #
 # Chukan  automation library for distributed systems
 #
-# Copyright (C) 2009 FURUHASHI Sadayuki
+# Copyright (c) 2009 FURUHASHI Sadayuki
 #
-#    Licensed under the Apache License, Version 2.0 (the "License");
-#    you may not use this file except in compliance with the License.
-#    You may obtain a copy of the License at
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
 #
-#        http://www.apache.org/licenses/LICENSE-2.0
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
 #
-#    Unless required by applicable law or agreed to in writing, software
-#    distributed under the License is distributed on an "AS IS" BASIS,
-#    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-#    See the License for the specific language governing permissions and
-#    limitations under the License.
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
 #
 
 
@@ -30,6 +36,7 @@ cli = spawn("client -arg1 -arg2")  # run "client" command with some arguments
 src.stdout_join("connected")       # wait until the server outputs "connected"
 
 cli.kill                           # send SIGKILL signal to the client
+cli.join                           # wait until the client is really dead
 srv.stderr_join(/disconnected/)    # stderr and regexp are also usable
 
 srv.stdin.write "status\n"         # input "status\n" to the server
@@ -38,6 +45,18 @@ srv.stdout_join("done")            # wait until the server outputs "done"
 if srv.stdout.read =~ /^client:/   # read output of the server
 	puts "** TEST FAILED **"         # this library is usable for tests
 end
+
+mac = remote("mymac.local")        # login the remote host using ssh and run
+                                   # commands on the host
+                                   # use ssh-agent if your key is encrypted
+
+linux = remote("192.168.10.2", "myname", ".id_rsa_linux")
+                                   # user name and path of the key is optional
+
+cli_on_mac   = mac.spawn("client -arg1")   # run cilent on the remote host
+cli_on_linux = linux.spawn("client -arg1")
+
+cli_on_mac.stdout_join("started")  # signals and I/Os are usable for remote commands
 
 =end
 
@@ -205,8 +224,60 @@ module Chukan
 	end
 
 
+	class RemoteProcess < LocalProcess
+		def initialize(remote, *cmdline, &block)
+			@remote = remote
+
+			cmdline_real = ["echo","$$","&&","exec"] + cmdline
+			super(*remote.command(*cmdline_real), &block)
+
+			@shortname = File.basename(cmdline.first.split(/\s/,2).first)[0, 7] +
+				"@"+remote.host[0,5]
+
+			stdout_join("\n")
+			@rpid = stdout.gets.to_i
+		end
+		attr_reader :rpid
+
+		def signal(sig)
+			system(*@remote.command("kill", "-#{sig}", @rpid))
+			self
+		end
+	end
+
+
+	class Remote
+		def initialize(host, user = nil, key = nil)
+			@host = host
+			@user = user
+			@key  = key
+		end
+		attr_reader :host
+
+		def command(*cmdline)
+			ssh = ENV["SSH"] || "ssh"
+			cmd = [ssh, "-o", "Batchmode yes"]
+			cmd.concat ["-i", @key] if @key
+			if @user
+				cmd.push "#{@user}:#{@host}"
+			else
+				cmd.push @host
+			end
+			cmd + cmdline
+		end
+
+		def spawn(*cmdline, &block)
+			RemoteProcess.new(self, *cmdline, &block)
+		end
+	end
+
+
 	def spawn(*cmdline, &block)
 		LocalProcess.new(*cmdline, &block)
+	end
+
+	def remote(host, user = nil, key = nil)
+		Remote.new(host, user, key)
 	end
 end
 
