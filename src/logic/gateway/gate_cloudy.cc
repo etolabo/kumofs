@@ -32,6 +32,10 @@ void Cloudy::accepted(int fd, int err)
 		gateway::net->signal_end();  // FIXME gateway::fatal_end()
 		return;
 	}
+#ifndef NO_TCP_NODELAY
+		int on = 1;
+		::setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &on, sizeof(on));  // ignore error
+#endif
 	LOG_DEBUG("accept memproto text user fd=",fd);
 	wavy::add<Connection>(fd);
 }

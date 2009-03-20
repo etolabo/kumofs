@@ -130,7 +130,7 @@ void client<Transport, Session>::connect_callback(
 		address addr, shared_session s, int fd, int err)
 {
 	if(fd >= 0) {
-#ifdef USE_TCP_NODELAY
+#ifndef NO_TCP_NODELAY
 		// XXX
 		int on = 1;
 		::setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &on, sizeof(on));  // ignore error

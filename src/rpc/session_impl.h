@@ -97,7 +97,7 @@ void basic_session::call(
 		// FIXME XXX forget the error for robustness and wait timeout.
 
 	} else {
-		// ad-hoc load balancing
+		// XXX ad-hoc load balancing
 		m_binds[m_msgid_rr % m_binds.size()]->send_datav(buf.get(),
 				&mp::object_delete<vrefbuffer>, buf.get());
 		buf.release();

@@ -15,7 +15,7 @@ server::~server() { }
 
 shared_peer server::accepted(int fd)
 {
-#ifdef USE_TCP_NODELAY
+#ifndef NO_TCP_NODELAY
 	// XXX
 	int on = 1;
 	::setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &on, sizeof(on));  // ignore error

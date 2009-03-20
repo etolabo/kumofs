@@ -171,6 +171,10 @@ cluster::~cluster() { }
 
 void cluster::accepted(int fd)
 {
+#ifndef NO_TCP_NODELAY
+	int on = 1;
+	::setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &on, sizeof(on));  // ignore error
+#endif
 	wavy::add<cluster_transport>(fd, (client_t*)this);
 }
 

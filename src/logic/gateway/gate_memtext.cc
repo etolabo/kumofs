@@ -34,6 +34,10 @@ void Memtext::accepted(int fd, int err)
 		gateway::net->signal_end();  // FIXME gateway::fatal_end()
 		return;
 	}
+#ifndef NO_TCP_NODELAY
+		int on = 1;
+		::setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &on, sizeof(on));  // ignore error
+#endif
 	LOG_DEBUG("accept memproto text user fd=",fd);
 	wavy::add<Connection>(fd);
 }
@@ -285,7 +289,8 @@ int Memtext::Connection::memproto_get(
 
 	} else {
 		ResMultiGet* ctxs[r->key_num];
-		unsigned* count = life->allocate<unsigned>(r->key_num);
+		unsigned* count = (unsigned*)life->malloc(sizeof(unsigned));
+		*count = r->key_num;
 
 		size_t qlen = r->key_num * 5 + 1;  // +1: "END\r\n"
 		struct iovec* qhead = (struct iovec*)life->malloc(sizeof(struct iovec) * qlen);
