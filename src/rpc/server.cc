@@ -16,9 +16,12 @@ server::~server() { }
 shared_peer server::accepted(int fd)
 {
 #ifndef NO_TCP_NODELAY
-	// XXX
 	int on = 1;
 	::setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &on, sizeof(on));  // ignore error
+#endif
+#ifndef NO_SO_LINGER
+	struct linger opt = {0, 0};
+	::setsockopt(fd, SOL_SOCKET, SO_LINGER, (void *)&opt, sizeof(opt));  // ignore error
 #endif
 	basic_shared_session s(new peer(this));
 	wavy::add<transport>(fd, s, this);

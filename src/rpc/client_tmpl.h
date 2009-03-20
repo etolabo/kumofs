@@ -135,6 +135,10 @@ void client<Transport, Session>::connect_callback(
 		int on = 1;
 		::setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &on, sizeof(on));  // ignore error
 #endif
+#ifndef NO_SO_LINGER
+		struct linger opt = {0, 0};
+		::setsockopt(fd, SOL_SOCKET, SO_LINGER, (void *)&opt, sizeof(opt));  // ignore error
+#endif
 		LOG_INFO("connect success ",addr," fd(",fd,")");
 		try {
 			basic_shared_session bs(mp::static_pointer_cast<basic_session>(s));

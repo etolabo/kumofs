@@ -35,8 +35,12 @@ void Memproto::accepted(int fd, int err)
 		return;
 	}
 #ifndef NO_TCP_NODELAY
-		int on = 1;
-		::setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &on, sizeof(on));  // ignore error
+	int on = 1;
+	::setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &on, sizeof(on));  // ignore error
+#endif
+#ifndef NO_SO_LINGER
+	struct linger opt = {0, 0};
+	::setsockopt(fd, SOL_SOCKET, SO_LINGER, (void *)&opt, sizeof(opt));  // ignore error
 #endif
 	LOG_DEBUG("accept memproto text user fd=",fd);
 	wavy::add<Connection>(fd);

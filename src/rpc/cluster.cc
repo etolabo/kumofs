@@ -175,6 +175,10 @@ void cluster::accepted(int fd)
 	int on = 1;
 	::setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &on, sizeof(on));  // ignore error
 #endif
+#ifndef NO_SO_LINGER
+	struct linger opt = {0, 0};
+	::setsockopt(fd, SOL_SOCKET, SO_LINGER, (void *)&opt, sizeof(opt));  // ignore error
+#endif
 	wavy::add<cluster_transport>(fd, (client_t*)this);
 }
 
