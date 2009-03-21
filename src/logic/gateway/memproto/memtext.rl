@@ -124,6 +124,7 @@
 
 
 	action cmd_get     { ctx->command = MEMTEXT_CMD_GET;     }
+	action cmd_gets    { ctx->command = MEMTEXT_CMD_GETS;    }
 	action cmd_set     { ctx->command = MEMTEXT_CMD_SET;     }
 	action cmd_add     { ctx->command = MEMTEXT_CMD_ADD;     }
 	action cmd_replace { ctx->command = MEMTEXT_CMD_REPLACE; }
@@ -222,7 +223,9 @@
 	cas_unique = ('0' | [1-9][0-9]*) >mark_cas_unique %cas_unique;
 
 
-	retrieval_command = ('get' 's'?) @cmd_get;
+	retrieval_command = ('gets') @cmd_gets
+					  | ('get' ) @cmd_get
+					  ;
 
 	storage_command = ('set'     ) @cmd_set
 					| ('add'     ) @cmd_add

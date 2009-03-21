@@ -32,6 +32,7 @@ extern "C" {
 typedef enum {
 	/* retrieval */
 	MEMTEXT_CMD_GET,
+	MEMTEXT_CMD_GETS,
 
 	/* storage */
 	MEMTEXT_CMD_SET,
@@ -115,6 +116,7 @@ typedef int (*memtext_callback_numeric)(
 
 typedef struct {
 	memtext_callback_retrieval cmd_get;
+	memtext_callback_retrieval cmd_gets;
 	memtext_callback_storage   cmd_set;
 	memtext_callback_storage   cmd_add;
 	memtext_callback_storage   cmd_replace;

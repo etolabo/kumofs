@@ -1,3 +1,5 @@
+#define __STDC_LIMIT_MACROS
+#define __STDC_FORMAT_MACROS
 #include "gateway/gate_memtext.h"
 #include "gateway/memproto/memtext.h"
 #include "log/mlogger.h"
@@ -13,6 +15,7 @@
 #include <unistd.h>
 #include <algorithm>
 #include <memory>
+#include <inttypes.h>
 
 namespace kumo {
 
@@ -63,101 +66,102 @@ public:
 	void read_event();
 
 private:
-	inline int memproto_get(
+	int request_get(
 			memtext_command cmd,
 			memtext_request_retrieval* r);
 
-	inline int memproto_set(
+	int request_gets(
+			memtext_command cmd,
+			memtext_request_retrieval* r);
+
+	int request_set(
 			memtext_command cmd,
 			memtext_request_storage* r);
 
-	inline int memproto_delete(
+	int request_delete(
 			memtext_command cmd,
 			memtext_request_delete* r);
+
+private:
+	int request_get_real(
+			memtext_command cmd,
+			memtext_request_retrieval* r,
+			bool require_cas);
 
 private:
 	memtext_parser m_memproto;
 	mp::stream_buffer m_buffer;
 	size_t m_off;
 
-	typedef mp::shared_ptr<bool> SharedValid;
-	SharedValid m_valid;
+	typedef gateway::get_request gw_get_request;
+	typedef gateway::set_request gw_set_request;
+	typedef gateway::delete_request gw_delete_request;
 
-	typedef gateway::get_request get_request;
-	typedef gateway::set_request set_request;
-	typedef gateway::delete_request delete_request;
-
-	typedef gateway::get_response get_response;
-	typedef gateway::set_response set_response;
-	typedef gateway::delete_response delete_response;
+	typedef gateway::get_response gw_get_response;
+	typedef gateway::set_response gw_set_response;
+	typedef gateway::delete_response gw_delete_response;
 
 	typedef rpc::shared_zone shared_zone;
 
 
-	struct Responder {
-		Responder(int fd, SharedValid& valid) :
-			m_fd(fd), m_valid(valid) { }
-		~Responder() { }
+	class context {
+	public:
+		context(int fd);
+		~context();
 
-		bool is_valid() const { return *m_valid; }
+		int is_valid() const;
+		void invalidate();
 
-		int fd() const { return m_fd; }
-
-	protected:
-		inline void send_data(const char* buf, size_t buflen);
-		inline void send_datav(struct iovec* vb, size_t count, shared_zone& life);
+		void send_data(const char* buf, size_t buflen);
+		void send_datav(struct iovec* vb, size_t count, shared_zone& life);
+		void send_datav(struct iovec* vb, wavy::request* vr, size_t count);
 
 	private:
+		bool m_valid;
 		int m_fd;
-		SharedValid m_valid;
-	};
 
-	struct ResGet : Responder {
-		ResGet(int fd, SharedValid& valid) :
-			Responder(fd, valid) { }
-		~ResGet() { }
-		void response(get_response& res);
 	private:
-		char m_numbuf[3+10+3];  // " 0 " + uint32 + "\r\n\0"
-		ResGet();
-		ResGet(const ResGet&);
+		context();
+		context(const context&);
 	};
 
-	struct ResMultiGet : Responder {
-		ResMultiGet(int fd, SharedValid& valid,
-				struct iovec* vec, unsigned* count,
-				struct iovec* qhead, unsigned qlen) :
-			Responder(fd, valid),
-			m_vec(vec), m_count(count),
-			m_qhead(qhead), m_qlen(qlen) { }
-		~ResMultiGet() { }
-		void response(get_response& res);
-	private:
-		struct iovec* m_vec;
-		unsigned *m_count;
-		struct iovec* m_qhead;
-		size_t m_qlen;
-		char m_numbuf[3+10+3];  // " 0 " + uint32 + "\r\n\0"
-	private:
-		ResMultiGet();
-		ResMultiGet(const ResMultiGet&);
+	typedef mp::shared_ptr<context> shared_context;
+	shared_context m_context;
+
+
+	struct entry {
+		shared_context context;
 	};
 
-	struct ResSet : Responder {
-		ResSet(int fd, SharedValid& valid) :
-			Responder(fd, valid) { }
-		~ResSet() { }
-		void response(set_response& res);
-		void no_response(set_response& res);
-	};
 
-	struct ResDelete : Responder {
-		ResDelete(int fd, SharedValid& valid) :
-			Responder(fd, valid) { }
-		~ResDelete() { }
-		void response(delete_response& res);
-		void no_response(delete_response& res);
+	struct get_entry : entry {
+		bool require_cas;
 	};
+	static void response_get(void* user, gw_get_response& res);
+
+
+	struct get_multi_entry : entry {
+		bool require_cas;
+		size_t offset;
+		unsigned *count;
+		struct iovec*  vhead;
+		wavy::request* rhead;
+		size_t veclen;
+	};
+	static void response_get_multi(void* user, gw_get_response& res);
+
+
+	struct set_entry : entry {
+	};
+	static void response_set(void* user, gw_set_response& res);
+
+
+	struct delete_entry : entry {
+	};
+	static void response_delete(void* user, gw_delete_response& res);
+
+	static void response_noreply_set(void* user, gw_set_response& res);
+	static void response_noreply_delete(void* user, gw_delete_response& res);
 
 private:
 	Connection();
@@ -169,22 +173,27 @@ Memtext::Connection::Connection(int fd) :
 	mp::wavy::handler(fd),
 	m_buffer(MEMTEXT_INITIAL_ALLOCATION_SIZE),
 	m_off(0),
-	m_valid(new bool(true))
+	m_context(new context(fd))
 {
 	int (*cmd_get)(void*, memtext_command, memtext_request_retrieval*) =
 		&mp::object_callback<int (memtext_command, memtext_request_retrieval*)>::
-				mem_fun<Connection, &Connection::memproto_get>;
+				mem_fun<Connection, &Connection::request_get>;
+
+	int (*cmd_gets)(void*, memtext_command, memtext_request_retrieval*) =
+		&mp::object_callback<int (memtext_command, memtext_request_retrieval*)>::
+				mem_fun<Connection, &Connection::request_gets>;
 
 	int (*cmd_set)(void*, memtext_command, memtext_request_storage*) =
 		&mp::object_callback<int (memtext_command, memtext_request_storage*)>::
-				mem_fun<Connection, &Connection::memproto_set>;
+				mem_fun<Connection, &Connection::request_set>;
 
 	int (*cmd_delete)(void*, memtext_command, memtext_request_delete*) =
 		&mp::object_callback<int (memtext_command, memtext_request_delete*)>::
-				mem_fun<Connection, &Connection::memproto_delete>;
+				mem_fun<Connection, &Connection::request_delete>;
 
 	memtext_callback cb = {
 		cmd_get,      // get
+		cmd_gets,     // gets
 		cmd_set,      // set
 		NULL,         // add
 		NULL,         // replace
@@ -201,7 +210,44 @@ Memtext::Connection::Connection(int fd) :
 
 Memtext::Connection::~Connection()
 {
-	*m_valid = false;
+	m_context->invalidate();
+}
+
+
+inline int Memtext::Connection::context::is_valid() const
+{
+	return m_valid;
+}
+
+inline void Memtext::Connection::context::invalidate()
+{
+	m_valid = true;
+}
+
+
+Memtext::Connection::context::context(int fd) :
+	m_valid(true), m_fd(fd) { }
+
+Memtext::Connection::context::~context() { }
+
+
+inline void Memtext::Connection::context::send_data(
+		const char* buf, size_t buflen)
+{
+	wavy::write(m_fd, buf, buflen);
+}
+
+inline void Memtext::Connection::context::send_datav(
+		struct iovec* vb, size_t count, shared_zone& life)
+{
+	wavy::request req(&mp::object_delete<shared_zone>, new shared_zone(life));
+	wavy::writev(m_fd, vb, count, req);
+}
+
+inline void Memtext::Connection::context::send_datav(
+		struct iovec* vb, wavy::request* vr, size_t count)
+{
+	wavy::writev(m_fd, vb, vr, count);
 }
 
 
@@ -242,20 +288,6 @@ try {
 }
 
 
-void Memtext::Connection::Responder::send_data(
-		const char* buf, size_t buflen)
-{
-	wavy::write(m_fd, buf, buflen);
-}
-
-void Memtext::Connection::Responder::send_datav(
-		struct iovec* vb, size_t count, shared_zone& life)
-{
-	wavy::request req(&mp::object_delete<shared_zone>, new shared_zone(life));
-	wavy::writev(m_fd, vb, count, req);
-}
-
-
 namespace {
 static const char* const NOT_SUPPORTED_REPLY = "CLIENT_ERROR supported\r\n";
 static const char* const GET_FAILED_REPLY    = "SERVER_ERROR get failed\r\n";
@@ -268,55 +300,92 @@ static const char* const DELETE_FAILED_REPLY = "SERVER_ERROR delete failed\r\n";
 	life->push_finalizer(&mp::object_delete<mp::stream_buffer::reference>, \
 				m_buffer.release());
 
-int Memtext::Connection::memproto_get(
+// "VALUE "+keylen+" 0 "+uint32+" "+uint64+"\r\n\0"
+#define HEADER_SIZE(keylen) \
+		6 +(keylen)+ 3  +  10  + 1 +  20  +   3
+
+
+int Memtext::Connection::request_get(
 		memtext_command cmd,
 		memtext_request_retrieval* r)
+{
+	return request_get_real(cmd, r, false);
+}
+
+int Memtext::Connection::request_gets(
+		memtext_command cmd,
+		memtext_request_retrieval* r)
+{
+	return request_get_real(cmd, r, true);
+}
+
+int Memtext::Connection::request_get_real(
+		memtext_command cmd,
+		memtext_request_retrieval* r,
+		bool require_cas)
 {
 	LOG_TRACE("get");
 	RELEASE_REFERENCE(life);
 
 	if(r->key_num == 1) {
-		const char* key = r->key[0];
-		unsigned keylen = r->key_len[0];
+		const char* const key = r->key[0];
+		size_t const key_len  = r->key_len[0];
 
-		ResGet* ctx = life->allocate<ResGet>(fd(), m_valid);
-		get_request req;
-		req.key = key;
-		req.keylen = keylen;
-		req.hash = gateway::stdhash(req.key, req.keylen);
-		req.callback = &mp::object_callback<void (get_response&)>
-			::mem_fun<ResGet, &ResGet::response>;
-		req.user = (void*)ctx;
-		req.life = life;
+		get_entry* e = life->allocate<get_entry>();
+		e->context     = m_context;
+		e->require_cas = require_cas;
 
+		gw_get_request req;
+		req.keylen   = key_len;
+		req.key      = key;
+		req.hash     = gateway::stdhash(req.key, req.keylen);
+		req.life     = life;
+		req.user     = reinterpret_cast<void*>(e);
+		req.callback = &Connection::response_get;
+	
 		gateway::submit(req);
 
 	} else {
-		ResMultiGet* ctxs[r->key_num];
-		unsigned* count = (unsigned*)life->malloc(sizeof(unsigned));
+		get_multi_entry* me[r->key_num];
+
+		size_t const veclen = r->key_num * 2 + 1;  // +1: \r\nEND\r\n
+
+		struct iovec*  vhead = (struct iovec* )life->malloc(
+				sizeof(struct iovec )*veclen);
+
+		wavy::request* rhead = (wavy::request*)life->malloc(
+				sizeof(wavy::request)*veclen);
+
+		unsigned* count      = (unsigned*)life->malloc(sizeof(unsigned));
 		*count = r->key_num;
 
-		size_t qlen = r->key_num * 5 + 1;  // +1: "END\r\n"
-		struct iovec* qhead = (struct iovec*)life->malloc(sizeof(struct iovec) * qlen);
-		qhead[qlen-1].iov_base = const_cast<char*>("END\r\n");
-		qhead[qlen-1].iov_len = 5;
+		memset(vhead, 0, sizeof(struct iovec )*(veclen-1));
+		vhead[veclen-1].iov_base = const_cast<char*>("\r\nEND\r\n");
+		vhead[veclen-1].iov_len  = 7;
+
+		memset(rhead, 0, sizeof(wavy::request)*veclen);
 
 		for(unsigned i=0; i < r->key_num; ++i) {
-			ctxs[i] = life->allocate<ResMultiGet>(fd(), m_valid,
-					qhead + i*5, count, qhead, qlen);
+			me[i] = life->allocate<get_multi_entry>();
+			me[i]->context     = m_context;
+			me[i]->require_cas = require_cas;
+			me[i]->offset      = i*2;
+			me[i]->count       = count;
+			me[i]->vhead       = vhead;
+			me[i]->rhead       = rhead;
+			me[i]->veclen      = veclen;
 		}
 
-		get_request req;
-		req.callback = &mp::object_callback<void (get_response&)>
-			::mem_fun<ResMultiGet, &ResMultiGet::response>;
-		req.life = life;
+		gw_get_request req;
+		req.callback = &Connection::response_get_multi;
+		req.life     = life;
 
 		for(unsigned i=0; i < r->key_num; ++i) {
-			// don't use shared zone. msgpack::allocate is not thread-safe.
-			req.user = (void*)ctxs[i];
-			req.key = r->key[i];
-			req.keylen = r->key_len[i];
-			req.hash = gateway::stdhash(req.key, req.keylen);
+			// don't use life. msgpack::allocate is not thread-safe.
+			req.user     = reinterpret_cast<void*>(me[i]);
+			req.keylen   = r->key_len[i];
+			req.key      = r->key[i];
+			req.hash     = gateway::stdhash(req.key, req.keylen);
 			gateway::submit(req);
 		}
 	}
@@ -325,7 +394,7 @@ int Memtext::Connection::memproto_get(
 }
 
 
-int Memtext::Connection::memproto_set(
+int Memtext::Connection::request_set(
 		memtext_command cmd,
 		memtext_request_storage* r)
 {
@@ -337,23 +406,22 @@ int Memtext::Connection::memproto_set(
 		return 0;
 	}
 
-	ResSet* ctx = life->allocate<ResSet>(fd(), m_valid);
-	set_request req;
-	req.key = r->key;
-	req.keylen = r->key_len;
-	req.hash = gateway::stdhash(req.key, req.keylen);
-	req.val = r->data;
-	req.vallen = r->data_len;
-	req.life = life;
+	set_entry* e = life->allocate<set_entry>();
+	e->context = m_context;
 
+	gw_set_request req;
+	req.keylen   = r->key_len;
+	req.key      = r->key;
+	req.vallen   = r->data_len;
+	req.val      = r->data;
+	req.hash     = gateway::stdhash(req.key, req.keylen);
+	req.life     = life;
+	req.user     = reinterpret_cast<void*>(e);
 	if(r->noreply) {
-		req.callback = &mp::object_callback<void (set_response&)>
-			::mem_fun<ResSet, &ResSet::no_response>;
+		req.callback = &Connection::response_noreply_set;
 	} else {
-		req.callback = &mp::object_callback<void (set_response&)>
-			::mem_fun<ResSet, &ResSet::response>;
+		req.callback = &Connection::response_set;
 	}
-	req.user = ctx;
 
 	gateway::submit(req);
 
@@ -361,7 +429,7 @@ int Memtext::Connection::memproto_set(
 }
 
 
-int Memtext::Connection::memproto_delete(
+int Memtext::Connection::request_delete(
 		memtext_command cmd,
 		memtext_request_delete* r)
 {
@@ -373,21 +441,20 @@ int Memtext::Connection::memproto_delete(
 		return 0;
 	}
 
-	ResDelete* ctx = life->allocate<ResDelete>(fd(), m_valid);
-	delete_request req;
-	req.key = r->key;
-	req.keylen = r->key_len;
-	req.hash = gateway::stdhash(req.key, req.keylen);
-	req.life = life;
+	delete_entry* e = life->allocate<delete_entry>();
+	e->context = m_context;
 
+	gw_delete_request req;
+	req.key      = r->key;
+	req.keylen   = r->key_len;
+	req.hash     = gateway::stdhash(req.key, req.keylen);
+	req.life     = life;
+	req.user     = reinterpret_cast<void*>(e);
 	if(r->noreply) {
-		req.callback = &mp::object_callback<void (delete_response&)>
-			::mem_fun<ResDelete, &ResDelete::no_response>;
+		req.callback = &Connection::response_noreply_delete;
 	} else {
-		req.callback = &mp::object_callback<void (delete_response&)>
-			::mem_fun<ResDelete, &ResDelete::response>;
+		req.callback = &Connection::response_delete;
 	}
-	req.user = ctx;
 
 	gateway::submit(req);
 
@@ -396,99 +463,143 @@ int Memtext::Connection::memproto_delete(
 
 
 
-void Memtext::Connection::ResGet::response(get_response& res)
+void Memtext::Connection::response_get(void* user, gw_get_response& res)
 {
-	if(!is_valid()) { return; }
+	get_entry* e = reinterpret_cast<get_entry*>(user);
+	context* const c = e->context.get();
+	if(!c->is_valid()) { return; }
+
 	LOG_TRACE("get response");
 
 	if(res.error) {
-		send_data(GET_FAILED_REPLY, strlen(GET_FAILED_REPLY));
+		c->send_data(GET_FAILED_REPLY, strlen(GET_FAILED_REPLY));
 		return;
 	}
 
 	if(!res.val) {
-		send_data("END\r\n", 5);
+		c->send_data("END\r\n", 5);
 		return;
 	}
 
-	struct iovec vb[5];
-	vb[0].iov_base = const_cast<char*>("VALUE ");
-	vb[0].iov_len  = 6;
-	vb[1].iov_base = const_cast<char*>(res.key);
-	vb[1].iov_len  = res.keylen;
-	vb[2].iov_base = m_numbuf;
-	vb[2].iov_len  = sprintf(m_numbuf, " 0 %u\r\n", res.vallen);
-	vb[3].iov_base = const_cast<char*>(res.val);
-	vb[3].iov_len  = res.vallen;
-	vb[4].iov_base = const_cast<char*>("\r\nEND\r\n");
-	vb[4].iov_len  = 7;
-	send_datav(vb, 5, res.life);
+	char* const header = (char*)res.life->malloc(HEADER_SIZE(res.keylen));
+	char* p = header;
+
+	memcpy(p, "VALUE ", 6);           p += 6;
+	memcpy(p, res.key,  res.keylen);  p += res.keylen;
+	p += sprintf(p, " 0 %"PRIu32, res.vallen);
+
+	if(e->require_cas) {
+		p += sprintf(p, " %"PRIu64"\r\n", (uint64_t)0);
+	} else {
+		p[0] = '\r'; p[1] = '\n'; p += 2;
+	}
+
+	struct iovec vb[3];
+	vb[0].iov_base = header;
+	vb[0].iov_len  = p - header;
+	vb[1].iov_base = const_cast<char*>(res.val);
+	vb[1].iov_len  = res.vallen;
+	vb[2].iov_base = const_cast<char*>("\r\nEND\r\n");
+	vb[2].iov_len  = 7;
+
+	c->send_datav(vb, 3, res.life);
 }
 
 
-void Memtext::Connection::ResMultiGet::response(get_response& res)
+void Memtext::Connection::response_get_multi(void* user, gw_get_response& res)
 {
-	if(!is_valid()) { return; }
-	LOG_TRACE("get multi response ",m_count);
+	get_multi_entry* e = reinterpret_cast<get_multi_entry*>(user);
+	context* const c = e->context.get();
+	if(!c->is_valid()) { return; }
 
 	if(res.error || !res.val) {
-		memset(m_vec, 0, sizeof(struct iovec)*5);
 		goto filled;
 	}
 
-	// don't use shared zone. msgpack::allocate is not thread-safe.
-	m_vec[0].iov_base = const_cast<char*>("VALUE ");
-	m_vec[0].iov_len  = 6;
-	m_vec[1].iov_base = const_cast<char*>(res.key);
-	m_vec[1].iov_len  = res.keylen;
-	m_vec[2].iov_base = m_numbuf;
-	m_vec[2].iov_len  = sprintf(m_numbuf, " 0 %u\r\n", res.vallen);
-	m_vec[3].iov_base = const_cast<char*>(res.val);
-	m_vec[3].iov_len  = res.vallen;
-	m_vec[4].iov_base = const_cast<char*>("\r\n");
-	m_vec[4].iov_len  = 2;
+	{
+		// res.life is different from req.life and res.life includes req.life
+		char* const header = (char*)res.life->malloc(HEADER_SIZE(res.keylen)+2);  // +2: \r\n
+		char* p = header;
+	
+		memcpy(p, "\r\nVALUE ", 8);       p += 8;
+		memcpy(p, res.key,  res.keylen);  p += res.keylen;
+		p += sprintf(p, " 0 %"PRIu32, res.vallen);
+	
+		if(e->require_cas) {
+			p += sprintf(p, " %"PRIu64"\r\n", (uint64_t)0);  // FIXME p64X casval
+		} else {
+			p[0] = '\r'; p[1] = '\n'; p += 2;
+		}
+	
+		struct iovec*  vb = &e->vhead[e->offset];
+		wavy::request* vr = &e->rhead[e->offset];
+	
+		vb[0].iov_base = header;
+		vb[0].iov_len  = p - header;
+		vb[1].iov_base = res.val;
+		vb[1].iov_len  = res.vallen;
+	
+		vr[1] = wavy::request(&mp::object_delete<shared_zone>,
+				new shared_zone(res.life));
+	}
 
 filled:
-	if(__sync_sub_and_fetch(m_count, 1) == 0) {
-		send_datav(m_qhead, m_qlen, res.life);
+	if(__sync_sub_and_fetch(e->count, 1) == 0) {
+		for(struct iovec* v=e->vhead, * const ve = e->vhead+e->veclen;
+				v < ve; v+=2) {
+			if(v->iov_base) {
+				v->iov_base = (char*)v->iov_base + 2;  // strip \r\n
+				v->iov_len -= 2;
+				break;
+			}
+		}
+		c->send_datav(e->vhead, e->rhead, e->veclen);
 	}
 }
 
 
-void Memtext::Connection::ResSet::response(set_response& res)
+void Memtext::Connection::response_set(void* user, gw_set_response& res)
 {
-	if(!is_valid()) { return; }
+	set_entry* e = reinterpret_cast<set_entry*>(user);
+	context* const c = e->context.get();
+	if(!c->is_valid()) { return; }
+
 	LOG_TRACE("set response");
 
 	if(res.error) {
-		send_data(STORE_FAILED_REPLY, strlen(STORE_FAILED_REPLY));
+		c->send_data(STORE_FAILED_REPLY, strlen(STORE_FAILED_REPLY));
 		return;
 	}
 
-	send_data("STORED\r\n", 8);
+	c->send_data("STORED\r\n", 8);
 }
 
-void Memtext::Connection::ResSet::no_response(set_response& res)
-{ }
 
-
-void Memtext::Connection::ResDelete::response(delete_response& res)
+void Memtext::Connection::response_delete(void* user, gw_delete_response& res)
 {
-	if(!is_valid()) { return; }
+	delete_entry* e = reinterpret_cast<delete_entry*>(user);
+	context* const c = e->context.get();
+	if(!c->is_valid()) { return; }
+
 	LOG_TRACE("delete response");
 
 	if(res.error) {
-		send_data(DELETE_FAILED_REPLY, strlen(DELETE_FAILED_REPLY));
+		c->send_data(DELETE_FAILED_REPLY, strlen(DELETE_FAILED_REPLY));
 		return;
 	}
+
 	if(res.deleted) {
-		send_data("DELETED\r\n", 9);
+		c->send_data("DELETED\r\n", 9);
 	} else {
-		send_data("NOT FOUND\r\n", 11);
+		c->send_data("NOT FOUND\r\n", 11);
 	}
 }
 
-void Memtext::Connection::ResDelete::no_response(delete_response& res)
+
+void Memtext::Connection::response_noreply_set(void* user, gw_set_response& res)
+{ }
+
+void Memtext::Connection::response_noreply_delete(void* user, gw_delete_response& res)
 { }
 
 

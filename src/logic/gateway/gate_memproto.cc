@@ -474,8 +474,8 @@ void Memproto::Connection::request_set(memproto_header* h,
 	req.keylen   = keylen;
 	req.key      = key;
 	req.vallen   = vallen;
-	req.hash     = gateway::stdhash(req.key, req.keylen);
 	req.val      = val;
+	req.hash     = gateway::stdhash(req.key, req.keylen);
 	req.life     = m_zone;
 	req.user     = reinterpret_cast<void*>(e);
 	req.callback = &Connection::response_set;
