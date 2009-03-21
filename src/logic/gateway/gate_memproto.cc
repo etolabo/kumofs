@@ -17,8 +17,9 @@
 namespace kumo {
 
 
-static const size_t MEMPROTO_INITIAL_ALLOCATION_SIZE = 32*1024;
-static const size_t MEMPROTO_RESERVE_SIZE = 4*1024;
+namespace {
+	class handler;
+}
 
 
 Memproto::Memproto(int lsock) :
@@ -43,7 +44,7 @@ void Memproto::accepted(int fd, int err)
 	::setsockopt(fd, SOL_SOCKET, SO_LINGER, (void *)&opt, sizeof(opt));  // ignore error
 #endif
 	LOG_DEBUG("accept memproto text user fd=",fd);
-	wavy::add<Connection>(fd);
+	wavy::add<handler>(fd);
 }
 
 void Memproto::listen()
@@ -54,35 +55,39 @@ void Memproto::listen()
 }
 
 
+namespace {
 
-class Memproto::Connection : public wavy::handler {
+static const size_t MEMPROTO_INITIAL_ALLOCATION_SIZE = 32*1024;
+static const size_t MEMPROTO_RESERVE_SIZE = 4*1024;
+
+class handler : public wavy::handler {
 public:
-	Connection(int fd);
-	~Connection();
+	handler(int fd);
+	~handler();
 
 public:
 	void read_event();
 
 private:
 	// get, getq, getk, getkq
-	inline void request_getx(memproto_header* h,
+	void request_getx(memproto_header* h,
 			const char* key, uint16_t keylen);
 
 	// set
-	inline void request_set(memproto_header* h,
+	void request_set(memproto_header* h,
 			const char* key, uint16_t keylen,
 			const char* val, uint32_t vallen,
 			uint32_t flags, uint32_t expiration);
 
 	// delete
-	inline void request_delete(memproto_header* h,
+	void request_delete(memproto_header* h,
 			const char* key, uint16_t keylen,
 			uint32_t expiration);
 
 	// noop
-	inline void request_noop(memproto_header* h);
+	void request_noop(memproto_header* h);
 
-	inline void request_flush(memproto_header* h,
+	void request_flush(memproto_header* h,
 			uint32_t expiration);
 
 private:
@@ -181,82 +186,45 @@ private:
 			const void* val, uint16_t vallen,
 			const char* extra, uint16_t extralen);
 
-	static inline void pack_header(
+	static void pack_header(
 			char* hbuf, uint16_t status, uint8_t op,
 			uint16_t keylen, uint32_t vallen, uint8_t extralen,
 			uint32_t opaque, uint64_t cas);
 
 private:
-	Connection();
-	Connection(const Connection&);
+	handler();
+	handler(const handler&);
 };
 
 
-Memproto::Connection::Connection(int fd) :
-	wavy::handler(fd),
-	m_buffer(MEMPROTO_INITIAL_ALLOCATION_SIZE),
-	m_zone(new msgpack::zone()),
-	m_queue(new response_queue(fd))
+handler::response_queue::response_queue(int fd) :
+	m_valid(true), m_fd(fd) { }
+
+handler::response_queue::~response_queue() { }
+
+
+inline int handler::response_queue::is_valid() const
 {
-	void (*cmd_getx)(void*, memproto_header*,
-			const char*, uint16_t) = &mp::object_callback<void (memproto_header*,
-				const char*, uint16_t)>
-				::mem_fun<Connection, &Connection::request_getx>;
-
-	void (*cmd_set)(void*, memproto_header*,
-			const char*, uint16_t,
-			const char*, uint32_t,
-			uint32_t, uint32_t) = &mp::object_callback<void (memproto_header*,
-				const char*, uint16_t,
-				const char*, uint32_t,
-				uint32_t, uint32_t)>
-				::mem_fun<Connection, &Connection::request_set>;
-
-	void (*cmd_delete)(void*, memproto_header*,
-			const char*, uint16_t,
-			uint32_t) = &mp::object_callback<void (memproto_header*,
-				const char*, uint16_t,
-				uint32_t)>
-				::mem_fun<Connection, &Connection::request_delete>;
-
-	void (*cmd_noop)(void*, memproto_header*) =
-			&mp::object_callback<void (memproto_header*)>
-				::mem_fun<Connection, &Connection::request_noop>;
-
-	void (*cmd_flush)(void*, memproto_header*,
-			uint32_t) = &mp::object_callback<void (memproto_header*,
-				uint32_t expiration)>
-				::mem_fun<Connection, &Connection::request_flush>;
-
-	memproto_callback cb = {
-		cmd_getx,    // get
-		cmd_set,     // set
-		NULL,        // add
-		NULL,        // replace
-		cmd_delete,  // delete
-		NULL,        // increment
-		NULL,        // decrement
-		NULL,        // quit
-		cmd_flush,   // flush
-		cmd_getx,    // getq
-		cmd_noop,    // noop
-		NULL,        // version
-		cmd_getx,    // getk
-		cmd_getx,    // getkq
-		NULL,        // append
-		NULL,        // prepend
-	};
-
-	memproto_parser_init(&m_memproto, &cb, this);
+	return m_valid;
 }
 
-Memproto::Connection::~Connection()
+inline void handler::response_queue::invalidate()
 {
-	m_queue->invalidate();
+	m_valid = false;
 }
 
 
-struct Memproto::Connection::response_queue::find_entry_compare {
+void handler::response_queue::push_entry(
+		entry* e, shared_zone& life)
+{
+	element_t m = {e, life};
+
+	mp::pthread_scoped_lock mqlk(m_queue_mutex);
+	m_queue.push_back(m);
+}
+
+
+struct handler::response_queue::find_entry_compare {
 	find_entry_compare(entry* key) : m_key(key) { }
 
 	bool operator() (const element_t& elem)
@@ -267,21 +235,7 @@ struct Memproto::Connection::response_queue::find_entry_compare {
 	entry* m_key;
 };
 
-Memproto::Connection::response_queue::response_queue(int fd) :
-	m_valid(true), m_fd(fd) { }
-
-Memproto::Connection::response_queue::~response_queue() { }
-
-inline void Memproto::Connection::response_queue::push_entry(
-		entry* e, shared_zone& life)
-{
-	element_t m = {e, life};
-
-	mp::pthread_scoped_lock mqlk(m_queue_mutex);
-	m_queue.push_back(m);
-}
-
-inline void Memproto::Connection::response_queue::reached_try_send(
+void handler::response_queue::reached_try_send(
 		entry* e, shared_zone& life,
 		struct iovec* vec, size_t veclen)
 {
@@ -363,18 +317,153 @@ inline void Memproto::Connection::response_queue::reached_try_send(
 #endif
 }
 
-inline int Memproto::Connection::response_queue::is_valid() const
+
+void handler::pack_header(
+		char* hbuf, uint16_t status, uint8_t op,
+		uint16_t keylen, uint32_t vallen, uint8_t extralen,
+		uint32_t opaque, uint64_t cas)
 {
-	return m_valid;
+	hbuf[0] = 0x81;
+	hbuf[1] = op;
+	*(uint16_t*)&hbuf[2] = htons(keylen);
+	hbuf[4] = extralen;
+	hbuf[5] = 0x00;
+	*(uint16_t*)&hbuf[6] = htons(status);
+	*(uint32_t*)&hbuf[8] = htonl(vallen + keylen + extralen);
+	*(uint32_t*)&hbuf[12] = htonl(opaque);
+	*(uint32_t*)&hbuf[16] = htonl((uint32_t)(cas>>32));
+	*(uint32_t*)&hbuf[20] = htonl((uint32_t)(cas&0xffffffff));
 }
 
-inline void Memproto::Connection::response_queue::invalidate()
+void handler::send_response_nosend(entry* e, shared_zone& life)
 {
-	m_valid = false;
+	e->queue->reached_try_send(e, life, NULL, 0);
+}
+
+void handler::send_response_nodata(
+		entry* e, shared_zone& life,
+		uint8_t status)
+{
+	char* header = (char*)life->malloc(MEMPROTO_HEADER_SIZE);
+
+	pack_header(header, status, e->header.opcode,
+			0, 0, 0,
+			e->header.opaque, 0);  // cas = 0
+
+	struct iovec* vec = (struct iovec*)life->malloc(
+			sizeof(struct iovec) * 1);
+	vec[0].iov_base = header;
+	vec[0].iov_len  = MEMPROTO_HEADER_SIZE;
+
+	e->queue->reached_try_send(e, life, vec, 1);
+}
+
+void handler::send_response(
+		entry* e, shared_zone& life,
+		uint8_t status,
+		const char* key, uint16_t keylen,
+		const void* val, uint16_t vallen,
+		const char* extra, uint16_t extralen)
+{
+	char* header = (char*)life->malloc(MEMPROTO_HEADER_SIZE);
+	pack_header(header, status, e->header.opcode,
+			keylen, vallen, extralen,
+			e->header.opaque, 0);  // cas = 0
+
+	struct iovec* vec = (struct iovec*)life->malloc(
+			sizeof(struct iovec) * 4);
+
+	vec[0].iov_base = header;
+	vec[0].iov_len  = MEMPROTO_HEADER_SIZE;
+	size_t cnt = 1;
+
+	if(extralen > 0) {
+		vec[cnt].iov_base = const_cast<char*>(extra);
+		vec[cnt].iov_len  = extralen;
+		++cnt;
+	}
+
+	if(keylen > 0) {
+		vec[cnt].iov_base = const_cast<char*>(key);
+		vec[cnt].iov_len  = keylen;
+		++cnt;
+	}
+
+	if(vallen > 0) {
+		vec[cnt].iov_base = const_cast<void*>(val);
+		vec[cnt].iov_len  = vallen;
+		++cnt;
+	}
+
+	e->queue->reached_try_send(e, life, vec, cnt);
 }
 
 
-void Memproto::Connection::read_event()
+handler::handler(int fd) :
+	wavy::handler(fd),
+	m_buffer(MEMPROTO_INITIAL_ALLOCATION_SIZE),
+	m_zone(new msgpack::zone()),
+	m_queue(new response_queue(fd))
+{
+	void (*cmd_getx)(void*, memproto_header*,
+			const char*, uint16_t) = &mp::object_callback<void (memproto_header*,
+				const char*, uint16_t)>
+				::mem_fun<handler, &handler::request_getx>;
+
+	void (*cmd_set)(void*, memproto_header*,
+			const char*, uint16_t,
+			const char*, uint32_t,
+			uint32_t, uint32_t) = &mp::object_callback<void (memproto_header*,
+				const char*, uint16_t,
+				const char*, uint32_t,
+				uint32_t, uint32_t)>
+				::mem_fun<handler, &handler::request_set>;
+
+	void (*cmd_delete)(void*, memproto_header*,
+			const char*, uint16_t,
+			uint32_t) = &mp::object_callback<void (memproto_header*,
+				const char*, uint16_t,
+				uint32_t)>
+				::mem_fun<handler, &handler::request_delete>;
+
+	void (*cmd_noop)(void*, memproto_header*) =
+			&mp::object_callback<void (memproto_header*)>
+				::mem_fun<handler, &handler::request_noop>;
+
+	void (*cmd_flush)(void*, memproto_header*,
+			uint32_t) = &mp::object_callback<void (memproto_header*,
+				uint32_t expiration)>
+				::mem_fun<handler, &handler::request_flush>;
+
+	memproto_callback cb = {
+		cmd_getx,    // get
+		cmd_set,     // set
+		NULL,        // add
+		NULL,        // replace
+		cmd_delete,  // delete
+		NULL,        // increment
+		NULL,        // decrement
+		NULL,        // quit
+		cmd_flush,   // flush
+		cmd_getx,    // getq
+		cmd_noop,    // noop
+		NULL,        // version
+		cmd_getx,    // getk
+		cmd_getx,    // getkq
+		NULL,        // append
+		NULL,        // prepend
+	};
+
+	memproto_parser_init(&m_memproto, &cb, this);
+}
+
+handler::~handler()
+{
+	m_queue->invalidate();
+}
+
+
+void handler::read_event()
 try {
 	m_buffer.reserve_buffer(MEMPROTO_RESERVE_SIZE);
 
@@ -430,7 +519,8 @@ try {
 	throw;
 }
 
-void Memproto::Connection::request_getx(memproto_header* h,
+
+void handler::request_getx(memproto_header* h,
 		const char* key, uint16_t keylen)
 {
 	LOG_TRACE("getx");
@@ -447,14 +537,14 @@ void Memproto::Connection::request_getx(memproto_header* h,
 	req.hash     = gateway::stdhash(req.key, req.keylen);
 	req.life     = m_zone;
 	req.user     = reinterpret_cast<void*>(e);
-	req.callback = &Connection::response_getx;
+	req.callback = &handler::response_getx;
 
 	m_queue->push_entry(e, m_zone);
 
 	gateway::submit(req);
 }
 
-void Memproto::Connection::request_set(memproto_header* h,
+void handler::request_set(memproto_header* h,
 		const char* key, uint16_t keylen,
 		const char* val, uint32_t vallen,
 		uint32_t flags, uint32_t expiration)
@@ -478,14 +568,14 @@ void Memproto::Connection::request_set(memproto_header* h,
 	req.hash     = gateway::stdhash(req.key, req.keylen);
 	req.life     = m_zone;
 	req.user     = reinterpret_cast<void*>(e);
-	req.callback = &Connection::response_set;
+	req.callback = &handler::response_set;
 
 	m_queue->push_entry(e, m_zone);
 
 	gateway::submit(req);
 }
 
-void Memproto::Connection::request_delete(memproto_header* h,
+void handler::request_delete(memproto_header* h,
 		const char* key, uint16_t keylen,
 		uint32_t expiration)
 {
@@ -506,14 +596,14 @@ void Memproto::Connection::request_delete(memproto_header* h,
 	req.hash     = gateway::stdhash(req.key, req.keylen);
 	req.life     = m_zone;
 	req.user     = reinterpret_cast<void*>(e);
-	req.callback = &Connection::response_delete;
+	req.callback = &handler::response_delete;
 
 	m_queue->push_entry(e, m_zone);
 
 	gateway::submit(req);
 }
 
-void Memproto::Connection::request_noop(memproto_header* h)
+void handler::request_noop(memproto_header* h)
 {
 	LOG_TRACE("noop");
 
@@ -525,7 +615,7 @@ void Memproto::Connection::request_noop(memproto_header* h)
 	send_response_nodata(e, m_zone, MEMPROTO_RES_NO_ERROR);
 }
 
-void Memproto::Connection::request_flush(memproto_header* h,
+void handler::request_flush(memproto_header* h,
 		uint32_t expiration)
 {
 	LOG_TRACE("flush");
@@ -543,11 +633,10 @@ void Memproto::Connection::request_flush(memproto_header* h,
 	send_response_nodata(e, m_zone, MEMPROTO_RES_NO_ERROR);
 }
 
-namespace {
-	static const uint32_t ZERO_FLAG = 0;
-}  // noname namespace
 
-void Memproto::Connection::response_getx(void* user, gw_get_response& res)
+static const uint32_t ZERO_FLAG = 0;
+
+void handler::response_getx(void* user, gw_get_response& res)
 {
 	get_entry* e = reinterpret_cast<get_entry*>(user);
 	if(!e->queue->is_valid()) { return; }
@@ -582,7 +671,7 @@ void Memproto::Connection::response_getx(void* user, gw_get_response& res)
 			(char*)&ZERO_FLAG, 4);
 }
 
-void Memproto::Connection::response_set(void* user, gw_set_response& res)
+void handler::response_set(void* user, gw_set_response& res)
 {
 	set_entry* e = reinterpret_cast<set_entry*>(user);
 	if(!e->queue->is_valid()) { return; }
@@ -599,7 +688,7 @@ void Memproto::Connection::response_set(void* user, gw_set_response& res)
 	send_response_nodata(e, res.life, MEMPROTO_RES_NO_ERROR);
 }
 
-void Memproto::Connection::response_delete(void* user, gw_delete_response& res)
+void handler::response_delete(void* user, gw_delete_response& res)
 {
 	delete_entry* e = reinterpret_cast<delete_entry*>(user);
 	if(!e->queue->is_valid()) { return; }
@@ -620,86 +709,6 @@ void Memproto::Connection::response_delete(void* user, gw_delete_response& res)
 }
 
 
-void Memproto::Connection::pack_header(
-		char* hbuf, uint16_t status, uint8_t op,
-		uint16_t keylen, uint32_t vallen, uint8_t extralen,
-		uint32_t opaque, uint64_t cas)
-{
-	hbuf[0] = 0x81;
-	hbuf[1] = op;
-	*(uint16_t*)&hbuf[2] = htons(keylen);
-	hbuf[4] = extralen;
-	hbuf[5] = 0x00;
-	*(uint16_t*)&hbuf[6] = htons(status);
-	*(uint32_t*)&hbuf[8] = htonl(vallen + keylen + extralen);
-	*(uint32_t*)&hbuf[12] = htonl(opaque);
-	*(uint32_t*)&hbuf[16] = htonl((uint32_t)(cas>>32));
-	*(uint32_t*)&hbuf[20] = htonl((uint32_t)(cas&0xffffffff));
-}
-
-void Memproto::Connection::send_response_nosend(entry* e, shared_zone& life)
-{
-	e->queue->reached_try_send(e, life, NULL, 0);
-}
-
-void Memproto::Connection::send_response_nodata(
-		entry* e, shared_zone& life,
-		uint8_t status)
-{
-	char* header = (char*)life->malloc(MEMPROTO_HEADER_SIZE);
-
-	pack_header(header, status, e->header.opcode,
-			0, 0, 0,
-			e->header.opaque, 0);  // cas = 0
-
-	struct iovec* vec = (struct iovec*)life->malloc(
-			sizeof(struct iovec) * 1);
-	vec[0].iov_base = header;
-	vec[0].iov_len  = MEMPROTO_HEADER_SIZE;
-
-	e->queue->reached_try_send(e, life, vec, 1);
-}
-
-inline void Memproto::Connection::send_response(
-		entry* e, shared_zone& life,
-		uint8_t status,
-		const char* key, uint16_t keylen,
-		const void* val, uint16_t vallen,
-		const char* extra, uint16_t extralen)
-{
-	char* header = (char*)life->malloc(MEMPROTO_HEADER_SIZE);
-	pack_header(header, status, e->header.opcode,
-			keylen, vallen, extralen,
-			e->header.opaque, 0);  // cas = 0
-
-	struct iovec* vec = (struct iovec*)life->malloc(
-			sizeof(struct iovec) * 4);
-
-	vec[0].iov_base = header;
-	vec[0].iov_len  = MEMPROTO_HEADER_SIZE;
-	size_t cnt = 1;
-
-	if(extralen > 0) {
-		vec[cnt].iov_base = const_cast<char*>(extra);
-		vec[cnt].iov_len  = extralen;
-		++cnt;
-	}
-
-	if(keylen > 0) {
-		vec[cnt].iov_base = const_cast<char*>(key);
-		vec[cnt].iov_len  = keylen;
-		++cnt;
-	}
-
-	if(vallen > 0) {
-		vec[cnt].iov_base = const_cast<void*>(val);
-		vec[cnt].iov_len  = vallen;
-		++cnt;
-	}
-
-	e->queue->reached_try_send(e, life, vec, cnt);
-}
-
-
+}  // noname namespace
 }  // namespace kumo
 

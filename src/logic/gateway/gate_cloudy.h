@@ -15,7 +15,6 @@ public:
 	void listen();
 
 private:
-	class Connection;
 	int m_lsock;
 
 private:

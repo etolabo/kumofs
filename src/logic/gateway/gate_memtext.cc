@@ -20,8 +20,9 @@
 namespace kumo {
 
 
-static const size_t MEMTEXT_INITIAL_ALLOCATION_SIZE = 32*1024;
-static const size_t MEMTEXT_RESERVE_SIZE = 4*1024;
+namespace {
+	class handler;
+}
 
 
 Memtext::Memtext(int lsock) :
@@ -46,7 +47,7 @@ void Memtext::accepted(int fd, int err)
 	::setsockopt(fd, SOL_SOCKET, SO_LINGER, (void *)&opt, sizeof(opt));  // ignore error
 #endif
 	LOG_DEBUG("accept memproto text user fd=",fd);
-	wavy::add<Connection>(fd);
+	wavy::add<handler>(fd);
 }
 
 void Memtext::listen()
@@ -57,10 +58,15 @@ void Memtext::listen()
 }
 
 
-class Memtext::Connection : public wavy::handler {
+namespace {
+
+static const size_t MEMTEXT_INITIAL_ALLOCATION_SIZE = 32*1024;
+static const size_t MEMTEXT_RESERVE_SIZE = 4*1024;
+
+class handler : public wavy::handler {
 public:
-	Connection(int fd);
-	~Connection();
+	handler(int fd);
+	~handler();
 
 public:
 	void read_event();
@@ -164,12 +170,49 @@ private:
 	static void response_noreply_delete(void* user, gw_delete_response& res);
 
 private:
-	Connection();
-	Connection(const Connection&);
+	handler();
+	handler(const handler&);
 };
 
 
-Memtext::Connection::Connection(int fd) :
+handler::context::context(int fd) :
+	m_valid(true), m_fd(fd) { }
+
+handler::context::~context() { }
+
+
+inline int handler::context::is_valid() const
+{
+	return m_valid;
+}
+
+inline void handler::context::invalidate()
+{
+	m_valid = true;
+}
+
+
+inline void handler::context::send_data(
+		const char* buf, size_t buflen)
+{
+	wavy::write(m_fd, buf, buflen);
+}
+
+inline void handler::context::send_datav(
+		struct iovec* vb, size_t count, shared_zone& life)
+{
+	wavy::request req(&mp::object_delete<shared_zone>, new shared_zone(life));
+	wavy::writev(m_fd, vb, count, req);
+}
+
+inline void handler::context::send_datav(
+		struct iovec* vb, wavy::request* vr, size_t count)
+{
+	wavy::writev(m_fd, vb, vr, count);
+}
+
+
+handler::handler(int fd) :
 	mp::wavy::handler(fd),
 	m_buffer(MEMTEXT_INITIAL_ALLOCATION_SIZE),
 	m_off(0),
@@ -177,19 +220,19 @@ Memtext::Connection::Connection(int fd) :
 {
 	int (*cmd_get)(void*, memtext_command, memtext_request_retrieval*) =
 		&mp::object_callback<int (memtext_command, memtext_request_retrieval*)>::
-				mem_fun<Connection, &Connection::request_get>;
+				mem_fun<handler, &handler::request_get>;
 
 	int (*cmd_gets)(void*, memtext_command, memtext_request_retrieval*) =
 		&mp::object_callback<int (memtext_command, memtext_request_retrieval*)>::
-				mem_fun<Connection, &Connection::request_gets>;
+				mem_fun<handler, &handler::request_gets>;
 
 	int (*cmd_set)(void*, memtext_command, memtext_request_storage*) =
 		&mp::object_callback<int (memtext_command, memtext_request_storage*)>::
-				mem_fun<Connection, &Connection::request_set>;
+				mem_fun<handler, &handler::request_set>;
 
 	int (*cmd_delete)(void*, memtext_command, memtext_request_delete*) =
 		&mp::object_callback<int (memtext_command, memtext_request_delete*)>::
-				mem_fun<Connection, &Connection::request_delete>;
+				mem_fun<handler, &handler::request_delete>;
 
 	memtext_callback cb = {
 		cmd_get,      // get
@@ -208,50 +251,13 @@ Memtext::Connection::Connection(int fd) :
 	memtext_init(&m_memproto, &cb, this);
 }
 
-Memtext::Connection::~Connection()
+handler::~handler()
 {
 	m_context->invalidate();
 }
 
 
-inline int Memtext::Connection::context::is_valid() const
-{
-	return m_valid;
-}
-
-inline void Memtext::Connection::context::invalidate()
-{
-	m_valid = true;
-}
-
-
-Memtext::Connection::context::context(int fd) :
-	m_valid(true), m_fd(fd) { }
-
-Memtext::Connection::context::~context() { }
-
-
-inline void Memtext::Connection::context::send_data(
-		const char* buf, size_t buflen)
-{
-	wavy::write(m_fd, buf, buflen);
-}
-
-inline void Memtext::Connection::context::send_datav(
-		struct iovec* vb, size_t count, shared_zone& life)
-{
-	wavy::request req(&mp::object_delete<shared_zone>, new shared_zone(life));
-	wavy::writev(m_fd, vb, count, req);
-}
-
-inline void Memtext::Connection::context::send_datav(
-		struct iovec* vb, wavy::request* vr, size_t count)
-{
-	wavy::writev(m_fd, vb, vr, count);
-}
-
-
-void Memtext::Connection::read_event()
+void handler::read_event()
 try {
 	m_buffer.reserve_buffer(MEMTEXT_RESERVE_SIZE);
 
@@ -288,12 +294,10 @@ try {
 }
 
 
-namespace {
 static const char* const NOT_SUPPORTED_REPLY = "CLIENT_ERROR supported\r\n";
 static const char* const GET_FAILED_REPLY    = "SERVER_ERROR get failed\r\n";
 static const char* const STORE_FAILED_REPLY  = "SERVER_ERROR store failed\r\n";
 static const char* const DELETE_FAILED_REPLY = "SERVER_ERROR delete failed\r\n";
-}  // noname namespace
 
 #define RELEASE_REFERENCE(life) \
 	shared_zone life(new msgpack::zone()); \
@@ -305,21 +309,21 @@ static const char* const DELETE_FAILED_REPLY = "SERVER_ERROR delete failed\r\n";
 		6 +(keylen)+ 3  +  10  + 1 +  20  +   3
 
 
-int Memtext::Connection::request_get(
+int handler::request_get(
 		memtext_command cmd,
 		memtext_request_retrieval* r)
 {
 	return request_get_real(cmd, r, false);
 }
 
-int Memtext::Connection::request_gets(
+int handler::request_gets(
 		memtext_command cmd,
 		memtext_request_retrieval* r)
 {
 	return request_get_real(cmd, r, true);
 }
 
-int Memtext::Connection::request_get_real(
+int handler::request_get_real(
 		memtext_command cmd,
 		memtext_request_retrieval* r,
 		bool require_cas)
@@ -341,7 +345,7 @@ int Memtext::Connection::request_get_real(
 		req.hash     = gateway::stdhash(req.key, req.keylen);
 		req.life     = life;
 		req.user     = reinterpret_cast<void*>(e);
-		req.callback = &Connection::response_get;
+		req.callback = &handler::response_get;
 	
 		gateway::submit(req);
 
@@ -377,7 +381,7 @@ int Memtext::Connection::request_get_real(
 		}
 
 		gw_get_request req;
-		req.callback = &Connection::response_get_multi;
+		req.callback = &handler::response_get_multi;
 		req.life     = life;
 
 		for(unsigned i=0; i < r->key_num; ++i) {
@@ -393,8 +397,7 @@ int Memtext::Connection::request_get_real(
 	return 0;
 }
 
-
-int Memtext::Connection::request_set(
+int handler::request_set(
 		memtext_command cmd,
 		memtext_request_storage* r)
 {
@@ -418,9 +421,9 @@ int Memtext::Connection::request_set(
 	req.life     = life;
 	req.user     = reinterpret_cast<void*>(e);
 	if(r->noreply) {
-		req.callback = &Connection::response_noreply_set;
+		req.callback = &handler::response_noreply_set;
 	} else {
-		req.callback = &Connection::response_set;
+		req.callback = &handler::response_set;
 	}
 
 	gateway::submit(req);
@@ -428,8 +431,7 @@ int Memtext::Connection::request_set(
 	return 0;
 }
 
-
-int Memtext::Connection::request_delete(
+int handler::request_delete(
 		memtext_command cmd,
 		memtext_request_delete* r)
 {
@@ -451,9 +453,9 @@ int Memtext::Connection::request_delete(
 	req.life     = life;
 	req.user     = reinterpret_cast<void*>(e);
 	if(r->noreply) {
-		req.callback = &Connection::response_noreply_delete;
+		req.callback = &handler::response_noreply_delete;
 	} else {
-		req.callback = &Connection::response_delete;
+		req.callback = &handler::response_delete;
 	}
 
 	gateway::submit(req);
@@ -462,8 +464,7 @@ int Memtext::Connection::request_delete(
 }
 
 
-
-void Memtext::Connection::response_get(void* user, gw_get_response& res)
+void handler::response_get(void* user, gw_get_response& res)
 {
 	get_entry* e = reinterpret_cast<get_entry*>(user);
 	context* const c = e->context.get();
@@ -506,7 +507,7 @@ void Memtext::Connection::response_get(void* user, gw_get_response& res)
 }
 
 
-void Memtext::Connection::response_get_multi(void* user, gw_get_response& res)
+void handler::response_get_multi(void* user, gw_get_response& res)
 {
 	get_multi_entry* e = reinterpret_cast<get_multi_entry*>(user);
 	context* const c = e->context.get();
@@ -558,7 +559,7 @@ filled:
 }
 
 
-void Memtext::Connection::response_set(void* user, gw_set_response& res)
+void handler::response_set(void* user, gw_set_response& res)
 {
 	set_entry* e = reinterpret_cast<set_entry*>(user);
 	context* const c = e->context.get();
@@ -575,7 +576,7 @@ void Memtext::Connection::response_set(void* user, gw_set_response& res)
 }
 
 
-void Memtext::Connection::response_delete(void* user, gw_delete_response& res)
+void handler::response_delete(void* user, gw_delete_response& res)
 {
 	delete_entry* e = reinterpret_cast<delete_entry*>(user);
 	context* const c = e->context.get();
@@ -596,12 +597,13 @@ void Memtext::Connection::response_delete(void* user, gw_delete_response& res)
 }
 
 
-void Memtext::Connection::response_noreply_set(void* user, gw_set_response& res)
+void handler::response_noreply_set(void* user, gw_set_response& res)
 { }
 
-void Memtext::Connection::response_noreply_delete(void* user, gw_delete_response& res)
+void handler::response_noreply_delete(void* user, gw_delete_response& res)
 { }
 
 
+}  // noname namespace
 }  // namespace kumo
 
