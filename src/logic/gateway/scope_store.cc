@@ -120,7 +120,7 @@ void scope_store::Set(void (*callback)(void*, set_response&), void* user,
 		const char* key, uint32_t keylen, uint64_t hash,
 		const char* val, uint32_t vallen)
 try {
-	uint64_t meta = 0;
+	uint16_t meta = 0;
 	if(!life) { life.reset(new msgpack::zone()); }
 	rpc::retry<server::proto_store::Set>* retry =
 		life->allocate< rpc::retry<server::proto_store::Set> >(

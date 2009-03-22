@@ -41,9 +41,9 @@ static inline uint64_t kumo_be64(uint64_t x) {
  *          key
  *
  * value:
- * +--------+--------+-----------------+
- * |   64   |   64   |       ...       |
- * +--------+--------+-----------------+
+ * +--------+--+-----------------+
+ * |   64   |16|       ...       |
+ * +--------+--+-----------------+
  * clocktime
  *          meta
  *                   data
@@ -85,14 +85,14 @@ public:
 
 	static const size_t KEY_META_SIZE = 8;
 	static const size_t VALUE_CLOCKTIME_SIZE = 8;
-	static const size_t VALUE_META_SIZE = VALUE_CLOCKTIME_SIZE + 8;
+	static const size_t VALUE_META_SIZE = VALUE_CLOCKTIME_SIZE + 2;
 
 
 	static ClockTime clocktime_of(const char* raw_val);
 	static void clocktime_to(ClockTime clocktime, char* raw_val);
 
-	static uint64_t meta_of(const char* raw_val);
-	static void meta_to(uint64_t meta, char* raw_val);
+	static uint16_t meta_of(const char* raw_val);
+	static void meta_to(uint16_t meta, char* raw_val);
 
 	static uint64_t hash_of(const char* raw_key);
 	static void hash_to(uint64_t hash, char* raw_key);
@@ -175,14 +175,14 @@ inline void Storage::clocktime_to(ClockTime clocktime, char* raw_val)
 	*(uint64_t*)raw_val = kumo_be64(clocktime.get());
 }
 
-inline uint64_t Storage::meta_of(const char* raw_val)
+inline uint16_t Storage::meta_of(const char* raw_val)
 {
-	return kumo_be64(*(uint64_t*)(raw_val+8));
+	return kumo_be64(*(uint16_t*)(raw_val+VALUE_CLOCKTIME_SIZE));
 }
 
-inline void Storage::meta_to(uint64_t meta, char* raw_val)
+inline void Storage::meta_to(uint16_t meta, char* raw_val)
 {
-	*((uint64_t*)(raw_val+8)) = kumo_be64(meta);
+	*((uint16_t*)(raw_val+VALUE_CLOCKTIME_SIZE)) = kumo_be64(meta);
 }
 
 inline uint64_t Storage::hash_of(const char* raw_key)

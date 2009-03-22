@@ -62,7 +62,7 @@ private:
 struct DBValue {
 	DBValue() : m_clocktime(0) {}
 
-	DBValue(const char* val, size_t vallen, uint64_t meta) :
+	DBValue(const char* val, size_t vallen, uint16_t meta) :
 		m_vallen(vallen), m_val(val), m_clocktime(0), m_meta(meta) {}
 
 	DBValue(const char* raw_val, size_t raw_vallen) :
@@ -74,7 +74,7 @@ struct DBValue {
 	const char* data() const		{ return m_val; }
 	size_t size() const				{ return m_vallen; }
 	ClockTime clocktime() const		{ return m_clocktime; }
-	uint64_t meta() const			{ return m_meta; }
+	uint16_t meta() const			{ return m_meta; }
 
 	// these functions are available only when deserialized
 	const char* raw_data() const	{ return m_val - Storage::VALUE_META_SIZE; }
@@ -111,7 +111,7 @@ private:
 	size_t m_vallen;
 	const char* m_val;
 	ClockTime m_clocktime;
-	uint64_t m_meta;
+	uint16_t m_meta;
 };
 
 
