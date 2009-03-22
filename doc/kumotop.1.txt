@@ -6,4 +6,5 @@ kumotop
 kumotop address[:port=19800] ...
 
 *DESCRIPTION
+Get status from Server nodes and renew it continuously.
 

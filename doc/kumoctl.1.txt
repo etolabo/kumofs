@@ -5,7 +5,10 @@ kumoctl
 *SYNOPSIS
 kumoctl address[:port=19750] command [options]
 
-**COMMANDS
+*DESCRIPTION
+Send control command to Manager node.
+
+*COMMANDS
 :status                     :get status
 :attach                     :attach all new servers and start replace
 :attach-noreplace           :attach all new servers
@@ -15,6 +18,4 @@ kumoctl address[:port=19750] command [options]
 :backup  [suffix=20090304]  :create backup with specified suffix
 :enable-auto-replace        :enable auto replace
 :disable-auto-replace       :disable auto replace
-
-*DESCRIPTION
 

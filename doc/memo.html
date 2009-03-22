@@ -210,6 +210,28 @@
         <a id="footnote4-1" href="#footnote4-1-anchor">*1</a>ハッシュ関数はSHA-1で、下位64ビットのみ使う。仮想ノードは128台</p>
     </div>
     <br />
+    <h2>ゲートウェイ</h2>
+    <h3>memcached text protocol gateway</h3>
+    <p>サポートしているプロトコルは以下の通り：</p>
+    <ul class="ul1">
+      <li>get (複数key対応。ただしflagsは常に0になる)</li>
+      <li>set (ただしflagsとexptimeは0でないとエラーになる)</li>
+      <li>delete (ただしexptimeは0でないとエラーになる)</li>
+    </ul>
+    <br />
+    <h3>memcached binary protocol gateway</h3>
+    <p>サポートしているプロトコルは以下の通り：</p>
+    <ul class="ul1">
+      <li>get    (ただしcas uniqueは0でないとエラーになる)</li>
+      <li>getq   (ただしcas uniqueは0でないとエラーになる)</li>
+      <li>getk   (ただしcas uniqueは0でないとエラーになる)</li>
+      <li>getkq  (ただしcas uniqueは0でないとエラーになる)</li>
+      <li>set    (ただしcas uniqueとflagsとexptimeは0でないとエラーになる)</li>
+      <li>delete (ただしcas uniqueとexptimeは0でないとエラーになる)</li>
+      <li>noop</li>
+    </ul>
+    <p>リクエストのパイプライン化にも対応している。</p>
+    <br />
     <h2>管理コマンド</h2>
     <h3>kumoctl</h3>
     <p>kumoctlコマンドを使うとManagerの状態を取得したり、コマンドを送ったりできる。</p>
@@ -449,12 +471,12 @@ hash
          key
 
 value:
-+--------+--------+-----------------+
-|   64   |   64   |       ...       |
-+--------+--------+-----------------+
++--------+--+-----------------+
+|   64   |16|       ...       |
++--------+--+-----------------+
 clocktime
          meta
-                  data
+            data
 </pre>
     <h3>レプリケーションでの利用</h3>
     <p>Serverから別のServerにデータをコピーするとき、後から来たsetリクエストのレプリケーションが、先に来たsetリクエストのレプリケーションを追い抜いて先行してしまうことが発生し得る。Serverはレプリケーションを受け取ったとき、既に保存されているvalueのクロックと新たに届いたvalueのクロックを比べ、新たに届いた方が新しかった場合のみデータベースを更新する。</p>

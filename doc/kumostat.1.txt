@@ -5,7 +5,10 @@ kumostat
 *SYNOPSIS
 kumostat address[:port=19800] command [options]
 
-**COMMANDS
+*DESCRIPTION
+Get status from Server node.
+
+*COMMANDS
 :pid                        :get pid of server process
 :uptime                     :get uptime
 :time                       :get UNIX time
@@ -14,6 +17,4 @@ kumostat address[:port=19800] command [options]
 :cmd_set                    :get number of set requests
 :cmd_delete                 :get number of delete requests
 :items                      :get number of stored items
-
-*DESCRIPTION
 

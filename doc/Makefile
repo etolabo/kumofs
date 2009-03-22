@@ -3,7 +3,7 @@
 #clean: $(SRCS:.txt=.clean)
 #distclean: $(SRCS:.txt=.distclean)
 
-default: memo.pdf memo.html kumoctl.1 kumostat.1 kumotop.1 kumolog.1
+default: memo.pdf memo.html kumoctl.1 kumostat.1 kumotop.1 kumolog.1 kumomergedb.1
 clean: memo.clean
 distclean: memo.distclean
 

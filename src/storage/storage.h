@@ -46,7 +46,7 @@ static inline uint64_t kumo_be64(uint64_t x) {
  * +--------+--+-----------------+
  * clocktime
  *          meta
- *                   data
+ *             data
  *
  * value (garbage):
  * +--------+

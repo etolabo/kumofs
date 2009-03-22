@@ -2,5 +2,19 @@
 .SH NAME
 kumolog
 .SH SYNOPSIS
-kumolog <logfile.mpac>
+kumolog [options] <logfile.mpac>
 .SH DESCRIPTION
+Convert binary logs into human-readable format.
+.SH OPTIONS
+.TP
+.B -f, --follow     
+  same as `tail -f'
+.TP
+.B -t, --tail       
+  show only last  N logs (default: N=10)
+.TP
+.B -h, --head       
+  show only first N logs (default: N=10)
+.TP
+.B -n, --lines=[-]N 
+  specify N

@@ -158,6 +158,29 @@ localhostでManagerノード1台、Server 2台を使ってクラスタを構成�
 @footnote
 
 
+*ゲートウェイ
+**memcached text protocol gateway
+サポートしているプロトコルは以下の通り：
+
+-get (複数key対応。ただしflagsは常に0になる)
+-set (ただしflagsとexptimeは0でないとエラーになる)
+-delete (ただしexptimeは0でないとエラーになる)
+
+
+**memcached binary protocol gateway
+サポートしているプロトコルは以下の通り：
+
+-get    (ただしcas uniqueは0でないとエラーになる)
+-getq   (ただしcas uniqueは0でないとエラーになる)
+-getk   (ただしcas uniqueは0でないとエラーになる)
+-getkq  (ただしcas uniqueは0でないとエラーになる)
+-set    (ただしcas uniqueとflagsとexptimeは0でないとエラーになる)
+-delete (ただしcas uniqueとexptimeは0でないとエラーになる)
+-noop
+
+リクエストのパイプライン化にも対応している。
+
+
 *管理コマンド
 **kumoctl
 kumoctlコマンドを使うとManagerの状態を取得したり、コマンドを送ったりできる。
@@ -386,12 +409,12 @@ hash
          key
 
 value:
-+--------+--------+-----------------+
-|   64   |   64   |       ...       |
-+--------+--------+-----------------+
++--------+--+-----------------+
+|   64   |16|       ...       |
++--------+--+-----------------+
 clocktime
          meta
-                  data
+            data
 ||<
 
 **レプリケーションでの利用

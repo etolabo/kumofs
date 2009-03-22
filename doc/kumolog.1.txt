@@ -3,7 +3,14 @@
 kumolog
 
 *SYNOPSIS
-kumolog <logfile.mpac>
+kumolog [options] <logfile.mpac>
 
 *DESCRIPTION
+Convert binary logs into human-readable format.
+
+*OPTIONS
+:-f, --follow     :  same as `tail -f'
+:-t, --tail       :  show only last  N logs (default: N=10)
+:-h, --head       :  show only first N logs (default: N=10)
+:-n, --lines=[-]N :  specify N
 
