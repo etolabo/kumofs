@@ -118,17 +118,17 @@ void proto_replace::replace_election()
 		HashSpace::Seed* seed = life->allocate<HashSpace::Seed>(share->whs());
 		hslk.unlock();
 
-		manager::proto_replace::ReplaceElection_1 param(*seed, net->clock_incr());
+		manager::proto_replace::ReplaceElection param(*seed, net->clock_incr());
 		net->get_node(share->partner())->call(  // FIXME exception
 				param, life,
-				BIND_RESPONSE(proto_replace, ReplaceElection_1), 10);
+				BIND_RESPONSE(proto_replace, ReplaceElection), 10);
 	} else {
 		LOG_INFO("replace self elected");
 		start_replace(hslk);
 	}
 }
 
-RPC_REPLY_IMPL(proto_replace, ReplaceElection_1, from, res, err, life)
+RPC_REPLY_IMPL(proto_replace, ReplaceElection, from, res, err, life)
 {
 	if(!err.is_nil() || res.is_nil()) {
 		LOG_INFO("replace delegate failed, elected");
@@ -235,10 +235,10 @@ void proto_replace::start_replace(REQUIRE_HSLK)
 	HashSpace::Seed* seed = life->allocate<HashSpace::Seed>(share->whs());
 	ClockTime replace_time(share->whs().clocktime());
 
-	server::proto_replace::ReplaceCopyStart_1 param(*seed, net->clock_incr());
+	server::proto_replace::ReplaceCopyStart param(*seed, net->clock_incr());
 
 	using namespace mp::placeholders;
-	rpc::callback_t callback( BIND_RESPONSE(proto_replace, ReplaceCopyStart_1) );
+	rpc::callback_t callback( BIND_RESPONSE(proto_replace, ReplaceCopyStart) );
 
 	progress::nodes_t target_nodes;
 
@@ -264,13 +264,13 @@ void proto_replace::start_replace(REQUIRE_HSLK)
 	}
 }
 
-RPC_REPLY_IMPL(proto_replace, ReplaceCopyStart_1, from, res, err, life)
+RPC_REPLY_IMPL(proto_replace, ReplaceCopyStart, from, res, err, life)
 {
 	// FIXME
 }
 
 
-RPC_IMPL(proto_replace, ReplaceElection_1, req, z, response)
+RPC_IMPL(proto_replace, ReplaceElection, req, z, response)
 {
 	LOG_DEBUG("ReplaceElection");
 
@@ -311,7 +311,7 @@ RPC_IMPL(proto_replace, ReplaceElection_1, req, z, response)
 
 
 
-RPC_IMPL(proto_replace, ReplaceCopyEnd_1, req, z, response)
+RPC_IMPL(proto_replace, ReplaceCopyEnd, req, z, response)
 {
 	pthread_scoped_lock relk(m_replace_mutex);
 
@@ -327,7 +327,7 @@ RPC_IMPL(proto_replace, ReplaceCopyEnd_1, req, z, response)
 }
 
 
-RPC_IMPL(proto_replace, ReplaceDeleteEnd_1, req, z, response)
+RPC_IMPL(proto_replace, ReplaceDeleteEnd, req, z, response)
 {
 	pthread_scoped_lock relk(m_replace_mutex);
 
@@ -352,12 +352,12 @@ void proto_replace::finish_replace_copy(REQUIRE_RELK)
 
 	shared_zone life(new msgpack::zone());
 	HashSpace::Seed* seed = life->allocate<HashSpace::Seed>(share->whs());
-	// FIXME server::proto_replace::ReplaceDeleteStart_1 has HashSpace::Seed:
+	// FIXME server::proto_replace::ReplaceDeleteStart has HashSpace::Seed:
 	//       not so good efficiency
-	server::proto_replace::ReplaceDeleteStart_1 param(*seed, net->clock_incr());
+	server::proto_replace::ReplaceDeleteStart param(*seed, net->clock_incr());
 
 	using namespace mp::placeholders;
-	rpc::callback_t callback( BIND_RESPONSE(proto_replace, ReplaceDeleteStart_1) );
+	rpc::callback_t callback( BIND_RESPONSE(proto_replace, ReplaceDeleteStart) );
 
 	pthread_scoped_lock sslk(share->servers_mutex());
 	for(progress::nodes_t::iterator it(target_nodes.begin()),
@@ -373,7 +373,7 @@ void proto_replace::finish_replace_copy(REQUIRE_RELK)
 	hslk.unlock();
 }
 
-RPC_REPLY_IMPL(proto_replace, ReplaceDeleteStart_1, from, res, err, life)
+RPC_REPLY_IMPL(proto_replace, ReplaceDeleteStart, from, res, err, life)
 {
 	// FIXME
 }

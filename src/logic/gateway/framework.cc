@@ -13,7 +13,7 @@ void framework::dispatch(
 		rpc::method_id method, rpc::msgobj param, auto_zone z)
 try {
 	switch(method.get()) {
-	RPC_DISPATCH(proto_network, HashSpacePush_1);
+	RPC_DISPATCH(proto_network, HashSpacePush);
 	default:
 		throw unknown_method_error();
 	}

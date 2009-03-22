@@ -25,12 +25,12 @@ namespace server {
 
 
 @rpc proto_network
-	message KeepAlive.1 +cluster {
+	message KeepAlive +cluster {
 		Clock clock;
 		// ok: UNDEFINED
 	};
 
-	message HashSpaceSync.1 {
+	message HashSpaceSync {
 		msgtype::HSSeed wseed;
 		msgtype::HSSeed rseed;
 		Clock clock;
@@ -44,9 +44,9 @@ public:
 	void renew_r_hash_space();
 
 private:
-	RPC_REPLY_DECL(KeepAlive_1, from, res, err, life);
-	RPC_REPLY_DECL(WHashSpaceRequest_1, from, res, err, life);
-	RPC_REPLY_DECL(RHashSpaceRequest_1, from, res, err, life);
+	RPC_REPLY_DECL(KeepAlive, from, res, err, life);
+	RPC_REPLY_DECL(WHashSpaceRequest, from, res, err, life);
+	RPC_REPLY_DECL(RHashSpaceRequest, from, res, err, life);
 @end
 
 
@@ -68,13 +68,13 @@ struct replicate_flags : msgtype::flags_base {
 
 
 @rpc proto_store
-	message Get.1 {
+	message Get {
 		msgtype::DBKey dbkey;
 		// success: value:DBValue
 		// not found: nil
 	};
 
-	message Set.1 {
+	message Set {
 		store_flags flags;
 		msgtype::DBKey dbkey;
 		msgtype::DBValue dbval;
@@ -82,7 +82,7 @@ struct replicate_flags : msgtype::flags_base {
 		// failed:  nil
 	};
 
-	message Delete.1 {
+	message Delete {
 		store_flags flags;
 		msgtype::DBKey dbkey;
 		// success: true
@@ -90,7 +90,7 @@ struct replicate_flags : msgtype::flags_base {
 		// failed: nil
 	};
 
-	message ReplicateSet.1 {
+	message ReplicateSet {
 		Clock clock;
 		replicate_flags flags;
 		msgtype::DBKey dbkey;
@@ -99,7 +99,7 @@ struct replicate_flags : msgtype::flags_base {
 		// ignored: false
 	};
 
-	message ReplicateDelete.1 {
+	message ReplicateDelete {
 		ClockTime clocktime;
 		Clock clock;
 		replicate_flags flags;
@@ -119,8 +119,8 @@ private:
 			msgtype::DBKey& key, msgtype::DBValue& val,
 			bool is_async);
 
-	RPC_REPLY_DECL(ReplicateSet_1, from, res, err, life,
-			rpc::retry<ReplicateSet_1>* retry,
+	RPC_REPLY_DECL(ReplicateSet, from, res, err, life,
+			rpc::retry<ReplicateSet>* retry,
 			volatile unsigned int* copy_required,
 			rpc::weak_responder response, ClockTime clocktime);
 
@@ -131,8 +131,8 @@ private:
 			msgtype::DBKey& key,
 			bool is_async);
 
-	RPC_REPLY_DECL(ReplicateDelete_1, from, res, err, life,
-			rpc::retry<ReplicateDelete_1>* retry,
+	RPC_REPLY_DECL(ReplicateDelete, from, res, err, life,
+			rpc::retry<ReplicateDelete>* retry,
 			volatile unsigned int* copy_required,
 			rpc::weak_responder response, bool deleted);
 @end
@@ -140,13 +140,13 @@ private:
 
 
 @rpc proto_replace
-	message ReplaceCopyStart.1 +cluster {
+	message ReplaceCopyStart +cluster {
 		msgtype::HSSeed hsseed;
 		Clock clock;
 		// accepted: true
 	};
 
-	message ReplaceDeleteStart.1 +cluster {
+	message ReplaceDeleteStart +cluster {
 		msgtype::HSSeed hsseed;
 		Clock clock;
 		// accepted: true
@@ -161,11 +161,11 @@ private:
 	void replace_copy(const address& manager_addr, HashSpace& hs);
 	struct for_each_replace_copy;
 	void finish_replace_copy(ClockTime clocktime, REQUIRE_STLK);
-	RPC_REPLY_DECL(ReplaceCopyEnd_1, from, res, err, life);
+	RPC_REPLY_DECL(ReplaceCopyEnd, from, res, err, life);
 
 	void replace_delete(shared_node& manager, HashSpace& hs);
 	struct for_each_replace_delete;
-	RPC_REPLY_DECL(ReplaceDeleteEnd_1, from, res, err, life);
+	RPC_REPLY_DECL(ReplaceDeleteEnd, from, res, err, life);
 
 private:
 	class replace_state {
@@ -196,7 +196,7 @@ public:
 
 
 @rpc proto_replace_stream
-	message ReplaceOffer.1 +cluster {
+	message ReplaceOffer +cluster {
 		uint16_t port;
 		// no response
 	};
@@ -253,7 +253,7 @@ private:
 	static accum_set_t::iterator accum_set_find(
 			accum_set_t& map, const address& addr);
 
-	RPC_REPLY_DECL(ReplaceOffer_1, from, res, err, life,
+	RPC_REPLY_DECL(ReplaceOffer, from, res, err, life,
 			address addr);
 
 	void stream_accepted(int fd, int err);
@@ -280,12 +280,12 @@ enum status_type {
 @end
 
 @rpc proto_control
-	message CreateBackup.1 {
+	message CreateBackup {
 		std::string suffix;
 		// success: true
 	};
 
-	message GetStatus.1 {
+	message GetStatus {
 		uint32_t command;
 	};
 @end

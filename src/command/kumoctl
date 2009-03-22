@@ -160,14 +160,14 @@ class KumoRPC
 	end
 
 	module Protocol
-		GetNodesInfo        =  99 << 16 | 1
-		AttachNewServers    = 100 << 16 | 1
-		DetachFaultServers  = 101 << 16 | 1
-		CreateBackup        = 102 << 16 | 1
-		SetAutoReplace      = 103 << 16 | 1
-		StartReplace        = 104 << 16 | 1
-		GetStatus           =  97 << 16 | 1
-		SetConfig           =  98 << 16 | 1
+		GetNodesInfo        = 0 << 16 |  99
+		AttachNewServers    = 0 << 16 | 100
+		DetachFaultServers  = 0 << 16 | 101
+		CreateBackup        = 0 << 16 | 102
+		SetAutoReplace      = 0 << 16 | 103
+		StartReplace        = 0 << 16 | 104
+		GetStatus           = 0 << 16 |  97
+		SetConfig           = 0 << 16 |  98
 	end
 
 	MANAGER_DEFAULT_PORT = 19700

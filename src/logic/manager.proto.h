@@ -26,24 +26,24 @@ namespace manager {
 
 
 @rpc proto_network
-	message KeepAlive.1 +cluster {
+	message KeepAlive +cluster {
 		Clock clock;
 		// ok: UNDEFINED
 	};
 
-	message HashSpaceRequest.1 {
-		// success: gateway::proto_network::HashSpacePush_1
+	message HashSpaceRequest {
+		// success: gateway::proto_network::HashSpacePush
 	};
 
-	message WHashSpaceRequest.1 {
+	message WHashSpaceRequest {
 		// success: hash_space:tuple<array<raw_ref>,uint64_t>
 	};
 
-	message RHashSpaceRequest.1 {
+	message RHashSpaceRequest {
 		// success: hash_space:tuple<array<raw_ref>,uint64_t>
 	};
 
-	message HashSpaceSync.1 +cluster {
+	message HashSpaceSync +cluster {
 		msgtype::HSSeed wseed;
 		msgtype::HSSeed rseed;
 		Clock clock;
@@ -59,10 +59,10 @@ public:
 	void push_hash_space_clients(REQUIRE_HSLK);
 
 private:
-	RPC_REPLY_DECL(KeepAlive_1, from, res, err, life);
+	RPC_REPLY_DECL(KeepAlive, from, res, err, life);
 
-	RPC_REPLY_DECL(HashSpaceSync_1, from, res, err, life);
-	RPC_REPLY_DECL(HashSpacePush_1, from, res, err, life);
+	RPC_REPLY_DECL(HashSpaceSync, from, res, err, life);
+	RPC_REPLY_DECL(HashSpacePush, from, res, err, life);
 @end
 
 
@@ -71,19 +71,19 @@ class framework;
 @end
 
 @rpc proto_replace
-	message ReplaceCopyEnd.1 +cluster {
+	message ReplaceCopyEnd +cluster {
 		ClockTime replace_time;
 		Clock clock;
 		// acknowledge: true
 	};
 
-	message ReplaceDeleteEnd.1 +cluster {
+	message ReplaceDeleteEnd +cluster {
 		ClockTime replace_time;
 		Clock clock;
 		// acknowledge: true
 	};
 
-	message ReplaceElection.1 +cluster {
+	message ReplaceElection +cluster {
 		msgtype::HSSeed hsseed;
 		Clock clock;
 		// sender   of ReplaceElection is responsible for replacing: true
@@ -109,9 +109,9 @@ private:
 	void cas_checked_replace_election(int cas);
 	int m_delayed_replace_cas;
 
-	RPC_REPLY_DECL(ReplaceElection_1, from, res, err, life);
-	RPC_REPLY_DECL(ReplaceCopyStart_1, from, res, err, life);
-	RPC_REPLY_DECL(ReplaceDeleteStart_1, from, res, err, life);
+	RPC_REPLY_DECL(ReplaceElection, from, res, err, life);
+	RPC_REPLY_DECL(ReplaceCopyStart, from, res, err, life);
+	RPC_REPLY_DECL(ReplaceDeleteStart, from, res, err, life);
 
 	void finish_replace_copy(REQUIRE_RELK);
 	void finish_replace(REQUIRE_RELK);
@@ -141,26 +141,26 @@ private:
 
 
 @rpc proto_control
-	message GetNodesInfo.1 {
+	message GetNodesInfo {
 	};
 
-	message AttachNewServers.1 {
+	message AttachNewServers {
 		bool replace;
 	};
 
-	message DetachFaultServers.1 {
+	message DetachFaultServers {
 		bool replace;
 	};
 
-	message CreateBackup.1 {
+	message CreateBackup {
 		std::string suffix;
 	};
 
-	message SetAutoReplace.1 {
+	message SetAutoReplace {
 		bool enable;
 	};
 
-	message StartReplace.1 {
+	message StartReplace {
 	};
 
 
@@ -179,7 +179,7 @@ private:
 		std::vector<address>& newcomers() { return get<1>(); }
 	};
 
-	RPC_REPLY_DECL(CreateBackup_1, from, res, err, life);
+	RPC_REPLY_DECL(CreateBackup, from, res, err, life);
 @end
 
 

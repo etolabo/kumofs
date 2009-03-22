@@ -5,7 +5,7 @@ namespace kumo {
 namespace server {
 
 
-RPC_IMPL(proto_control, CreateBackup_1, req, z, response)
+RPC_IMPL(proto_control, CreateBackup, req, z, response)
 {
 	std::string dst = share->cfg_db_backup_basename() + req.param().suffix;
 	LOG_INFO("create backup: ",dst);
@@ -21,9 +21,9 @@ RPC_IMPL(proto_control, CreateBackup_1, req, z, response)
 }
 
 
-RPC_IMPL(proto_control, GetStatus_1, req, z, response)
+RPC_IMPL(proto_control, GetStatus, req, z, response)
 {
-	LOG_DEBUG("GetStatus_1");
+	LOG_DEBUG("GetStatus");
 
 	switch((status_type)req.param().command) {
 	case STAT_PID:

@@ -55,7 +55,7 @@ void proto_store::check_coordinator_assign(HashSpace& hs, uint64_t h)
 }
 
 
-RPC_IMPL(proto_store, Get_1, req, z, response)
+RPC_IMPL(proto_store, Get, req, z, response)
 {
 	msgtype::DBKey key(req.param().dbkey);
 	LOG_DEBUG("Get '",
@@ -138,27 +138,27 @@ bool proto_store::SetByRhsWhs(weak_responder response, auto_zone& z,
 	using namespace mp::placeholders;
 
 	// rhs Replication
-	rpc::retry<ReplicateSet_1>* rretry =
-		z->allocate< rpc::retry<ReplicateSet_1> >(
-				ReplicateSet_1(
+	rpc::retry<ReplicateSet>* rretry =
+		z->allocate< rpc::retry<ReplicateSet> >(
+				ReplicateSet(
 					ct.clock(), replicate_flags_by_rhs(),  // flags = by rhs
 					msgtype::DBKey(key.raw_data(), key.raw_size()),
 					msgtype::DBValue(val.raw_data(), val.raw_size()))
 				);
-	rretry->set_callback( BIND_RESPONSE(proto_store, ReplicateSet_1,
+	rretry->set_callback( BIND_RESPONSE(proto_store, ReplicateSet,
 			rretry,
 			pcr,
 			response, ct) );
 
 	// whs Replication
-	rpc::retry<ReplicateSet_1>* wretry =
-		z->allocate< rpc::retry<ReplicateSet_1> >(
-				ReplicateSet_1(
+	rpc::retry<ReplicateSet>* wretry =
+		z->allocate< rpc::retry<ReplicateSet> >(
+				ReplicateSet(
 					ct.clock(), replicate_flags_none(),  // flags = none
 					msgtype::DBKey(key.raw_data(), key.raw_size()),
 					msgtype::DBValue(val.raw_data(), val.raw_size()))
 				);
-	wretry->set_callback( BIND_RESPONSE(proto_store, ReplicateSet_1,
+	wretry->set_callback( BIND_RESPONSE(proto_store, ReplicateSet,
 			wretry,
 			pcr,
 			response, ct) );
@@ -213,14 +213,14 @@ void proto_store::SetByWhs(weak_responder response, auto_zone& z,
 	using namespace mp::placeholders;
 
 	// whs Replication
-	rpc::retry<ReplicateSet_1>* retry =
-		z->allocate< rpc::retry<ReplicateSet_1> >(
-				ReplicateSet_1(
+	rpc::retry<ReplicateSet>* retry =
+		z->allocate< rpc::retry<ReplicateSet> >(
+				ReplicateSet(
 					ct.clock(), replicate_flags_none(),  // flags = none
 					msgtype::DBKey(key.raw_data(), key.raw_size()),
 					msgtype::DBValue(val.raw_data(), val.raw_size()))
 				);
-	retry->set_callback( BIND_RESPONSE(proto_store, ReplicateSet_1,
+	retry->set_callback( BIND_RESPONSE(proto_store, ReplicateSet,
 			retry,
 			pcr,
 			response, ct) );
@@ -240,7 +240,7 @@ void proto_store::SetByWhs(weak_responder response, auto_zone& z,
 	}
 }
 
-RPC_IMPL(proto_store, Set_1, req, z, response)
+RPC_IMPL(proto_store, Set, req, z, response)
 {
 	msgtype::DBKey key(req.param().dbkey);
 	msgtype::DBValue val(req.param().dbval);
@@ -326,29 +326,29 @@ bool proto_store::DeleteByRhsWhs(weak_responder response, auto_zone& z,
 	using namespace mp::placeholders;
 
 	// rhs Replication
-	rpc::retry<ReplicateDelete_1>* rretry =
-		z->allocate< rpc::retry<ReplicateDelete_1> >(
-				ReplicateDelete_1(
+	rpc::retry<ReplicateDelete>* rretry =
+		z->allocate< rpc::retry<ReplicateDelete> >(
+				ReplicateDelete(
 					ct,
 					ct.clock(),
 					replicate_flags_by_rhs(),  // flag = by rhs
 					msgtype::DBKey(key.raw_data(), key.raw_size()))
 				);
-	rretry->set_callback( BIND_RESPONSE(proto_store, ReplicateDelete_1,
+	rretry->set_callback( BIND_RESPONSE(proto_store, ReplicateDelete,
 				rretry,
 				pcr,
 				response, deleted) );
 
 	// whs Replication
-	rpc::retry<ReplicateDelete_1>* wretry =
-		z->allocate< rpc::retry<ReplicateDelete_1> >(
-				ReplicateDelete_1(
+	rpc::retry<ReplicateDelete>* wretry =
+		z->allocate< rpc::retry<ReplicateDelete> >(
+				ReplicateDelete(
 					ct,
 					ct.clock(),
 					replicate_flags_none(),  // flag = none
 					msgtype::DBKey(key.raw_data(), key.raw_size()))
 				);
-	wretry->set_callback( BIND_RESPONSE(proto_store, ReplicateDelete_1,
+	wretry->set_callback( BIND_RESPONSE(proto_store, ReplicateDelete,
 			wretry,
 			pcr,
 			response, deleted) );
@@ -405,14 +405,14 @@ void proto_store::DeleteByWhs(weak_responder response, auto_zone& z,
 	using namespace mp::placeholders;
 
 	// whs Replication
-	rpc::retry<ReplicateDelete_1>* retry =
-		z->allocate< rpc::retry<ReplicateDelete_1> >(
-				ReplicateDelete_1(
+	rpc::retry<ReplicateDelete>* retry =
+		z->allocate< rpc::retry<ReplicateDelete> >(
+				ReplicateDelete(
 					ct, ct.clock(),
 					replicate_flags_none(),
 					msgtype::DBKey(key.raw_data(), key.raw_size()))
 				);
-	retry->set_callback( BIND_RESPONSE(proto_store, ReplicateDelete_1,
+	retry->set_callback( BIND_RESPONSE(proto_store, ReplicateDelete,
 			retry,
 			pcr,
 			response, deleted) );
@@ -423,7 +423,7 @@ void proto_store::DeleteByWhs(weak_responder response, auto_zone& z,
 	}
 }
 
-RPC_IMPL(proto_store, Delete_1, req, z, response)
+RPC_IMPL(proto_store, Delete, req, z, response)
 {
 	msgtype::DBKey key(req.param().dbkey);
 	LOG_DEBUG("Delete '",
@@ -443,8 +443,8 @@ RPC_IMPL(proto_store, Delete_1, req, z, response)
 
 
 
-RPC_REPLY_IMPL(proto_store, ReplicateSet_1, from, res, err, life,
-		rpc::retry<ReplicateSet_1>* retry,
+RPC_REPLY_IMPL(proto_store, ReplicateSet, from, res, err, life,
+		rpc::retry<ReplicateSet>* retry,
 		volatile unsigned int* copy_required,
 		rpc::weak_responder response, ClockTime clocktime)
 {
@@ -485,8 +485,8 @@ RPC_REPLY_IMPL(proto_store, ReplicateSet_1, from, res, err, life,
 	}
 }
 
-RPC_REPLY_IMPL(proto_store, ReplicateDelete_1, from, res, err, life,
-		rpc::retry<ReplicateDelete_1>* retry,
+RPC_REPLY_IMPL(proto_store, ReplicateDelete, from, res, err, life,
+		rpc::retry<ReplicateDelete>* retry,
 		volatile unsigned int* copy_required,
 		rpc::weak_responder response, bool deleted)
 {
@@ -527,7 +527,7 @@ RPC_REPLY_IMPL(proto_store, ReplicateDelete_1, from, res, err, life,
 }
 
 
-RPC_IMPL(proto_store, ReplicateSet_1, req, z, response)
+RPC_IMPL(proto_store, ReplicateSet, req, z, response)
 {
 	msgtype::DBKey key = req.param().dbkey;
 	msgtype::DBValue val = req.param().dbval;
@@ -551,7 +551,7 @@ RPC_IMPL(proto_store, ReplicateSet_1, req, z, response)
 }
 
 
-RPC_IMPL(proto_store, ReplicateDelete_1, req, z, response)
+RPC_IMPL(proto_store, ReplicateDelete, req, z, response)
 {
 	msgtype::DBKey key = req.param().dbkey;
 	LOG_TRACE("ReplicateDelete");

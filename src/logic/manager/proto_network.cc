@@ -19,14 +19,14 @@ namespace kumo {
 namespace manager {
 
 
-RPC_IMPL(proto_network, KeepAlive_1, req, z, response)
+RPC_IMPL(proto_network, KeepAlive, req, z, response)
 {
 	net->clock_update(req.param().clock);
 	response.null();
 }
 
 
-RPC_IMPL(proto_network, HashSpaceRequest_1, req, z, response)
+RPC_IMPL(proto_network, HashSpaceRequest, req, z, response)
 {
 	HashSpace::Seed* wseed;
 	HashSpace::Seed* rseed;
@@ -36,12 +36,12 @@ RPC_IMPL(proto_network, HashSpaceRequest_1, req, z, response)
 		rseed = z->allocate<HashSpace::Seed>(share->rhs());
 	}
 
-	gateway::proto_network::HashSpacePush_1 arg(*wseed, *rseed);
+	gateway::proto_network::HashSpacePush arg(*wseed, *rseed);
 	response.result(arg, z);
 }
 
 
-RPC_IMPL(proto_network, WHashSpaceRequest_1, req, z, response)
+RPC_IMPL(proto_network, WHashSpaceRequest, req, z, response)
 {
 	HashSpace::Seed* seed;
 	{
@@ -52,7 +52,7 @@ RPC_IMPL(proto_network, WHashSpaceRequest_1, req, z, response)
 }
 
 
-RPC_IMPL(proto_network, RHashSpaceRequest_1, req, z, response)
+RPC_IMPL(proto_network, RHashSpaceRequest, req, z, response)
 {
 	HashSpace::Seed* seed;
 	{
@@ -70,9 +70,9 @@ void proto_network::sync_hash_space_servers(REQUIRE_HSLK, REQUIRE_SSLK)
 	HashSpace::Seed* wseed = life->allocate<HashSpace::Seed>(share->whs());
 	HashSpace::Seed* rseed = life->allocate<HashSpace::Seed>(share->rhs());
 
-	server::proto_network::HashSpaceSync_1 param(*wseed, *rseed, net->clock_incr());
+	server::proto_network::HashSpaceSync param(*wseed, *rseed, net->clock_incr());
 
-	rpc::callback_t callback( BIND_RESPONSE(proto_network, HashSpaceSync_1) );
+	rpc::callback_t callback( BIND_RESPONSE(proto_network, HashSpaceSync) );
 
 	EACH_ACTIVE_SERVERS_BEGIN(node)
 		node->call(param, life, callback, 10);
@@ -88,13 +88,13 @@ void proto_network::sync_hash_space_partner(REQUIRE_HSLK)
 	HashSpace::Seed* wseed = life->allocate<HashSpace::Seed>(share->whs());
 	HashSpace::Seed* rseed = life->allocate<HashSpace::Seed>(share->rhs());
 
-	manager::proto_network::HashSpaceSync_1 param(*wseed, *rseed, net->clock_incr());
+	manager::proto_network::HashSpaceSync param(*wseed, *rseed, net->clock_incr());
 	net->get_node(share->partner())->call(
 			param, life,
-			BIND_RESPONSE(proto_network, HashSpaceSync_1), 10);
+			BIND_RESPONSE(proto_network, HashSpaceSync), 10);
 }
 
-RPC_REPLY_IMPL(proto_network, HashSpaceSync_1, from, res, err, life)
+RPC_REPLY_IMPL(proto_network, HashSpaceSync, from, res, err, life)
 {
 	// FIXME retry
 }
@@ -116,7 +116,7 @@ namespace {
 
 	private:
 		rpc::shared_zone& life;
-		gateway::proto_network::HashSpacePush_1 param;
+		gateway::proto_network::HashSpacePush param;
 		rpc::callback_t callback;
 	};
 }  // noname namespace
@@ -129,16 +129,16 @@ void proto_network::push_hash_space_clients(REQUIRE_HSLK)
 	HashSpace::Seed* wseed = life->allocate<HashSpace::Seed>(share->whs());
 	HashSpace::Seed* rseed = life->allocate<HashSpace::Seed>(share->rhs());
 
-	rpc::callback_t callback( BIND_RESPONSE(proto_network, HashSpacePush_1) );
+	rpc::callback_t callback( BIND_RESPONSE(proto_network, HashSpacePush) );
 	net->subsystem().for_each_peer( each_client_push(wseed, rseed, callback, life) );
 }
 
-RPC_REPLY_IMPL(proto_network, HashSpacePush_1, from, res, err, life)
+RPC_REPLY_IMPL(proto_network, HashSpacePush, from, res, err, life)
 { }
 
 
 
-RPC_IMPL(proto_network, HashSpaceSync_1, req, z, response)
+RPC_IMPL(proto_network, HashSpaceSync, req, z, response)
 {
 	if(req.node()->addr() != share->partner()) {
 		throw std::runtime_error("unknown partner node");
@@ -188,9 +188,9 @@ void proto_network::keep_alive()
 {
 	LOG_TRACE("keep alive ...");
 	shared_zone nullz;
-	server::proto_network::KeepAlive_1 param(net->clock_incr());
+	server::proto_network::KeepAlive param(net->clock_incr());
 
-	rpc::callback_t callback( BIND_RESPONSE(proto_network, KeepAlive_1) );
+	rpc::callback_t callback( BIND_RESPONSE(proto_network, KeepAlive) );
 
 	pthread_scoped_lock sslk(share->servers_mutex());
 	EACH_ACTIVE_SERVERS_BEGIN(node)
@@ -213,7 +213,7 @@ void proto_network::keep_alive()
 	}
 }
 
-RPC_REPLY_IMPL(proto_network, KeepAlive_1, from, res, err, life)
+RPC_REPLY_IMPL(proto_network, KeepAlive, from, res, err, life)
 {
 	if(err.is_nil()) {
 		LOG_TRACE("KeepAlive succeeded");

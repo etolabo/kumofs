@@ -6,7 +6,7 @@ namespace kumo {
 namespace server {
 
 
-RPC_IMPL(proto_network, KeepAlive_1, req, z, response)
+RPC_IMPL(proto_network, KeepAlive, req, z, response)
 {
 	net->clock_update(req.param().clock);
 	response.null();
@@ -17,10 +17,10 @@ void proto_network::keep_alive()
 {
 	LOG_TRACE("keep alive ...");
 	shared_zone nullz;
-	manager::proto_network::KeepAlive_1 param(net->clock_incr());
+	manager::proto_network::KeepAlive param(net->clock_incr());
 
 	using namespace mp::placeholders;
-	rpc::callback_t callback( BIND_RESPONSE(proto_network, KeepAlive_1) );
+	rpc::callback_t callback( BIND_RESPONSE(proto_network, KeepAlive) );
 
 	net->get_node(share->manager1())->call(
 			param, nullz, callback, 10);
@@ -31,7 +31,7 @@ void proto_network::keep_alive()
 	}
 }
 
-RPC_REPLY_IMPL(proto_network, KeepAlive_1, from, res, err, life)
+RPC_REPLY_IMPL(proto_network, KeepAlive, from, res, err, life)
 {
 	if(err.is_nil()) {
 		LOG_TRACE("KeepAlive succeeded");
@@ -42,9 +42,9 @@ RPC_REPLY_IMPL(proto_network, KeepAlive_1, from, res, err, life)
 
 
 
-RPC_IMPL(proto_network, HashSpaceSync_1, req, z, response)
+RPC_IMPL(proto_network, HashSpaceSync, req, z, response)
 {
-	LOG_DEBUG("HashSpaceSync_1");
+	LOG_DEBUG("HashSpaceSync");
 
 	net->clock_update(req.param().clock);
 
@@ -81,10 +81,10 @@ RPC_IMPL(proto_network, HashSpaceSync_1, req, z, response)
 void proto_network::renew_w_hash_space()
 {
 	shared_zone nullz;
-	manager::proto_network::WHashSpaceRequest_1 param;
+	manager::proto_network::WHashSpaceRequest param;
 	//              ^
 
-	rpc::callback_t callback( BIND_RESPONSE(proto_network, WHashSpaceRequest_1) );
+	rpc::callback_t callback( BIND_RESPONSE(proto_network, WHashSpaceRequest) );
 	//                                         ^
 
 	net->get_node(share->manager1())->call(
@@ -102,10 +102,10 @@ void proto_network::renew_w_hash_space()
 void proto_network::renew_r_hash_space()
 {
 	shared_zone nullz;
-	manager::proto_network::RHashSpaceRequest_1 param;
+	manager::proto_network::RHashSpaceRequest param;
 	//              ^
 
-	rpc::callback_t callback( BIND_RESPONSE(proto_network, RHashSpaceRequest_1) );
+	rpc::callback_t callback( BIND_RESPONSE(proto_network, RHashSpaceRequest) );
 	//                                         ^
 
 	net->get_node(share->manager1())->call(
@@ -121,19 +121,19 @@ void proto_network::renew_r_hash_space()
 
 
 // COPY B-1
-RPC_REPLY_IMPL(proto_network, WHashSpaceRequest_1, from, res, err, life)
+RPC_REPLY_IMPL(proto_network, WHashSpaceRequest, from, res, err, life)
 {
 	// FIXME is this function needed?
 	if(!err.is_nil()) {
 		LOG_DEBUG("WHashSpaceRequest failed ",err);
 		if(SESSION_IS_ACTIVE(from)) {
 			shared_zone nullz;
-			manager::proto_network::WHashSpaceRequest_1 param;
+			manager::proto_network::WHashSpaceRequest param;
 			//              ^
 
 			from->call(param, nullz,
 			//                   ^
-					BIND_RESPONSE(proto_network, WHashSpaceRequest_1), 10);
+					BIND_RESPONSE(proto_network, WHashSpaceRequest), 10);
 					//               ^
 		}  // retry on lost_node() if err.via.u64 == NODE_LOST?
 	} else {
@@ -150,19 +150,19 @@ RPC_REPLY_IMPL(proto_network, WHashSpaceRequest_1, from, res, err, life)
 }
 
 // COPY B-2
-RPC_REPLY_IMPL(proto_network, RHashSpaceRequest_1, from, res, err, life)
+RPC_REPLY_IMPL(proto_network, RHashSpaceRequest, from, res, err, life)
 {
 	// FIXME is this function needed?
 	if(!err.is_nil()) {
 		LOG_DEBUG("WHashSpaceRequest failed ",err);
 		if(SESSION_IS_ACTIVE(from)) {
 			shared_zone nullz;
-			manager::proto_network::RHashSpaceRequest_1 param;
+			manager::proto_network::RHashSpaceRequest param;
 			//              ^
 
 			from->call(param, nullz,
 			//                   ^
-					BIND_RESPONSE(proto_network, RHashSpaceRequest_1), 10);
+					BIND_RESPONSE(proto_network, RHashSpaceRequest), 10);
 					//               ^
 		}  // retry on lost_node() if err.via.u64 == NODE_LOST?
 	} else {

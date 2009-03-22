@@ -13,7 +13,7 @@ namespace gateway {
 
 
 @rpc proto_network
-	message HashSpacePush.1 {
+	message HashSpacePush {
 		msgtype::HSSeed wseed;
 		msgtype::HSSeed rseed;
 		// acknowledge: true
@@ -22,7 +22,7 @@ namespace gateway {
 public:
 	void renew_hash_space();
 	void renew_hash_space_for(const address& addr);
-	RPC_REPLY_DECL(HashSpaceRequest_1, from, res, err, life);
+	RPC_REPLY_DECL(HashSpaceRequest, from, res, err, life);
 @end
 
 

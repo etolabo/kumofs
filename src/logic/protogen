@@ -47,7 +47,7 @@ class RPCMessage
 	end
 
 	def add_version(version, members)
-		version = version.to_i
+		version = version.to_i if version
 		if @versions.include?(version)
 			raise "duplicated declaration of #{@name}.#{version}"
 		end
@@ -66,13 +66,17 @@ class RPCMessage
 
 	def generate(f)
 		@versions.to_a.sort_by do |ver, members|
-			ver
+			ver ? ver : 0
 		end.each do |ver, members|
 			def members.xjoin(between, after, join)
 				map {|a, b| "#{a}#{between}#{b}#{after}" }.join(join)
 			end
-			struct = "#{@name}_#{ver}"
-			f.puts %[	struct #{struct} : rpc::message<#{@id}, #{ver}, rpc::#{@mode_cluster ? "node" : "basic_session"}> {]
+			if ver
+				struct = "#{@name}_#{ver}"
+			else
+				struct = @name
+			end
+			f.puts %[	struct #{struct} : rpc::message<#{@id}, #{ver ? ver : 0}, rpc::#{@mode_cluster ? "node" : "basic_session"}> {]
 			f.puts %[		#{members.xjoin(" ",";","\n\t\t")}]
 			f.puts %[
 		void msgpack_unpack(const msgpack::type::tuple<
@@ -233,7 +237,7 @@ class Dispatch
 			@headers.each {|header|
 				header.each_message {|msg|
 					msg.versions.each {|ver|
-						f.puts %[case #{msg.id << 16 | ver}:]
+						f.puts %[case #{msg.id << 16 | (ver ? ver : 0)}:]
 						f.puts %[	break;]
 					}
 				}
@@ -317,7 +321,7 @@ while body_len = s.exist?(/@(rpc|c?message|dispatch|code)\b/)
 		raise "'@end' mismatch" unless code
 		code.slice!(-s.matched_size, s.matched_size)
 
-		code.gsub!(/\bmessage\b\s+(\w+)\.(\d+)(\s*\+cluster\b)?(?:\s*\=\s*(\d+)\s*)?\s*\{(.*?)\}\;/m) do |match|
+		code.gsub!(/\bmessage\b\s+(\w+)(?:[\._](\d+))?(\s*\+cluster\b)?(?:\s*\=\s*(\d+)\s*)?\s*\{(.*?)\}\;/m) do |match|
 			msgname = $~[1]
 			version = $~[2]
 

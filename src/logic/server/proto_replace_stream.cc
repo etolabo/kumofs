@@ -74,7 +74,7 @@ private:
 };
 
 
-RPC_IMPL(proto_replace_stream, ReplaceOffer_1, req, z, response)
+RPC_IMPL(proto_replace_stream, ReplaceOffer, req, z, response)
 {
 	address stream_addr = req.node()->addr();
 	stream_addr.set_port(req.param().port);
@@ -106,18 +106,18 @@ void proto_replace_stream::send_offer(proto_replace_stream::offer_storage& offer
 
 		LOG_DEBUG("send offer to ",(*it)->addr());
 		shared_zone nullz;
-		proto_replace_stream::ReplaceOffer_1 param(m_stream_addr.port());
+		proto_replace_stream::ReplaceOffer param(m_stream_addr.port());
 
 		using namespace mp::placeholders;
 		net->get_node(addr)->call(param, nullz,
-				BIND_RESPONSE(proto_replace_stream, ReplaceOffer_1, addr), 160);  // FIXME 160
+				BIND_RESPONSE(proto_replace_stream, ReplaceOffer, addr), 160);  // FIXME 160
 
 		net->scope_proto_replace().replace_offer_push(replace_time, relk);
 	}
 }
 
 
-RPC_REPLY_IMPL(proto_replace_stream, ReplaceOffer_1, from, res, err, life,
+RPC_REPLY_IMPL(proto_replace_stream, ReplaceOffer, from, res, err, life,
 		address addr)
 {
 	LOG_TRACE("ResReplaceOffer from ",addr," res:",res," err:",err);

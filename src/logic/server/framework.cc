@@ -13,14 +13,14 @@ void framework::cluster_dispatch(
 		rpc::method_id method, rpc::msgobj param, auto_zone z)
 try {
 	switch(method.get()) {
-	RPC_DISPATCH(proto_network, KeepAlive_1);
-	RPC_DISPATCH(proto_network, HashSpaceSync_1);
-	RPC_DISPATCH(proto_store,   ReplicateSet_1);
-	RPC_DISPATCH(proto_store,   ReplicateDelete_1);
-	RPC_DISPATCH(proto_replace, ReplaceCopyStart_1);
-	RPC_DISPATCH(proto_replace, ReplaceDeleteStart_1);
-	RPC_DISPATCH(proto_replace_stream, ReplaceOffer_1);
-	RPC_DISPATCH(proto_control, CreateBackup_1);
+	RPC_DISPATCH(proto_network, KeepAlive);
+	RPC_DISPATCH(proto_network, HashSpaceSync);
+	RPC_DISPATCH(proto_store,   ReplicateSet);
+	RPC_DISPATCH(proto_store,   ReplicateDelete);
+	RPC_DISPATCH(proto_replace, ReplaceCopyStart);
+	RPC_DISPATCH(proto_replace, ReplaceDeleteStart);
+	RPC_DISPATCH(proto_replace_stream, ReplaceOffer);
+	RPC_DISPATCH(proto_control, CreateBackup);
 	default:
 		throw unknown_method_error();
 	}
@@ -32,10 +32,10 @@ void framework::subsystem_dispatch(
 		rpc::method_id method, rpc::msgobj param, auto_zone z)
 try {
 	switch(method.get()) {
-	RPC_DISPATCH(proto_store,   Get_1);
-	RPC_DISPATCH(proto_store,   Set_1);
-	RPC_DISPATCH(proto_store,   Delete_1);
-	RPC_DISPATCH(proto_control, GetStatus_1);
+	RPC_DISPATCH(proto_store,   Get);
+	RPC_DISPATCH(proto_store,   Set);
+	RPC_DISPATCH(proto_store,   Delete);
+	RPC_DISPATCH(proto_control, GetStatus);
 	default:
 		throw unknown_method_error();
 	}

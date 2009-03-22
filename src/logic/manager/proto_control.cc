@@ -9,7 +9,7 @@ proto_control::proto_control() { }
 proto_control::~proto_control() { }
 
 
-RPC_IMPL(proto_control, GetNodesInfo_1, req, z, response)
+RPC_IMPL(proto_control, GetNodesInfo, req, z, response)
 {
 	Status res;
 
@@ -31,7 +31,7 @@ RPC_IMPL(proto_control, GetNodesInfo_1, req, z, response)
 	response.result(res);
 }
 
-RPC_IMPL(proto_control, AttachNewServers_1, req, z, response)
+RPC_IMPL(proto_control, AttachNewServers, req, z, response)
 {
 	{
 		pthread_scoped_lock hslk(share->hs_mutex());
@@ -41,7 +41,7 @@ RPC_IMPL(proto_control, AttachNewServers_1, req, z, response)
 	response.null();
 }
 
-RPC_IMPL(proto_control, DetachFaultServers_1, req, z, response)
+RPC_IMPL(proto_control, DetachFaultServers, req, z, response)
 {
 	{
 		pthread_scoped_lock hslk(share->hs_mutex());
@@ -51,15 +51,15 @@ RPC_IMPL(proto_control, DetachFaultServers_1, req, z, response)
 	response.null();
 }
 
-RPC_IMPL(proto_control, CreateBackup_1, req, z, response)
+RPC_IMPL(proto_control, CreateBackup, req, z, response)
 {
 	if(req.param().suffix.empty()) {
 		std::string msg("empty suffix");
 		response.error(msg);
 		return;
 	}
-	server::proto_control::CreateBackup_1 param(req.param().suffix);
-	rpc::callback_t callback( BIND_RESPONSE(proto_control, CreateBackup_1) );
+	server::proto_control::CreateBackup param(req.param().suffix);
+	rpc::callback_t callback( BIND_RESPONSE(proto_control, CreateBackup) );
 	shared_zone nullz;
 
 	pthread_scoped_lock sslk(share->servers_mutex());
@@ -71,10 +71,10 @@ RPC_IMPL(proto_control, CreateBackup_1, req, z, response)
 	response.null();
 }
 
-RPC_REPLY_IMPL(proto_control, CreateBackup_1, from, res, err, life)
+RPC_REPLY_IMPL(proto_control, CreateBackup, from, res, err, life)
 { }
 
-RPC_IMPL(proto_control, SetAutoReplace_1, req, z, response)
+RPC_IMPL(proto_control, SetAutoReplace, req, z, response)
 {
 	if(share->cfg_auto_replace() && !req.param().enable) {
 		share->cfg_auto_replace() = false;
@@ -93,7 +93,7 @@ RPC_IMPL(proto_control, SetAutoReplace_1, req, z, response)
 	response.null();
 }
 
-RPC_IMPL(proto_control, StartReplace_1, req, z, response)
+RPC_IMPL(proto_control, StartReplace, req, z, response)
 {
 	{
 		pthread_scoped_lock hslk(share->hs_mutex());

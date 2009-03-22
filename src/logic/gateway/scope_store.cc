@@ -103,13 +103,13 @@ void scope_store::Get(void (*callback)(void*, get_response&), void* user,
 		const char* key, uint32_t keylen, uint64_t hash)
 try {
 	if(!life) { life.reset(new msgpack::zone()); }
-	rpc::retry<server::proto_store::Get_1>* retry =
-		life->allocate< rpc::retry<server::proto_store::Get_1> >(
-				server::proto_store::Get_1(
+	rpc::retry<server::proto_store::Get>* retry =
+		life->allocate< rpc::retry<server::proto_store::Get> >(
+				server::proto_store::Get(
 					msgtype::DBKey(key, keylen, hash)
 					));
 
-	retry->set_callback( BIND_RESPONSE(scope_store, Get_1, retry, callback, user) );
+	retry->set_callback( BIND_RESPONSE(scope_store, Get, retry, callback, user) );
 	retry->call(share->server_for<resource::HS_READ>(hash), life, 10);
 }
 GATEWAY_CATCH(Get, get_response)
@@ -122,9 +122,9 @@ void scope_store::Set(void (*callback)(void*, set_response&), void* user,
 try {
 	uint64_t meta = 0;
 	if(!life) { life.reset(new msgpack::zone()); }
-	rpc::retry<server::proto_store::Set_1>* retry =
-		life->allocate< rpc::retry<server::proto_store::Set_1> >(
-				server::proto_store::Set_1(
+	rpc::retry<server::proto_store::Set>* retry =
+		life->allocate< rpc::retry<server::proto_store::Set> >(
+				server::proto_store::Set(
 					( share->cfg_async_replicate_set() ?
 					  static_cast<server::store_flags>(server::store_flags_async()) :
 					  static_cast<server::store_flags>(server::store_flags_none() ) ),
@@ -132,7 +132,7 @@ try {
 					msgtype::DBValue(val, vallen, meta))
 				);
 
-	retry->set_callback( BIND_RESPONSE(scope_store, Set_1, retry, callback, user) );
+	retry->set_callback( BIND_RESPONSE(scope_store, Set, retry, callback, user) );
 	retry->call(share->server_for<resource::HS_WRITE>(hash), life, 10);
 }
 GATEWAY_CATCH(Set, set_response)
@@ -143,16 +143,16 @@ void scope_store::Delete(void (*callback)(void*, delete_response&), void* user,
 		const char* key, uint32_t keylen, uint64_t hash)
 try {
 	if(!life) { life.reset(new msgpack::zone()); }
-	rpc::retry<server::proto_store::Delete_1>* retry =
-		life->allocate< rpc::retry<server::proto_store::Delete_1> >(
-				server::proto_store::Delete_1(
+	rpc::retry<server::proto_store::Delete>* retry =
+		life->allocate< rpc::retry<server::proto_store::Delete> >(
+				server::proto_store::Delete(
 					(share->cfg_async_replicate_delete() ?
 					 static_cast<server::store_flags>(server::store_flags_async()) :
 					 static_cast<server::store_flags>(server::store_flags_none() ) ),
 					msgtype::DBKey(key, keylen, hash))
 				);
 
-	retry->set_callback( BIND_RESPONSE(scope_store, Delete_1, retry, callback, user) );
+	retry->set_callback( BIND_RESPONSE(scope_store, Delete, retry, callback, user) );
 	retry->call(share->server_for<resource::HS_WRITE>(hash), life, 10);
 }
 GATEWAY_CATCH(Delete, delete_response)
@@ -190,8 +190,8 @@ void scope_store::retry_after(unsigned int steps,
 }
 
 
-RPC_REPLY_IMPL(scope_store, Get_1, from, res, err, life,
-		rpc::retry<server::proto_store::Get_1>* retry,
+RPC_REPLY_IMPL(scope_store, Get, from, res, err, life,
+		rpc::retry<server::proto_store::Get>* retry,
 		void (*callback)(void*, get_response&), void* user)
 try {
 	msgtype::DBKey key(retry->param().dbkey);
@@ -251,8 +251,8 @@ try {
 GATEWAY_CATCH(ResGet, get_response)
 
 
-RPC_REPLY_IMPL(scope_store, Set_1, from, res, err, life,
-		rpc::retry<server::proto_store::Set_1>* retry,
+RPC_REPLY_IMPL(scope_store, Set, from, res, err, life,
+		rpc::retry<server::proto_store::Set>* retry,
 		void (*callback)(void*, set_response&), void* user)
 try {
 	msgtype::DBKey key(retry->param().dbkey);
@@ -303,8 +303,8 @@ try {
 GATEWAY_CATCH(ResSet, set_response)
 
 
-RPC_REPLY_IMPL(scope_store, Delete_1, from, res, err, life,
-		rpc::retry<server::proto_store::Delete_1>* retry,
+RPC_REPLY_IMPL(scope_store, Delete, from, res, err, life,
+		rpc::retry<server::proto_store::Delete>* retry,
 		void (*callback)(void*, delete_response&), void* user)
 try {
 	msgtype::DBKey key(retry->param().dbkey);

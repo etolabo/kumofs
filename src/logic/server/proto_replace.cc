@@ -70,7 +70,7 @@ void proto_replace::replace_offer_pop(ClockTime replace_time, REQUIRE_STLK)
 
 
 
-RPC_IMPL(proto_replace, ReplaceCopyStart_1, req, z, response)
+RPC_IMPL(proto_replace, ReplaceCopyStart, req, z, response)
 {
 	net->clock_update(req.param().clock);
 
@@ -88,7 +88,7 @@ RPC_IMPL(proto_replace, ReplaceCopyStart_1, req, z, response)
 }
 
 
-RPC_IMPL(proto_replace, ReplaceDeleteStart_1, req, z, response)
+RPC_IMPL(proto_replace, ReplaceDeleteStart, req, z, response)
 {
 	net->clock_update(req.param().clock);
 
@@ -275,7 +275,7 @@ void proto_replace::finish_replace_copy(ClockTime replace_time, REQUIRE_STLK)
 	LOG_INFO("finish replace copy for time(",replace_time.get(),")");
 
 	shared_zone nullz;
-	manager::proto_replace::ReplaceCopyEnd_1 param(
+	manager::proto_replace::ReplaceCopyEnd param(
 			replace_time, net->clock_incr());
 
 	address addr;
@@ -287,10 +287,10 @@ void proto_replace::finish_replace_copy(ClockTime replace_time, REQUIRE_STLK)
 
 	using namespace mp::placeholders;
 	net->get_node(addr)->call(param, nullz,
-			BIND_RESPONSE(proto_replace, ReplaceCopyEnd_1), 10);
+			BIND_RESPONSE(proto_replace, ReplaceCopyEnd), 10);
 }
 
-RPC_REPLY_IMPL(proto_replace, ReplaceCopyEnd_1, from, res, err, life)
+RPC_REPLY_IMPL(proto_replace, ReplaceCopyEnd, from, res, err, life)
 {
 	if(!err.is_nil()) { LOG_ERROR("ReplaceCopyEnd failed: ",err); }
 	// FIXME retry
@@ -328,12 +328,12 @@ void proto_replace::replace_delete(shared_node& manager, HashSpace& hs)
 	}
 
 	shared_zone nullz;
-	manager::proto_replace::ReplaceDeleteEnd_1 param(
+	manager::proto_replace::ReplaceDeleteEnd param(
 			share->whs().clocktime(), net->clock_incr());
 
 	using namespace mp::placeholders;
 	manager->call(param, nullz,
-			BIND_RESPONSE(proto_replace, ReplaceDeleteEnd_1), 10);
+			BIND_RESPONSE(proto_replace, ReplaceDeleteEnd), 10);
 
 	LOG_INFO("finish replace for time(",share->whs().clocktime().get(),")");
 }
@@ -353,7 +353,7 @@ void proto_replace::for_each_replace_delete::operator() (Storage::iterator& kv)
 	}
 }
 
-RPC_REPLY_IMPL(proto_replace, ReplaceDeleteEnd_1, from, res, err, life)
+RPC_REPLY_IMPL(proto_replace, ReplaceDeleteEnd, from, res, err, life)
 {
 	if(!err.is_nil()) {
 		LOG_ERROR("ReplaceDeleteEnd failed: ",err);

@@ -14,13 +14,13 @@ void framework::cluster_dispatch(
 try {
 	// FIXME try & catch
 	switch(method.get()) {
-	RPC_DISPATCH(proto_network, KeepAlive_1);
-	RPC_DISPATCH(proto_network, WHashSpaceRequest_1);
-	RPC_DISPATCH(proto_network, RHashSpaceRequest_1);
-	RPC_DISPATCH(proto_network, HashSpaceSync_1);
-	RPC_DISPATCH(proto_replace, ReplaceCopyEnd_1);
-	RPC_DISPATCH(proto_replace, ReplaceDeleteEnd_1);
-	RPC_DISPATCH(proto_replace, ReplaceElection_1);
+	RPC_DISPATCH(proto_network, KeepAlive);
+	RPC_DISPATCH(proto_network, WHashSpaceRequest);
+	RPC_DISPATCH(proto_network, RHashSpaceRequest);
+	RPC_DISPATCH(proto_network, HashSpaceSync);
+	RPC_DISPATCH(proto_replace, ReplaceCopyEnd);
+	RPC_DISPATCH(proto_replace, ReplaceDeleteEnd);
+	RPC_DISPATCH(proto_replace, ReplaceElection);
 	default:
 		throw unknown_method_error();
 	}
@@ -33,13 +33,13 @@ void framework::subsystem_dispatch(
 try {
 	// FIXME try & catch
 	switch(method.get()) {
-	RPC_DISPATCH(proto_network, HashSpaceRequest_1);
-	RPC_DISPATCH(proto_control, GetNodesInfo_1);
-	RPC_DISPATCH(proto_control, AttachNewServers_1);
-	RPC_DISPATCH(proto_control, DetachFaultServers_1);
-	RPC_DISPATCH(proto_control, CreateBackup_1);
-	RPC_DISPATCH(proto_control, SetAutoReplace_1);
-	RPC_DISPATCH(proto_control, StartReplace_1);
+	RPC_DISPATCH(proto_network, HashSpaceRequest);
+	RPC_DISPATCH(proto_control, GetNodesInfo);
+	RPC_DISPATCH(proto_control, AttachNewServers);
+	RPC_DISPATCH(proto_control, DetachFaultServers);
+	RPC_DISPATCH(proto_control, CreateBackup);
+	RPC_DISPATCH(proto_control, SetAutoReplace);
+	RPC_DISPATCH(proto_control, StartReplace);
 	default:
 		throw unknown_method_error();
 	}

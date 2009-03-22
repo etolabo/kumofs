@@ -31,8 +31,8 @@ struct method_id {
 
 	uint32_t get() const { return m; }
 
-	uint16_t protocol() const { return m >> 16; }
-	uint16_t version()  const { return m & 0xffff; }
+	uint16_t protocol() const { return m & 0xffff; }
+	uint16_t version()  const { return m >> 16; }
 
 	void msgpack_unpack(uint32_t id) { m = id; }
 
@@ -48,7 +48,7 @@ template <uint16_t Protocol, uint16_t Version>
 struct method : public method_id {
 	static const uint16_t protocol = Protocol;
 	static const uint16_t version  = Version;
-	static const uint32_t id = Protocol << 16 | Version;
+	static const uint32_t id = Version << 16 | Protocol;
 	method() : method_id(id) { }
 };
 
