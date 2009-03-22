@@ -162,7 +162,7 @@ cluster::cluster(role_type self_id,
 		const address& self_addr,
 		unsigned int connect_timeout_msec,
 		unsigned short connect_retry_limit) :
-	client_t(connect_timeout_msec, connect_retry_limit),
+	client_base(connect_timeout_msec, connect_retry_limit),
 	m_self_id(self_id),
 	m_self_addr(self_addr),
 	m_subsystem(this) { }
@@ -179,7 +179,7 @@ void cluster::accepted(int fd)
 	struct linger opt = {0, 0};
 	::setsockopt(fd, SOL_SOCKET, SO_LINGER, (void *)&opt, sizeof(opt));  // ignore error
 #endif
-	wavy::add<cluster_transport>(fd, (client_t*)this);
+	wavy::add<cluster_transport>(fd, (client_base*)this);
 }
 
 
@@ -196,7 +196,7 @@ void cluster::transport_lost(shared_node& n)
 {
 	if(n->connect_retried_count() > m_connect_retry_limit) {
 		LOG_DEBUG("give up to reconnect ",n->addr());
-		client_t::transport_lost(n);
+		client_base::transport_lost(n);
 
 		if(n->is_role_set()) {
 			// node is lost
@@ -210,7 +210,7 @@ void cluster::transport_lost(shared_node& n)
 	} else {
 		// FIXME non-connectable node?
 		LOG_DEBUG("lost node is not connectable ",n->addr());
-		client_t::transport_lost(n);
+		client_base::transport_lost(n);
 	}
 }
 

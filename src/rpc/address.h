@@ -88,6 +88,15 @@ inline address::address() :
 //	memcpy(m_serial_address, o.m_serial_address, m_serial_length);
 //}
 
+inline uint16_t address::raw_port() const
+{
+#ifdef KUMO_IPV6
+	return *((uint16_t*)&m_serial_address[0]);
+#else
+	return (uint16_t)m_serial;
+#endif
+}
+
 inline unsigned int address::dump_size() const
 {
 #ifdef KUMO_IPV6
@@ -173,15 +182,6 @@ inline bool address::operator> (const address& addr) const
 	}
 #else
 	return m_serial > addr.m_serial;
-#endif
-}
-
-inline uint16_t address::raw_port() const
-{
-#ifdef KUMO_IPV6
-	return *((uint16_t*)&m_serial_address[0]);
-#else
-	return (uint16_t)m_serial;
 #endif
 }
 

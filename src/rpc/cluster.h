@@ -81,18 +81,18 @@ inline void cluster_transport::submit_message(msgobj msg, auto_zone& z)
 		init_message(msg, z);
 	} else {
 		// FIXME better performance?
-		//(this->*m_process_state)(msg, z.release());
-		wavy::submit(m_process_state,
-				shared_self<cluster_transport>(),
-				msg, z.get());
-		z.release();
+		(this->*m_process_state)(msg, z.release());
+		//wavy::submit(m_process_state,
+		//		shared_self<cluster_transport>(),
+		//		msg, z.get());
+		//z.release();
 	}
 }
 
 
-class cluster : protected client<cluster_transport, node> {
+class cluster : protected client_tmpl<cluster_transport, node> {
 public:
-	typedef client<cluster_transport, node> client_t;
+	typedef client_tmpl<cluster_transport, node> client_base;
 
 	typedef rpc::shared_peer shared_session;
 	typedef rpc::weak_peer   weak_session;
@@ -183,7 +183,7 @@ private:
 
 inline void cluster::step_timeout()
 {
-	client_t::step_timeout();
+	client_base::step_timeout();
 	m_subsystem.step_timeout();
 }
 

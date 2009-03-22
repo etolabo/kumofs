@@ -13,6 +13,7 @@ namespace rpc {
 
 class basic_transport;
 
+
 struct session_manager {
 	session_manager() { }
 
@@ -105,46 +106,13 @@ protected:
 	msgid_t pack(vrefbuffer& buffer, Message& param);
 
 private:
-	class callback_entry {
-	public:
-		callback_entry();
-		callback_entry(callback_t callback, shared_zone life,
-				unsigned short timeout_steps);
-	public:
-		void callback(basic_shared_session& s, msgobj res, msgobj err, auto_zone& z);
-		void callback(basic_shared_session& s, msgobj res, msgobj err);
-		inline void callback_submit(basic_shared_session& s, msgobj res, msgobj err);
-		inline bool step_timeout();  // Note: NOT thread-safe
-	private:
-		inline void callback_real(basic_shared_session& s,
-				msgobj res, msgobj err, shared_zone z);
-	private:
-		unsigned short m_timeout_steps;
-		callback_t m_callback;
-		shared_zone m_life;
-	};
+	void call_real(msgid_t msgid, std::auto_ptr<vrefbuffer> buffer,
+			shared_zone life, callback_t callback, unsigned short timeout_steps);
 
 protected:
 	msgid_t m_msgid_rr;
 
-	class callback_table {
-	public:
-		callback_table() { }
-		~callback_table() { }
-	public:
-		void insert(msgid_t msgid, const callback_entry& entry);
-		bool out(msgid_t msgid, callback_entry* result);
-		template <typename F> void for_each_clear(F f);
-		template <typename F> void erase_if(F f);
-	public:
-		static const size_t PARTITION_NUM = 4;  // FIXME
-		typedef std::map<msgid_t, callback_entry> callbacks_t;
-		mp::pthread_mutex m_callbacks_mutex[PARTITION_NUM];
-		callbacks_t m_callbacks[PARTITION_NUM];
-	private:
-		callback_table(const callback_table&);
-	};
-	callback_table m_cbtable;
+	void* m_cbtable;  // anonymous:session.cc
 
 	mp::pthread_mutex m_binds_mutex;
 	typedef std::vector<basic_transport*> binds_t;
@@ -184,9 +152,14 @@ public:
 	virtual bool unbind_transport(basic_transport* t, basic_shared_session& self);
 
 private:
+	void call_real(msgid_t msgid, std::auto_ptr<vrefbuffer> buffer,
+			shared_zone life, callback_t callback, unsigned short timeout_steps);
+
+private:
 	mp::pthread_mutex m_pending_queue_mutex;
 	typedef std::vector<vrefbuffer*> pending_queue_t;
 	pending_queue_t m_pending_queue;
+
 	void clear_pending_queue(pending_queue_t& queue);
 
 private:

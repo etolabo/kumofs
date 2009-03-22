@@ -10,7 +10,7 @@ namespace rpc {
 
 
 template <typename Transport, typename Session>
-client<Transport, Session>::client(
+client_tmpl<Transport, Session>::client_tmpl(
 		unsigned int connect_timeout_msec,
 		unsigned short connect_retry_limit) :
 	m_connect_timeout_msec(connect_timeout_msec),
@@ -18,13 +18,13 @@ client<Transport, Session>::client(
 { }
 
 template <typename Transport, typename Session>
-client<Transport, Session>::~client() { }
+client_tmpl<Transport, Session>::~client_tmpl() { }
 
 
 template <typename Transport, typename Session>
 template <bool CONNECT>
-typename client<Transport, Session>::shared_session
-client<Transport, Session>::get_session_impl(const address& addr)
+typename client_tmpl<Transport, Session>::shared_session
+client_tmpl<Transport, Session>::get_session_impl(const address& addr)
 {
 	shared_session s;
 
@@ -72,8 +72,8 @@ client<Transport, Session>::get_session_impl(const address& addr)
 
 
 template <typename Transport, typename Session>
-typename client<Transport, Session>::shared_session
-client<Transport, Session>::get_session(const address& addr)
+typename client_tmpl<Transport, Session>::shared_session
+inline client_tmpl<Transport, Session>::get_session(const address& addr)
 {
 	LOG_TRACE("get session ",addr);
 	return get_session_impl<true>(addr);
@@ -81,8 +81,8 @@ client<Transport, Session>::get_session(const address& addr)
 
 
 template <typename Transport, typename Session>
-typename client<Transport, Session>::shared_session
-client<Transport, Session>::create_session(const address& addr)
+typename client_tmpl<Transport, Session>::shared_session
+inline client_tmpl<Transport, Session>::create_session(const address& addr)
 {
 	LOG_TRACE("create session ",addr);
 	return get_session_impl<false>(addr);
@@ -90,8 +90,8 @@ client<Transport, Session>::create_session(const address& addr)
 
 
 template <typename Transport, typename Session>
-typename client<Transport, Session>::shared_session
-client<Transport, Session>::add(int fd, const address& addr)
+typename client_tmpl<Transport, Session>::shared_session
+client_tmpl<Transport, Session>::add(int fd, const address& addr)
 {
 	shared_session s(new Session(this));
 	wavy::add<Transport>(fd, s, this);
@@ -103,7 +103,7 @@ client<Transport, Session>::add(int fd, const address& addr)
 
 
 template <typename Transport, typename Session>
-bool client<Transport, Session>::async_connect(
+bool client_tmpl<Transport, Session>::async_connect(
 		const address& addr, shared_session& s)
 {
 	// rough check
@@ -118,7 +118,7 @@ bool client<Transport, Session>::async_connect(
 			(sockaddr*)addrbuf, sizeof(addrbuf),
 			m_connect_timeout_msec,
 			mp::bind(
-				&client<Transport, Session>::connect_callback,
+				&client_tmpl<Transport, Session>::connect_callback,
 				this, addr, s, _1, _2));
 
 	s->increment_connect_retried_count();
@@ -126,7 +126,7 @@ bool client<Transport, Session>::async_connect(
 }
 
 template <typename Transport, typename Session>
-void client<Transport, Session>::connect_callback(
+void client_tmpl<Transport, Session>::connect_callback(
 		address addr, shared_session s, int fd, int err)
 {
 	if(fd >= 0) {
@@ -164,7 +164,7 @@ void client<Transport, Session>::connect_callback(
 
 
 template <typename Transport, typename Session>
-void client<Transport, Session>::transport_lost(shared_session& s)
+void client_tmpl<Transport, Session>::transport_lost(shared_session& s)
 {
 	msgpack::object res;
 	res.type = msgpack::type::NIL;
@@ -178,7 +178,7 @@ void client<Transport, Session>::transport_lost(shared_session& s)
 
 
 template <typename Transport, typename Session>
-void client<Transport, Session>::dispatch_request(
+inline void client_tmpl<Transport, Session>::dispatch_request(
 		basic_shared_session& s, weak_responder response,
 		method_id method, msgobj param, auto_zone z)
 {
@@ -188,7 +188,7 @@ void client<Transport, Session>::dispatch_request(
 
 
 template <typename Transport, typename Session>
-void client<Transport, Session>::step_timeout()
+void client_tmpl<Transport, Session>::step_timeout()
 {
 	LOG_TRACE("step timeout ...");
 
@@ -199,7 +199,7 @@ void client<Transport, Session>::step_timeout()
 		if(s && !s->is_lost()) {
 			wavy::submit(&basic_session::step_timeout,
 					s,
-					mp::static_pointer_cast<session>(s));
+					mp::static_pointer_cast<Session>(s));
 			++it;
 		} else {
 			m_sessions.erase(it++);
@@ -211,7 +211,7 @@ void client<Transport, Session>::step_timeout()
 
 
 template <typename Transport, typename Session>
-void client<Transport, Session>::transport_lost_notify(basic_shared_session& s)
+void client_tmpl<Transport, Session>::transport_lost_notify(basic_shared_session& s)
 {
 	shared_session x(mp::static_pointer_cast<Session>(s));
 	transport_lost(x);
@@ -220,5 +220,5 @@ void client<Transport, Session>::transport_lost_notify(basic_shared_session& s)
 
 }  // namespace rpc
 
-#endif /* rpc/client.h */
+#endif /* rpc/client_tmpl.h */
 

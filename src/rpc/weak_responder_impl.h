@@ -13,7 +13,7 @@ inline weak_responder::~weak_responder() { }
 
 
 template <typename Result>
-void weak_responder::result(Result res)
+inline void weak_responder::result(Result res)
 {
 	LOG_TRACE("send response data with Success id=",m_msgid);
 	msgpack::type::nil err;
@@ -21,7 +21,7 @@ void weak_responder::result(Result res)
 }
 
 template <typename Result>
-void weak_responder::result(Result res, auto_zone& z)
+inline void weak_responder::result(Result res, auto_zone& z)
 {
 	LOG_TRACE("send response data with Success id=",m_msgid);
 	msgpack::type::nil err;
@@ -29,7 +29,7 @@ void weak_responder::result(Result res, auto_zone& z)
 }
 
 template <typename Result>
-void weak_responder::result(Result res, shared_zone& life)
+inline void weak_responder::result(Result res, shared_zone& life)
 {
 	LOG_TRACE("send response data with Success id=",m_msgid);
 	msgpack::type::nil err;
@@ -37,7 +37,7 @@ void weak_responder::result(Result res, shared_zone& life)
 }
 
 template <typename Error>
-void weak_responder::error(Error err)
+inline void weak_responder::error(Error err)
 {
 	LOG_TRACE("send response data with Error id=",m_msgid);
 	msgpack::type::nil res;
@@ -45,7 +45,7 @@ void weak_responder::error(Error err)
 }
 
 template <typename Error>
-void weak_responder::error(Error err, auto_zone& z)
+inline void weak_responder::error(Error err, auto_zone& z)
 {
 	LOG_TRACE("send response data with Error id=",m_msgid);
 	msgpack::type::nil res;
@@ -53,7 +53,7 @@ void weak_responder::error(Error err, auto_zone& z)
 }
 
 template <typename Error>
-void weak_responder::error(Error err, shared_zone& life)
+inline void weak_responder::error(Error err, shared_zone& life)
 {
 	LOG_TRACE("send response data with Error id=",m_msgid);
 	msgpack::type::nil res;
@@ -113,7 +113,8 @@ inline void weak_responder::call(Result& res, Error& err, shared_zone& z)
 template <typename Result, typename Error, typename ZoneType>
 void weak_responder::call_impl(Result& res, Error& err, ZoneType& life)
 {
-	std::auto_ptr<detail::zone_keeper<ZoneType> > zk(new detail::zone_keeper<ZoneType>(life));
+	std::auto_ptr<detail::zone_keeper<ZoneType> > zk(
+			new detail::zone_keeper<ZoneType>(life));
 
 	rpc_response<Result&, Error> msgres(res, err, m_msgid);
 	msgpack::pack(zk->buf, msgres);

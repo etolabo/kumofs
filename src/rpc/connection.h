@@ -40,15 +40,9 @@ public:
 
 	void process_request(method_id method, msgobj param, msgid_t msgid, auto_zone& z);
 
-	void dispatch_request(method_id method, msgobj param, responder& response, auto_zone& z)
-	{
-		throw msgpack::type_error();
-	}
+	void dispatch_request(method_id method, msgobj param, responder& response, auto_zone& z);
 
-	void process_response(msgobj result, msgobj error, msgid_t msgid, auto_zone& z)
-	{
-		throw msgpack::type_error();
-	}
+	void process_response(msgobj result, msgobj error, msgid_t msgid, auto_zone& z);
 
 private:
 	msgpack::unpacker m_pac;
@@ -114,6 +108,31 @@ inline void connection<IMPL>::submit_message(msgobj msg, auto_zone& z)
 	//static_cast<IMPL*>(this)->process_message(msg, z.release());
 }
 
+
+template <typename IMPL>
+inline void connection<IMPL>::dispatch_request(method_id method, msgobj param,
+		responder& response, auto_zone& z)
+{
+	throw msgpack::type_error();
+}
+
+template <typename IMPL>
+inline void connection<IMPL>::process_response(msgobj result, msgobj error,
+		msgid_t msgid, auto_zone& z)
+{
+	throw msgpack::type_error();
+}
+
+template <typename IMPL>
+inline void connection<IMPL>::process_request(method_id method, msgobj param,
+		msgid_t msgid, auto_zone& z)
+{
+	responder response(fd(), msgid);
+	static_cast<IMPL*>(this)->dispatch_request(
+			method, param, response, z);
+}
+
+
 template <typename IMPL>
 void connection<IMPL>::process_message(msgobj msg, msgpack::zone* newz)
 try {
@@ -140,16 +159,6 @@ try {
 } catch(...) {
 	LOG_ERROR("rpc packet: unknown error");
 	throw;
-}
-
-
-template <typename IMPL>
-void connection<IMPL>::process_request(method_id method, msgobj param,
-		msgid_t msgid, auto_zone& z)
-{
-	responder response(fd(), msgid);
-	static_cast<IMPL*>(this)->dispatch_request(
-			method, param, response, z);
 }
 
 

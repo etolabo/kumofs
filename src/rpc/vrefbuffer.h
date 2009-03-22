@@ -7,6 +7,10 @@
 #include <vector>
 #include <algorithm>
 
+#ifndef VREFBUFFER_REF_SIZE
+#define VREFBUFFER_REF_SIZE 32  // FIXME
+#endif
+
 namespace rpc {
 
 
@@ -64,7 +68,7 @@ inline void vrefbuffer::append_copy(const char* buf, size_t len)
 
 inline void vrefbuffer::write(const char* buf, size_t len)
 {
-	if(len > 32) {  // FIXME
+	if(len > VREFBUFFER_REF_SIZE) {
 		append_ref(buf, len);
 	} else {
 		append_copy(buf, len);

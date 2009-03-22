@@ -6,7 +6,113 @@
 namespace rpc {
 
 
-inline bool basic_session::callback_table::out(
+namespace {
+
+class callback_entry {
+public:
+	callback_entry();
+	callback_entry(callback_t callback, shared_zone life,
+			unsigned short timeout_steps);
+
+public:
+	void callback(basic_shared_session& s, msgobj res, msgobj err, auto_zone& z);
+	void callback(basic_shared_session& s, msgobj res, msgobj err);
+	inline void callback_submit(basic_shared_session& s, msgobj res, msgobj err);
+	inline bool step_timeout();  // Note: NOT thread-safe
+
+private:
+	void callback_real(basic_shared_session& s,
+			msgobj res, msgobj err, shared_zone z);
+
+private:
+	unsigned short m_timeout_steps;
+	callback_t m_callback;
+	shared_zone m_life;
+};
+
+class callback_table {
+public:
+	callback_table();
+	~callback_table();
+
+public:
+	void insert(msgid_t msgid, const callback_entry& entry);
+	bool out(msgid_t msgid, callback_entry* result);
+	template <typename F> void for_each_clear(F f);
+	template <typename F> void erase_if(F f);
+
+private:
+	static const size_t PARTITION_NUM = 4;  // FIXME
+	typedef std::map<msgid_t, callback_entry> callbacks_t;
+	mp::pthread_mutex m_callbacks_mutex[PARTITION_NUM];
+	callbacks_t m_callbacks[PARTITION_NUM];
+
+private:
+	callback_table(const callback_table&);
+};
+
+
+callback_entry::callback_entry() { }
+
+callback_entry::callback_entry(
+		callback_t callback, shared_zone life,
+		unsigned short timeout_steps) :
+	m_timeout_steps(timeout_steps),
+	m_callback(callback),
+	m_life(life) { }
+
+void callback_entry::callback(basic_shared_session& s,
+		msgobj res, msgobj err, auto_zone& z)
+{
+	// msgpack::zone::push_finalizer is not thread-safe
+	// m_life may null. see {basic_,}session::call
+	//m_life->push_finalizer(&mp::object_delete<msgpack::zone>, z.release());
+	shared_zone life(z.release());
+	if(m_life) { life->allocate<shared_zone>(m_life); }
+	callback_real(s, res, err, life);
+}
+
+void callback_entry::callback(basic_shared_session& s,
+		msgobj res, msgobj err)
+{
+	shared_zone life = m_life;
+	if(!life) { life.reset(new msgpack::zone()); }
+	callback_real(s, res, err, life);
+}
+
+void callback_entry::callback_submit(
+		basic_shared_session& s, msgobj res, msgobj err)
+{
+	shared_zone life = m_life;
+	if(!life) { life.reset(new msgpack::zone()); }
+	wavy::submit(m_callback, s, res, err, life);
+}
+
+inline void callback_entry::callback_real(basic_shared_session& s,
+		msgobj res, msgobj err, shared_zone life)
+try {
+	m_callback(s, res, err, life);
+} catch (std::exception& e) {
+	LOG_ERROR("response callback error: ",e.what());
+} catch (...) {
+	LOG_ERROR("response callback error: unknown error");
+}
+
+bool callback_entry::step_timeout()
+{
+	if(m_timeout_steps > 0) {
+		--m_timeout_steps;  // FIXME atomic?
+		return true;
+	}
+	return false;
+}
+
+
+callback_table::callback_table() { }
+
+callback_table::~callback_table() { }
+
+bool callback_table::out(
 		msgid_t msgid, callback_entry* result)
 {
 	pthread_scoped_lock lk(m_callbacks_mutex[msgid % PARTITION_NUM]);
@@ -24,7 +130,7 @@ inline bool basic_session::callback_table::out(
 }
 
 template <typename F>
-inline void basic_session::callback_table::for_each_clear(F f)
+void callback_table::for_each_clear(F f)
 {
 	for(size_t i=0; i < PARTITION_NUM; ++i) {
 		pthread_scoped_lock lk(m_callbacks_mutex[i]);
@@ -35,7 +141,7 @@ inline void basic_session::callback_table::for_each_clear(F f)
 }
 
 template <typename F>
-inline void basic_session::callback_table::erase_if(F f)
+void callback_table::erase_if(F f)
 {
 	for(size_t i=0; i < PARTITION_NUM; ++i) {
 		pthread_scoped_lock lk(m_callbacks_mutex[i]);
@@ -52,6 +158,34 @@ inline void basic_session::callback_table::erase_if(F f)
 	}
 }
 
+void callback_table::insert(
+		msgid_t msgid, const callback_entry& entry)
+{
+	pthread_scoped_lock lk(m_callbacks_mutex[msgid % PARTITION_NUM]);
+	std::pair<callbacks_t::iterator, bool> pair =
+		m_callbacks[msgid % PARTITION_NUM].insert(
+				callbacks_t::value_type(msgid, entry));
+	if(!pair.second) {
+		pair.first->second = entry;
+	}
+}
+
+}  // noname namespace
+
+
+#define ANON_m_cbtable \
+	reinterpret_cast<callback_table*>(m_cbtable)
+
+
+basic_session::basic_session(session_manager* mgr) :
+	m_msgid_rr(0),  // FIXME randomize?
+	m_lost(false),
+	m_connect_retried_count(0),
+	m_manager(mgr)
+{
+	m_cbtable = reinterpret_cast<void*>(new callback_table());
+}
+
 
 basic_session::~basic_session()
 {
@@ -66,11 +200,67 @@ basic_session::~basic_session()
 
 	basic_shared_session nulls;  // FIXME nulls
 	force_lost(nulls, res, err);
+
+	delete ANON_m_cbtable;
 }
 
-session::~session()
+
+void basic_session::call_real(msgid_t msgid, std::auto_ptr<vrefbuffer> buffer,
+		shared_zone life, callback_t callback, unsigned short timeout_steps)
 {
-	cancel_pendings();
+	//if(!life) { life.reset(new msgpack::zone()); }
+
+	ANON_m_cbtable->insert(msgid, callback_entry(callback, life, timeout_steps));
+
+	if(is_lost()) {
+		//throw std::runtime_error("lost session");
+		// FIXME XXX forget the error for robustness and wait timeout.
+		return;
+	}
+
+	pthread_scoped_lock blk(m_binds_mutex);
+	if(m_binds.empty()) {
+		//throw std::runtime_error("session not bound");
+		// FIXME XXX forget the error for robustness and wait timeout.
+
+	} else {
+		// XXX ad-hoc load balancing
+		m_binds[m_msgid_rr % m_binds.size()]->send_datav(buffer.get(),
+				&mp::object_delete<vrefbuffer>, buffer.get());
+		buffer.release();
+	}
+}
+
+void session::call_real(msgid_t msgid, std::auto_ptr<vrefbuffer> buffer,
+		shared_zone life, callback_t callback, unsigned short timeout_steps)
+{
+	//if(!life) { life.reset(new msgpack::zone()); }
+
+	ANON_m_cbtable->insert(msgid, callback_entry(callback, life, timeout_steps));
+
+	if(is_lost()) {
+		//throw std::runtime_error("lost session");
+		// FIXME XXX forget the error for robustness and wait timeout.
+		return;
+	}
+
+	pthread_scoped_lock blk(m_binds_mutex);
+	if(m_binds.empty()) {
+		{
+			pthread_scoped_lock plk(m_pending_queue_mutex);
+			LOG_TRACE("push pending queue ",m_pending_queue.size()+1);
+			m_pending_queue.push_back(buffer.get());
+		}
+		buffer.release();
+		// FIXME clear pending queue if it is too big
+		// FIXME or throw exception
+
+	} else {
+		// ad-hoc load balancing
+		m_binds[m_msgid_rr % m_binds.size()]->send_datav(buffer.get(),
+				&mp::object_delete<vrefbuffer>, buffer.get());
+		buffer.release();
+	}
 }
 
 
@@ -81,7 +271,7 @@ void basic_session::process_response(
 {
 	callback_entry e;
 	LOG_DEBUG("process callback this=",(void*)this," id=",msgid," result:",result," error:",error);
-	if(!m_cbtable.out(msgid, &e)) {
+	if(!ANON_m_cbtable->out(msgid, &e)) {
 		LOG_DEBUG("callback not found id=",msgid);
 		return;
 	}
@@ -210,56 +400,8 @@ void basic_session::force_lost(basic_shared_session& s,
 		msgobj res, msgobj err)
 {
 	m_lost = true;
-	m_cbtable.for_each_clear(each_callback_submit(s, res, err));
+	ANON_m_cbtable->for_each_clear(each_callback_submit(s, res, err));
 }
-
-
-basic_session::callback_entry::callback_entry() { }
-
-basic_session::callback_entry::callback_entry(
-		callback_t callback, shared_zone life,
-		unsigned short timeout_steps) :
-	m_timeout_steps(timeout_steps),
-	m_callback(callback),
-	m_life(life) { }
-
-void basic_session::callback_entry::callback(basic_shared_session& s,
-		msgobj res, msgobj err, auto_zone& z)
-{
-	// msgpack::zone::push_finalizer is not thread-safe
-	// m_life may null. see {basic_,}session::call
-	//m_life->push_finalizer(&mp::object_delete<msgpack::zone>, z.release());
-	shared_zone life(z.release());
-	if(m_life) { life->allocate<shared_zone>(m_life); }
-	callback_real(s, res, err, life);
-}
-
-void basic_session::callback_entry::callback(basic_shared_session& s,
-		msgobj res, msgobj err)
-{
-	shared_zone life = m_life;
-	if(!life) { life.reset(new msgpack::zone()); }
-	callback_real(s, res, err, life);
-}
-
-void basic_session::callback_entry::callback_submit(
-		basic_shared_session& s, msgobj res, msgobj err)
-{
-	shared_zone life = m_life;
-	if(!life) { life.reset(new msgpack::zone()); }
-	wavy::submit(m_callback, s, res, err, life);
-}
-
-void basic_session::callback_entry::callback_real(basic_shared_session& s,
-		msgobj res, msgobj err, shared_zone life)
-try {
-	m_callback(s, res, err, life);
-} catch (std::exception& e) {
-	LOG_ERROR("response callback error: ",e.what());
-} catch (...) {
-	LOG_ERROR("response callback error: unknown error");
-}
-
 
 namespace {
 	struct remove_if_step_timeout {
@@ -287,20 +429,27 @@ namespace {
 		msgobj err;
 		remove_if_step_timeout();
 	};
-}
+}  // noname namespace
 
 void basic_session::step_timeout(basic_shared_session self)
 {
-	m_cbtable.erase_if(remove_if_step_timeout(self));
+	ANON_m_cbtable->erase_if(remove_if_step_timeout(self));
 }
 
-bool basic_session::callback_entry::step_timeout()
+
+void session::cancel_pendings()
 {
-	if(m_timeout_steps > 0) {
-		--m_timeout_steps;  // FIXME atomic?
-		return true;
+	pthread_scoped_lock lk(m_pending_queue_mutex);
+	clear_pending_queue(m_pending_queue);
+}
+
+void session::clear_pending_queue(pending_queue_t& queue)
+{
+	for(pending_queue_t::iterator it(queue.begin()),
+			it_end(queue.end()); it != it_end; ++it) {
+		delete *it;
 	}
-	return false;
+	queue.clear();
 }
 
 

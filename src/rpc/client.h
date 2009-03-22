@@ -11,7 +11,7 @@ namespace rpc {
 
 
 template <typename Transport = transport, typename Session = session>
-class client : public session_manager, public transport_manager {
+class client_tmpl : public session_manager, public transport_manager {
 public:
 	typedef mp::shared_ptr<Session> shared_session;
 	typedef mp::weak_ptr<Session> weak_session;
@@ -19,10 +19,10 @@ public:
 	typedef mp::function<void (shared_session, msgobj, msgobj, shared_zone)> callback_t;
 
 public:
-	client(unsigned int connect_timeout_msec,
+	client_tmpl(unsigned int connect_timeout_msec,
 			unsigned short connect_retry_limit);
 
-	virtual ~client();
+	virtual ~client_tmpl();
 
 	virtual void transport_lost(shared_session& s);
 
@@ -85,9 +85,12 @@ public:
 	virtual void transport_lost_notify(basic_shared_session& s);
 
 private:
-	client();
-	client(const client&);
+	client_tmpl();
+	client_tmpl(const client_tmpl&);
 };
+
+
+typedef client_tmpl<> client;
 
 
 }  // namespace rpc
