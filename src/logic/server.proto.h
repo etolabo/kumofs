@@ -78,7 +78,7 @@ struct replicate_flags : msgtype::flags_base {
 		store_flags flags;
 		msgtype::DBKey dbkey;
 		msgtype::DBValue dbval;
-		// success: tuple< clocktime:ClockTime >
+		// success: clocktime:ClockTime
 		// failed:  nil
 	};
 

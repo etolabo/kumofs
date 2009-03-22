@@ -179,7 +179,7 @@ bool proto_store::SetByRhsWhs(weak_responder response, auto_zone& z,
 
 	LOG_DEBUG("set copy required: ", wrep_num+rrep_num);
 	if((wrep_num == 0 && rrep_num == 0) || is_async) {
-		response.result( msgtype::tuple<ClockTime>(ct) );
+		response.result(ct);
 	}
 
 	return true;
@@ -236,7 +236,7 @@ void proto_store::SetByWhs(weak_responder response, auto_zone& z,
 
 	LOG_DEBUG("set copy required: ", wrep_num);
 	if(wrep_num == 0 || is_async) {
-		response.result( msgtype::tuple<ClockTime>(ct) );
+		response.result(ct);
 	}
 }
 

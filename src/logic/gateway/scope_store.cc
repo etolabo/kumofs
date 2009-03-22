@@ -209,7 +209,7 @@ try {
 			ret.vallen    = 0;
 			ret.clocktime = 0;
 		} else {
-			msgtype::DBValue st(res.convert());
+			msgtype::DBValue st = res.as<msgtype::DBValue>();
 			ret.val       = (char*)st.data();
 			ret.vallen    = st.size();
 			ret.clocktime = st.clocktime().get();
@@ -260,7 +260,7 @@ try {
 	LOG_TRACE("ResSet ",err);
 
 	if(!res.is_nil()) {
-		msgpack::type::tuple<uint64_t> st(res);
+		ClockTime st = res.as<ClockTime>();
 		set_response ret;
 		ret.error     = 0;
 		ret.life      = life;
@@ -269,7 +269,7 @@ try {
 		ret.hash      = key.hash();
 		ret.val       = val.data();
 		ret.vallen    = val.size();
-		ret.clocktime = st.get<0>();
+		ret.clocktime = st.get();
 		try { (*callback)(user, ret); } catch (...) { }
 
 	} else if( retry->retry_incr(share->cfg_set_retry_num()) ) {
@@ -311,7 +311,7 @@ try {
 	LOG_TRACE("ResDelete ",err);
 
 	if(!res.is_nil()) {
-		bool st(res.convert());
+		bool st = res.as<bool>();
 		delete_response ret;
 		ret.error     = 0;
 		ret.life      = life;
