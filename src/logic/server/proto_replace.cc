@@ -72,7 +72,7 @@ void proto_replace::replace_offer_pop(ClockTime replace_time, REQUIRE_STLK)
 
 RPC_IMPL(proto_replace, ReplaceCopyStart, req, z, response)
 {
-	net->clock_update(req.param().clock);
+	net->clock_update(req.param().adjust_clock);
 
 	HashSpace hs(req.param().hsseed);
 
@@ -90,7 +90,7 @@ RPC_IMPL(proto_replace, ReplaceCopyStart, req, z, response)
 
 RPC_IMPL(proto_replace, ReplaceDeleteStart, req, z, response)
 {
-	net->clock_update(req.param().clock);
+	net->clock_update(req.param().adjust_clock);
 
 	HashSpace hs(req.param().hsseed);
 

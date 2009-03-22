@@ -21,7 +21,7 @@ namespace manager {
 
 RPC_IMPL(proto_network, KeepAlive, req, z, response)
 {
-	net->clock_update(req.param().clock);
+	net->clock_update(req.param().adjust_clock);
 	response.null();
 }
 
@@ -144,7 +144,7 @@ RPC_IMPL(proto_network, HashSpaceSync, req, z, response)
 		throw std::runtime_error("unknown partner node");
 	}
 
-	net->clock_update(req.param().clock);
+	net->clock_update(req.param().adjust_clock);
 
 	bool ret = false;
 

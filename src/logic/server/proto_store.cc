@@ -329,9 +329,9 @@ bool proto_store::DeleteByRhsWhs(weak_responder response, auto_zone& z,
 	rpc::retry<ReplicateDelete>* rretry =
 		z->allocate< rpc::retry<ReplicateDelete> >(
 				ReplicateDelete(
-					ct,
 					ct.clock(),
 					replicate_flags_by_rhs(),  // flag = by rhs
+					ct,
 					msgtype::DBKey(key.raw_data(), key.raw_size()))
 				);
 	rretry->set_callback( BIND_RESPONSE(proto_store, ReplicateDelete,
@@ -343,9 +343,9 @@ bool proto_store::DeleteByRhsWhs(weak_responder response, auto_zone& z,
 	rpc::retry<ReplicateDelete>* wretry =
 		z->allocate< rpc::retry<ReplicateDelete> >(
 				ReplicateDelete(
-					ct,
 					ct.clock(),
 					replicate_flags_none(),  // flag = none
+					ct,
 					msgtype::DBKey(key.raw_data(), key.raw_size()))
 				);
 	wretry->set_callback( BIND_RESPONSE(proto_store, ReplicateDelete,
@@ -408,8 +408,9 @@ void proto_store::DeleteByWhs(weak_responder response, auto_zone& z,
 	rpc::retry<ReplicateDelete>* retry =
 		z->allocate< rpc::retry<ReplicateDelete> >(
 				ReplicateDelete(
-					ct, ct.clock(),
+					ct.clock(),
 					replicate_flags_none(),
+					ct,
 					msgtype::DBKey(key.raw_data(), key.raw_size()))
 				);
 	retry->set_callback( BIND_RESPONSE(proto_store, ReplicateDelete,
@@ -541,7 +542,7 @@ RPC_IMPL(proto_store, ReplicateSet, req, z, response)
 		check_replicator_assign(share->whs(), key.hash());
 	}
 
-	net->clock_update(req.param().clock);
+	net->clock_update(req.param().adjust_clock);
 
 	bool updated = share->db().update(
 			key.raw_data(), key.raw_size(),
@@ -564,10 +565,10 @@ RPC_IMPL(proto_store, ReplicateDelete, req, z, response)
 		check_replicator_assign(share->whs(), key.hash());
 	}
 
-	net->clock_update(req.param().clock);
+	net->clock_update(req.param().adjust_clock);
 
 	bool deleted = share->db().remove(key.raw_data(), key.raw_size(),
-			req.param().clocktime);
+			req.param().delete_clocktime);
 
 	response.result(deleted);
 }

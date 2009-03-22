@@ -278,7 +278,7 @@ RPC_IMPL(proto_replace, ReplaceElection, req, z, response)
 		throw std::runtime_error("unknown partner node");
 	}
 
-	net->clock_update(req.param().clock);
+	net->clock_update(req.param().adjust_clock);
 
 	pthread_scoped_lock hslk(share->hs_mutex());
 
@@ -313,32 +313,34 @@ RPC_IMPL(proto_replace, ReplaceElection, req, z, response)
 
 RPC_IMPL(proto_replace, ReplaceCopyEnd, req, z, response)
 {
-	pthread_scoped_lock relk(m_replace_mutex);
+	net->clock_update(req.param().adjust_clock);
 
-	net->clock_update(req.param().clock);
+	{
+		pthread_scoped_lock relk(m_replace_mutex);
 
-	ClockTime replace_time(req.param().replace_time);
-	if(m_copying.pop(replace_time, req.node()->addr())) {
-		finish_replace_copy(relk);
+		ClockTime replace_time(req.param().replace_time);
+		if(m_copying.pop(replace_time, req.node()->addr())) {
+			finish_replace_copy(relk);
+		}
 	}
 
-	relk.unlock();
 	response.result(true);
 }
 
 
 RPC_IMPL(proto_replace, ReplaceDeleteEnd, req, z, response)
 {
-	pthread_scoped_lock relk(m_replace_mutex);
+	net->clock_update(req.param().adjust_clock);
 
-	net->clock_update(req.param().clock);
+	{
+		pthread_scoped_lock relk(m_replace_mutex);
 
-	ClockTime replace_time(req.param().replace_time);
-	if(m_deleting.pop(replace_time, req.node()->addr())) {
-		finish_replace(relk);
+		ClockTime replace_time(req.param().replace_time);
+		if(m_deleting.pop(replace_time, req.node()->addr())) {
+			finish_replace(relk);
+		}
 	}
 
-	relk.unlock();
 	response.result(true);
 }
 

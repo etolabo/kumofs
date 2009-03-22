@@ -26,14 +26,14 @@ namespace server {
 
 @rpc proto_network
 	message KeepAlive +cluster {
-		Clock clock;
+		Clock adjust_clock;
 		// ok: UNDEFINED
 	};
 
 	message HashSpaceSync {
 		msgtype::HSSeed wseed;
 		msgtype::HSSeed rseed;
-		Clock clock;
+		Clock adjust_clock;
 		// success: true
 		// obsolete: nil
 	};
@@ -91,7 +91,7 @@ struct replicate_flags : msgtype::flags_base {
 	};
 
 	message ReplicateSet {
-		Clock clock;
+		Clock adjust_clock;
 		replicate_flags flags;
 		msgtype::DBKey dbkey;
 		msgtype::DBValue dbval;
@@ -100,9 +100,9 @@ struct replicate_flags : msgtype::flags_base {
 	};
 
 	message ReplicateDelete {
-		ClockTime clocktime;
-		Clock clock;
+		Clock adjust_clock;
 		replicate_flags flags;
+		ClockTime delete_clocktime;
 		msgtype::DBKey dbkey;
 		// success: true
 		// ignored: false
@@ -142,13 +142,13 @@ private:
 @rpc proto_replace
 	message ReplaceCopyStart +cluster {
 		msgtype::HSSeed hsseed;
-		Clock clock;
+		Clock adjust_clock;
 		// accepted: true
 	};
 
 	message ReplaceDeleteStart +cluster {
 		msgtype::HSSeed hsseed;
-		Clock clock;
+		Clock adjust_clock;
 		// accepted: true
 	};
 
