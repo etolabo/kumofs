@@ -482,7 +482,7 @@ RPC_REPLY_IMPL(proto_store, ReplicateSet, from, res, err, life,
 	LOG_DEBUG("ReplicateSet succeeded");
 
 	if(__sync_sub_and_fetch(copy_required, 1) == 0) {
-		response.result( msgtype::tuple<ClockTime>(clocktime) );
+		response.result(clocktime);
 	}
 }
 
