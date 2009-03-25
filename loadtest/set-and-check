@@ -96,18 +96,19 @@ MAIN: {
             my $key    = generate_key($count);
             my $val    = generate_val($count);
             my $expire = generate_expire(\%opt);
-            my $retry = 7;
+            my $retry = 10;
             ### [set] key,val,expire: $key, $val, $expire
+            verbose sprintf("SET %s=%s",$key,$val);
 
             while ($retry-- > 0) {
                 my $rc = set_to($mcd, $key, $val, $expire);
                 if ($rc) {
                     $count++;
-                    $sanity->{ $key } = $expire == 0 ? $val : $NO_DATA;
+                    $sanity->{ $key } = $expire == 0 ? $val : $NO_DATA . '_E';
                     last;
                 }
                 logger "retry to set... ($retry) [$key]\n";
-                sleep 2;
+                sleep 1;
             }
             if ($retry < 0) {
                 logger "failed to set. escape from loop.\n";
@@ -116,13 +117,14 @@ MAIN: {
 
         } elsif ($op eq 'delete') {
             my $key = '';
-            my $retry = 7;
+            my $retry = 10;
             while (! exists $sanity->{ $key }
                        || $sanity->{ $key } eq $NO_DATA
                       ) {
                 $key = generate_key( int(rand($count)) );
             }
             ### [delete] key: $key
+            verbose sprintf("DEL %s",$key);
 
             while ($retry-- > 0) {
                 my $rc = delete_from($mcd, $key);
@@ -132,7 +134,7 @@ MAIN: {
                     last;
                 }
                 logger "retry to delete... ($retry) [$key]\n";
-                sleep 2;
+                sleep 1;
             }
             if ($retry < 0) {
                 logger "failed to delete. escape from loop.\n";
@@ -144,22 +146,22 @@ MAIN: {
         }
 
 
-        if ($Verbose and ($count % $pitch == 0)) {
-            logger '.';
-            logger sprintf(" [%5d]\n", $count) if $count % $n_fold == 0;
-        }
+#         if ($Verbose and ($count % $pitch == 0)) {
+#             logger '.';
+#             logger sprintf(" [%5d]\n", $count) if $count % $n_fold == 0;
+#         }
 
         $Process_Set = 0 if $count+1 > $Max_Set_Count;
         sleep 1 if $ENV{SC}; # for debugging
     }
     logger sprintf("number of data: %d\n", $count);
-    sleep 3; # wait for expire data
+#    sleep 3; # wait for expire data
 
     ### 2. get value from server
     my $fail_count = {}; # host => { key1 => got_val1, key2 => got_val2, ... }
 
     for my $host (@{ $hosts }) {
-        logger sprintf("host: %-12s ", $host);
+        my $l = sprintf("host: %-12s ", $host);
 
         my $amcd = Cache::Memcached::Fast->new({servers => [ $host ],
                                                 io_timeout => 6.0,
@@ -177,9 +179,8 @@ MAIN: {
 
         ## display summary of result
         my $n_fail = keys %{ $fail_count->{$host} };
-        logger sprintf("%5d mismatched: ", $n_fail);
         if ($n_fail > 0) {
-            logger "NG\n";
+            logger sprintf("$l %5d mismatched: NG", $n_fail);
 
             my $fmt = "  %-10s %-20s %-20s\n";
             logger sprintf($fmt, 'key', 'expected val', 'got val');
@@ -187,7 +188,7 @@ MAIN: {
                 logger sprintf($fmt, $key, $sanity->{$key}, $val);
             }
         } else {
-            logger "OK\n";
+            logger sprintf("$l %5d mismatched: OK", $n_fail);
         }
     }
 
@@ -238,11 +239,12 @@ sub set_to {
 sub get_from {
     my($server, $key) = @_;
     my $r = $NO_DATA;
-    for (my $i=0; $i<3; $i++) {
+    for (my $i=0; $i<20; $i++) {
         if ($r = $server->get($key)) {
             last;
         }
-        sleep 2;
+        logger "retry to get... ($i) [$key]\n";
+        sleep 1;
     }
     return $r || $NO_DATA
 }
