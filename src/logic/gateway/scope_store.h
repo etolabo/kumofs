@@ -39,14 +39,6 @@ private:
 	RPC_REPLY_DECL(Delete, from, res, err, life,
 			rpc::retry<server::proto_store::Delete>* retry,
 			void (*callback)(void*, delete_response&), void* user);
-
-	template <typename Parameter>
-	void retry_after(unsigned int steps,
-			rpc::retry<Parameter>* retry, shared_zone life,
-			uint64_t for_hash, unsigned int offset = 0);
-
-	template <typename Parameter>
-	struct retry_after_callback;
 };
 
 

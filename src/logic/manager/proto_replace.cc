@@ -369,6 +369,8 @@ void proto_replace::finish_replace_copy(REQUIRE_RELK)
 	share->rhs() = share->whs();
 
 	net->scope_proto_network().push_hash_space_clients(hslk);
+	//net->scope_proto_network().sync_hash_space_servers(hslk);
+	net->scope_proto_network().sync_hash_space_partner(hslk);
 }
 
 RPC_REPLY_IMPL(proto_replace, ReplaceDeleteStart, from, res, err, life)
@@ -381,9 +383,6 @@ inline void proto_replace::finish_replace(REQUIRE_RELK)
 {
 	LOG_INFO("replace finished time(",m_deleting.clocktime().get(),")");
 	m_deleting.invalidate();
-
-	pthread_scoped_lock hslk(share->hs_mutex());
-	net->scope_proto_network().push_hash_space_clients(hslk);
 }
 
 

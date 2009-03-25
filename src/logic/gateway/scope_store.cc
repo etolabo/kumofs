@@ -158,8 +158,9 @@ try {
 GATEWAY_CATCH(Delete, delete_response)
 
 
-template <typename Parameter>
-struct scope_store::retry_after_callback {
+namespace {
+template <resource::hash_space_type Hs, typename Parameter>
+struct retry_after_callback {
 	retry_after_callback(
 			rpc::retry<Parameter>* retry, shared_zone life,
 			uint64_t for_hash, unsigned int offset = 0) :
@@ -168,8 +169,9 @@ struct scope_store::retry_after_callback {
 
 	void operator() ()
 	{
+		// FIXME HS_WRITE?
 		m_retry->call(
-				share->server_for<resource::HS_WRITE>(m_for_hash, m_offset),
+				share->server_for<Hs>(m_for_hash, m_offset),
 				m_life, 10);
 	}
 
@@ -180,14 +182,15 @@ private:
 	shared_zone m_life;
 };
 
-template <typename Parameter>
-void scope_store::retry_after(unsigned int steps,
+template <resource::hash_space_type Hs, typename Parameter>
+void retry_after(unsigned int steps,
 		rpc::retry<Parameter>* retry, shared_zone life,
-		uint64_t for_hash, unsigned int offset)
+		uint64_t for_hash, unsigned int offset = 0)
 {
 	net->do_after(steps,
-			retry_after_callback<Parameter>(retry, life, for_hash, offset));
+			retry_after_callback<Hs, Parameter>(retry, life, for_hash, offset));
 }
+}  // noname namespace
 
 
 RPC_REPLY_IMPL(scope_store, Get, from, res, err, life,
@@ -221,7 +224,7 @@ try {
 		unsigned short offset = retry->num_retried() % (NUM_REPLICATION+1);
 		if(offset == 0) {
 			// FIXME configurable steps
-			retry_after(1*framework::DO_AFTER_BY_SECONDS, retry, life, key.hash(), offset);
+			retry_after<resource::HS_READ>(1*framework::DO_AFTER_BY_SECONDS, retry, life, key.hash(), offset);
 		} else {
 			retry->call(share->server_for<resource::HS_READ>(key.hash(), offset), life, 10);
 		}
@@ -275,7 +278,7 @@ try {
 	} else if( retry->retry_incr(share->cfg_set_retry_num()) ) {
 		share->incr_error_renew_count();
 		// FIXME configurable steps
-		retry_after(1*framework::DO_AFTER_BY_SECONDS, retry, life, key.hash());
+		retry_after<resource::HS_WRITE>(1*framework::DO_AFTER_BY_SECONDS, retry, life, key.hash());
 		LOG_WARN("Set error: ",err,", retry ",retry->num_retried());
 
 	} else {
@@ -324,7 +327,7 @@ try {
 	} else if( retry->retry_incr(share->cfg_delete_retry_num()) ) {
 		share->incr_error_renew_count();
 		// FIXME configurable steps
-		retry_after(1*framework::DO_AFTER_BY_SECONDS, retry, life, key.hash());
+		retry_after<resource::HS_WRITE>(1*framework::DO_AFTER_BY_SECONDS, retry, life, key.hash());
 		LOG_WARN("Delete error: ",err,", retry ",retry->num_retried());
 
 	} else {

@@ -13,7 +13,7 @@ RPC_IMPL(proto_network, HashSpacePush, req, z, response)
 	{
 		pthread_scoped_wrlock hslk(share->hs_rwlock());
 		share->update_whs(req.param().wseed, hslk);
-		share->update_rhs(req.param().wseed, hslk);
+		share->update_rhs(req.param().rseed, hslk);
 	}
 
 	response.result(true);
