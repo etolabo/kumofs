@@ -47,7 +47,6 @@ void proto_replace::remove_server(const address& addr)
 	ClockTime ct = net->clock_incr_clocktime();
 
 	pthread_scoped_lock hslk(share->hs_mutex());
-	pthread_scoped_lock sslk(share->servers_mutex());
 	pthread_scoped_lock nslk(share->new_servers_mutex());
 
 	bool wfault = share->whs().fault_server(ct, addr);
@@ -55,13 +54,10 @@ void proto_replace::remove_server(const address& addr)
 
 	if(wfault || rfault) {
 		net->scope_proto_network().sync_hash_space_partner(hslk);
-		net->scope_proto_network().sync_hash_space_servers(hslk, sslk);
+		net->scope_proto_network().sync_hash_space_servers(hslk);
 		net->scope_proto_network().push_hash_space_clients(hslk);
 	}
 	hslk.unlock();
-
-	share->servers().erase(addr);
-	sslk.unlock();
 
 	for(new_servers_t::iterator it(share->new_servers().begin());
 			it != share->new_servers().end(); ) {
@@ -148,7 +144,6 @@ void proto_replace::attach_new_servers(REQUIRE_HSLK)
 	LOG_INFO("update hash space at time(",ct.get(),")");
 
 	pthread_scoped_lock nslk(share->new_servers_mutex());
-	pthread_scoped_lock sslk(share->servers_mutex());
 
 	for(new_servers_t::iterator it(share->new_servers().begin()),
 			it_end(share->new_servers().end()); it != it_end; ++it) {
@@ -161,17 +156,15 @@ void proto_replace::attach_new_servers(REQUIRE_HSLK)
 				LOG_INFO("new server: ",srv->addr());
 				share->whs().add_server(ct, srv->addr());
 			}
-			share->servers()[srv->addr()] = *it;
 		}
 	}
 	share->new_servers().clear();
 
-	sslk.unlock();
 	nslk.unlock();
 
 	net->scope_proto_network().sync_hash_space_partner(hslk);
-	//net->scope_proto_network().sync_hash_space_servers();
-	//push_hash_space_clients();
+	//net->scope_proto_network().sync_hash_space_servers(hslk);
+	//net->scope_proto_network().push_hash_space_clients(hslk);
 }
 
 void proto_replace::detach_fault_servers(REQUIRE_HSLK)
@@ -181,8 +174,8 @@ void proto_replace::detach_fault_servers(REQUIRE_HSLK)
 	share->whs().remove_fault_servers(ct);
 
 	net->scope_proto_network().sync_hash_space_partner(hslk);
-	//net->scope_proto_network().sync_hash_space_servers();
-	//net->scope_proto_network().push_hash_space_clients();
+	//net->scope_proto_network().sync_hash_space_servers(hslk);
+	//net->scope_proto_network().push_hash_space_clients(hslk);
 }
 
 
@@ -225,6 +218,20 @@ proto_replace::progress::nodes_t proto_replace::progress::invalidate()
 }
 
 
+namespace {
+	template <typename nodes_t>
+	struct gather_address {
+		gather_address(nodes_t& target_nodes) :
+			m_target_nodes(target_nodes) { }
+		void operator() (shared_node& n)
+		{
+			m_target_nodes.push_back(n->addr());
+		}
+	private:
+		nodes_t& m_target_nodes;
+	};
+}  // noname namespace
+
 void proto_replace::start_replace(REQUIRE_HSLK)
 {
 	LOG_INFO("start replace copy");
@@ -241,13 +248,9 @@ void proto_replace::start_replace(REQUIRE_HSLK)
 	rpc::callback_t callback( BIND_RESPONSE(proto_replace, ReplaceCopyStart) );
 
 	progress::nodes_t target_nodes;
-
-	pthread_scoped_lock sslk(share->servers_mutex());
-	EACH_ACTIVE_SERVERS_BEGIN(n)
-		n->call(param, life, callback, 10);
-		target_nodes.push_back(n->addr());
-	EACH_ACTIVE_SERVERS_END
-	sslk.unlock();
+	net->for_each_node(ROLE_SERVER,
+			for_each_call_do(param, life, callback, 10,
+			gather_address<progress::nodes_t>(target_nodes)));
 
 	LOG_INFO("active node: ",target_nodes.size());
 	m_copying.reset(replace_time, target_nodes);
@@ -255,13 +258,7 @@ void proto_replace::start_replace(REQUIRE_HSLK)
 	relk.unlock();
 
 	// push hashspace to the clients
-	try {
-		net->scope_proto_network().push_hash_space_clients(hslk);
-	} catch (std::runtime_error& e) {
-		LOG_ERROR("HashSpacePush failed: ",e.what());
-	} catch (...) {
-		LOG_ERROR("HashSpacePush failed: unknown error");
-	}
+	net->scope_proto_network().push_hash_space_clients(hslk);
 }
 
 RPC_REPLY_IMPL(proto_replace, ReplaceCopyStart, from, res, err, life)
@@ -361,7 +358,6 @@ void proto_replace::finish_replace_copy(REQUIRE_RELK)
 	using namespace mp::placeholders;
 	rpc::callback_t callback( BIND_RESPONSE(proto_replace, ReplaceDeleteStart) );
 
-	pthread_scoped_lock sslk(share->servers_mutex());
 	for(progress::nodes_t::iterator it(target_nodes.begin()),
 			it_end(target_nodes.end()); it != it_end; ++it) {
 		net->get_node(*it)->call(param, life, callback, 10);
@@ -371,8 +367,8 @@ void proto_replace::finish_replace_copy(REQUIRE_RELK)
 
 	pthread_scoped_lock hslk(share->hs_mutex());
 	share->rhs() = share->whs();
+
 	net->scope_proto_network().push_hash_space_clients(hslk);
-	hslk.unlock();
 }
 
 RPC_REPLY_IMPL(proto_replace, ReplaceDeleteStart, from, res, err, life)
@@ -385,6 +381,9 @@ inline void proto_replace::finish_replace(REQUIRE_RELK)
 {
 	LOG_INFO("replace finished time(",m_deleting.clocktime().get(),")");
 	m_deleting.invalidate();
+
+	pthread_scoped_lock hslk(share->hs_mutex());
+	net->scope_proto_network().push_hash_space_clients(hslk);
 }
 
 

@@ -7,19 +7,6 @@
 #include "manager/proto_replace.h"
 #include "manager/proto_control.h"
 
-
-#define EACH_ACTIVE_SERVERS_BEGIN(NODE) \
-	for(servers_t::iterator _it_(share->servers().begin()), it_end(share->servers().end()); \
-			_it_ != it_end; ++_it_) { \
-		shared_node NODE(_it_->second.lock()); \
-		if(SESSION_IS_ACTIVE(NODE)) {
-			// FIXME share->servers().erase(it) ?
-
-#define EACH_ACTIVE_SERVERS_END \
-		} \
-	}
-
-
 namespace kumo {
 namespace manager {
 
@@ -83,11 +70,7 @@ private:
 	HashSpace m_rhs;
 	HashSpace m_whs;
 
-	// 'joined servers' including both active and fault servers
-	mp::pthread_mutex m_servers_mutex;
-	servers_t m_servers;
-
-	// added but 'not joined servers'
+	// connected but not joined servers
 	mp::pthread_mutex m_new_servers_mutex;
 	new_servers_t m_new_servers;
 
@@ -100,9 +83,6 @@ public:
 	RESOURCE_ACCESSOR(mp::pthread_mutex, hs_mutex);
 	RESOURCE_ACCESSOR(HashSpace, rhs);
 	RESOURCE_ACCESSOR(HashSpace, whs);
-
-	RESOURCE_ACCESSOR(mp::pthread_mutex, servers_mutex);
-	RESOURCE_ACCESSOR(servers_t, servers);
 
 	RESOURCE_ACCESSOR(mp::pthread_mutex, new_servers_mutex);
 	RESOURCE_ACCESSOR(new_servers_t, new_servers);
@@ -120,6 +100,61 @@ private:
 
 extern std::auto_ptr<framework> net;
 extern std::auto_ptr<resource> share;
+
+
+template <typename Parameter>
+struct for_each_call_t {
+	for_each_call_t(Parameter& param, shared_zone& life,
+			rpc::callback_t& callback, unsigned short timeout_steps) :
+		m_param(param), m_life(life),
+		m_callback(callback), m_timeout_steps(timeout_steps) { }
+	void operator() (shared_node& n)
+	{
+		n->call(m_param, m_life, m_callback, m_timeout_steps);
+	}
+private:
+	Parameter& m_param;
+	shared_zone& m_life;
+	rpc::callback_t& m_callback;
+	unsigned short m_timeout_steps;
+};
+
+template <typename Parameter, typename F>
+struct for_each_call_do_t {
+	for_each_call_do_t(Parameter& param, shared_zone& life,
+			rpc::callback_t& callback, unsigned short timeout_steps,
+			F f) :
+		m_param(param), m_life(life),
+		m_callback(callback), m_timeout_steps(timeout_steps),
+		m(f) { }
+	void operator() (shared_node& n)
+	{
+		n->call(m_param, m_life, m_callback, m_timeout_steps);
+		m(n);
+	}
+private:
+	Parameter& m_param;
+	shared_zone& m_life;
+	rpc::callback_t& m_callback;
+	unsigned short m_timeout_steps;
+	F m;
+};
+
+template <typename Parameter>
+for_each_call_t<Parameter> for_each_call(Parameter& param, shared_zone& life,
+		rpc::callback_t& callback, unsigned short timeout_steps)
+{
+	return for_each_call_t<Parameter>(param, life, callback, timeout_steps);
+}
+
+
+template <typename Parameter, typename F>
+for_each_call_do_t<Parameter, F> for_each_call_do(Parameter& param, shared_zone& life,
+		rpc::callback_t& callback, unsigned short timeout_steps,
+		F f)
+{
+	return for_each_call_do_t<Parameter, F>(param, life, callback, timeout_steps, f);
+}
 
 
 }  // namespace manager

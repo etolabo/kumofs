@@ -102,6 +102,34 @@ client_tmpl<Transport, Session>::add(int fd, const address& addr)
 }
 
 
+namespace detail {
+	template <typename Session, typename F>
+	struct client_tmpl_each_session {
+		client_tmpl_each_session(F f) : m(f) { }
+		inline void operator() (std::pair<const address, mp::weak_ptr<Session> >& x)
+		{
+			mp::shared_ptr<Session> s(x.second.lock());
+			if(s && !s->is_lost()) {
+				m(s);
+			}
+		}
+	private:
+		F m;
+		client_tmpl_each_session();
+	};
+}  // namespace detail
+
+template <typename Transport, typename Session>
+template <typename F>
+void client_tmpl<Transport, Session>::for_each_session(F f)
+{
+	pthread_scoped_rdlock rdlk(m_sessions_rwlock);
+	detail::client_tmpl_each_session<Session, F> e(f);
+	std::for_each(m_sessions.begin(), m_sessions.end(), e);
+}
+
+
+
 template <typename Transport, typename Session>
 bool client_tmpl<Transport, Session>::async_connect(
 		const address& addr, shared_session& s)

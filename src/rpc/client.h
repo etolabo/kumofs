@@ -51,6 +51,12 @@ public:
 	// add new connection and new managed Session and bind them.
 	shared_session add(int fd, const address& addr);
 
+	// apply function to all connected sessions.
+	// F is required to implement
+	// void operator() (shared_session);
+	template <typename F>
+	void for_each_session(F f);
+
 protected:
 	// connect session to the address and return true if
 	// it is not bound.

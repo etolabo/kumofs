@@ -54,7 +54,7 @@ namespace manager {
 public:
 	void keep_alive();
 
-	void sync_hash_space_servers(REQUIRE_HSLK, REQUIRE_SSLK);
+	void sync_hash_space_servers(REQUIRE_HSLK);
 	void sync_hash_space_partner(REQUIRE_HSLK);
 	void push_hash_space_clients(REQUIRE_HSLK);
 

@@ -64,7 +64,7 @@ RPC_IMPL(proto_network, RHashSpaceRequest, req, z, response)
 
 
 
-void proto_network::sync_hash_space_servers(REQUIRE_HSLK, REQUIRE_SSLK)
+void proto_network::sync_hash_space_servers(REQUIRE_HSLK)
 {
 	shared_zone life(new msgpack::zone());
 	HashSpace::Seed* wseed = life->allocate<HashSpace::Seed>(share->whs());
@@ -74,9 +74,8 @@ void proto_network::sync_hash_space_servers(REQUIRE_HSLK, REQUIRE_SSLK)
 
 	rpc::callback_t callback( BIND_RESPONSE(proto_network, HashSpaceSync) );
 
-	EACH_ACTIVE_SERVERS_BEGIN(node)
-		node->call(param, life, callback, 10);
-	EACH_ACTIVE_SERVERS_END
+	net->for_each_node(ROLE_SERVER,
+			for_each_call(param, life, callback, 10));
 }
 
 
@@ -122,7 +121,7 @@ namespace {
 }  // noname namespace
 
 void proto_network::push_hash_space_clients(REQUIRE_HSLK)
-{
+try {
 	LOG_WARN("push hash space ...");
 
 	shared_zone life(new msgpack::zone());
@@ -131,6 +130,12 @@ void proto_network::push_hash_space_clients(REQUIRE_HSLK)
 
 	rpc::callback_t callback( BIND_RESPONSE(proto_network, HashSpacePush) );
 	net->subsystem().for_each_peer( each_client_push(wseed, rseed, callback, life) );
+
+	// ignore error
+} catch (std::runtime_error& e) {
+	LOG_ERROR("HashSpacePush failed: ",e.what());
+} catch (...) {
+	LOG_ERROR("HashSpacePush failed: unknown error");
 }
 
 RPC_REPLY_IMPL(proto_network, HashSpacePush, from, res, err, life)
@@ -192,12 +197,9 @@ void proto_network::keep_alive()
 
 	rpc::callback_t callback( BIND_RESPONSE(proto_network, KeepAlive) );
 
-	pthread_scoped_lock sslk(share->servers_mutex());
-	EACH_ACTIVE_SERVERS_BEGIN(node)
-		// FIXME exception
-		node->call(param, nullz, callback, 10);
-	EACH_ACTIVE_SERVERS_END
-	sslk.unlock();
+	// FIXME exception
+	net->for_each_node(ROLE_SERVER,
+			for_each_call(param, nullz, callback, 10));
 
 	pthread_scoped_lock nslk(share->new_servers_mutex());
 	EACH_ACTIVE_NEW_COMERS_BEGIN(node)

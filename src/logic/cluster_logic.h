@@ -64,7 +64,6 @@ private:
 };
 
 
-#define REQUIRE_SSLK const pthread_scoped_lock& sslk
 #define REQUIRE_HSLK const pthread_scoped_lock& hslk
 #define REQUIRE_RELK const pthread_scoped_lock& relk
 #define REQUIRE_STLK const pthread_scoped_lock& stlk

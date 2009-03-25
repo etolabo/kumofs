@@ -135,6 +135,12 @@ public:
 	// return self address;
 	const address& addr() const;
 
+	// apply function to all connected sessions.
+	// F is required to implement
+	// void operator() (shared_session);
+	template <typename F>
+	void for_each_node(role_type role_id, F f);
+
 	// get server interface.
 	// it manages non-cluster clients.
 	server& subsystem();
@@ -192,6 +198,27 @@ inline const address& cluster::addr() const
 	return m_self_addr;
 }
 
+namespace detail {
+	template <typename F>
+	struct cluster_if_role {
+		cluster_if_role(role_type role_id, F f) : role(role_id), m(f) { }
+		inline void operator() (shared_node& n)
+		{
+			if(n->role() == role) { m(n); }
+		}
+	private:
+		role_type role;
+		F m;
+		cluster_if_role();
+	};
+}  // namespace detail
+
+template <typename F>
+void cluster::for_each_node(role_type role_id, F f)
+{
+	for_each_session(detail::cluster_if_role<F>(role_id, f));
+}
+
 inline server& cluster::subsystem()
 {
 	return static_cast<server&>(m_subsystem);
@@ -232,7 +259,6 @@ private:
 	request();
 	request(const request<Parameter, rpc::node>&);
 };
-
 
 
 }  // namespace rpc

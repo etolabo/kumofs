@@ -62,11 +62,8 @@ RPC_IMPL(proto_control, CreateBackup, req, z, response)
 	rpc::callback_t callback( BIND_RESPONSE(proto_control, CreateBackup) );
 	shared_zone nullz;
 
-	pthread_scoped_lock sslk(share->servers_mutex());
-	EACH_ACTIVE_SERVERS_BEGIN(node)
-		node->call(param, nullz, callback, 10);
-	EACH_ACTIVE_SERVERS_END
-	sslk.unlock();
+	net->for_each_node(ROLE_SERVER,
+			for_each_call(param, nullz, callback, 10));
 
 	response.null();
 }
