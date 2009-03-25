@@ -15,6 +15,7 @@ use Pod::Usage;
 use Digest::MD5 qw(md5_base64);
 use Cache::Memcached::Fast;
 use Readonly;
+use POSIX qw(strftime);
 
 BEGIN {
     my $debug_flag = $ENV{SMART_COMMENTS} || $ENV{SMART_DEBUG} || $ENV{SC};
@@ -31,6 +32,11 @@ sub p(@) {
     print $d;
 }
 
+sub logger(@) {
+    chomp(my @m = @_);
+    printf "%s %s\n", strftime("%Y-%m-%d %H:%M:%S", localtime), join(" ", @m);
+}
+
 # ------------------------------------------------------------------------
 my $Debug       = 0;
 my $Verbose     = 0;
@@ -41,9 +47,7 @@ Readonly my $NO_DATA => '__NO_DATA__';
 
 sub verbose (@) {
     return unless $Verbose;
-    my @m = @_;
-    chomp @m;
-    print STDERR '', @m,"\n";
+    logger(@_);
 }
 
 MAIN: {
@@ -102,11 +106,11 @@ MAIN: {
                     $sanity->{ $key } = $expire == 0 ? $val : $NO_DATA;
                     last;
                 }
-                print "retry to set... ($retry)\n";
+                logger "retry to set... ($retry) [$key]\n";
                 sleep 2;
             }
             if ($retry < 0) {
-                print "failed to set. escape from loop.\n";
+                logger "failed to set. escape from loop.\n";
                 # $Process_Set = 0;
             }
 
@@ -127,11 +131,11 @@ MAIN: {
                     delete $sanity->{ $key };
                     last;
                 }
-                print "retry to delete... ($retry)\n";
+                logger "retry to delete... ($retry) [$key]\n";
                 sleep 2;
             }
             if ($retry < 0) {
-                print "failed to delete. escape from loop.\n";
+                logger "failed to delete. escape from loop.\n";
                 # $Process_Set = 0;
             }
 
@@ -141,21 +145,21 @@ MAIN: {
 
 
         if ($Verbose and ($count % $pitch == 0)) {
-            print '.';
-            printf " [%5d]\n", $count if $count % $n_fold == 0;
+            logger '.';
+            logger sprintf(" [%5d]\n", $count) if $count % $n_fold == 0;
         }
 
         $Process_Set = 0 if $count+1 > $Max_Set_Count;
         sleep 1 if $ENV{SC}; # for debugging
     }
-    printf "number of data: %d\n", $count;
+    logger sprintf("number of data: %d\n", $count);
     sleep 3; # wait for expire data
 
     ### 2. get value from server
     my $fail_count = {}; # host => { key1 => got_val1, key2 => got_val2, ... }
 
     for my $host (@{ $hosts }) {
-        printf "host: %-12s ", $host;
+        logger sprintf("host: %-12s ", $host);
 
         my $amcd = Cache::Memcached::Fast->new({servers => [ $host ],
                                                 io_timeout => 6.0,
@@ -173,17 +177,17 @@ MAIN: {
 
         ## display summary of result
         my $n_fail = keys %{ $fail_count->{$host} };
-        printf "%5d mismatched: ", $n_fail;
+        logger sprintf("%5d mismatched: ", $n_fail);
         if ($n_fail > 0) {
-            print "NG\n";
+            logger "NG\n";
 
             my $fmt = "  %-10s %-20s %-20s\n";
-            printf $fmt, 'key', 'expected val', 'got val';
+            logger sprintf($fmt, 'key', 'expected val', 'got val');
             while (my ($key,$val) = each %{ $fail_count->{$host} }) {
-                printf $fmt, $key, $sanity->{$key}, $val;
+                logger sprintf($fmt, $key, $sanity->{$key}, $val);
             }
         } else {
-            print "OK\n";
+            logger "OK\n";
         }
     }
 
@@ -233,7 +237,14 @@ sub set_to {
 
 sub get_from {
     my($server, $key) = @_;
-    $server->get($key) || $NO_DATA;
+    my $r = $NO_DATA;
+    for (my $i=0; $i<3; $i++) {
+        if ($r = $server->get($key)) {
+            last;
+        }
+        sleep 2;
+    }
+    return $r || $NO_DATA
 }
 
 sub delete_from {

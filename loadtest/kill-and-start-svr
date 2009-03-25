@@ -30,6 +30,7 @@ end
 require "chukan"
 include Chukan
 require "resolv"
+require "time"
 
 module KumoServerOperation
   def renew_db
@@ -73,7 +74,7 @@ class Manager
         end
       rescue
       end
-      sleep 2
+      sleep 4
     end
     return false
   end
@@ -92,7 +93,7 @@ class Manager
         end
       rescue
       end
-      sleep 3
+      sleep 4
     end
     return false
   end
@@ -110,7 +111,7 @@ end
 
 @Debug = 1
 def dprint(*args)
-  STDERR.print('DEBUG:[',caller.first,'] ',args,"\n") if @Debug >= 1
+  STDERR.print(Time.now.strftime("%Y-%m-%d %H:%M:%S"),' DEBUG:[',caller.first,'] ',args,"\n") if @Debug >= 1
 end
 
 STDOUT.sync = true
@@ -155,7 +156,7 @@ while do_loop
     end
     #puts "kill server?"; STDIN.gets
 
-    dprint "kill svr node"
+    dprint "kill svr node..."
     #svr.term
     svr.kill
     svr.stdout_join("end")
