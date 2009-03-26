@@ -27,18 +27,18 @@ void proto_network::renew_hash_space()
 
 	rpc::callback_t callback( BIND_RESPONSE(proto_network, HashSpaceRequest) );
 
-	net->get_server(share->manager1())->call(
+	net->get_session(share->manager1())->call(
 			param, nullz, callback, 10);
 
 	if(share->manager2().connectable()) {
-		net->get_server(share->manager2())->call(
+		net->get_session(share->manager2())->call(
 				param, nullz, callback, 10);
 	}
 }
 
 void proto_network::renew_hash_space_for(const address& addr)
 {
-	shared_session ns(net->get_server(addr));
+	shared_session ns(net->get_session(addr));
 	shared_zone nullz;
 	manager::proto_network::HashSpaceRequest param;
 	ns->call(param, nullz,
@@ -69,7 +69,12 @@ RPC_REPLY_IMPL(proto_network, HashSpaceRequest, from, res, err, z)
 
 void proto_network::keep_alive()
 {
-	// FIXME
+	// FIXME?
+	net->get_session(share->manager1());
+
+	if(share->manager2().connectable()) {
+		net->get_session(share->manager2());
+	}
 }
 
 

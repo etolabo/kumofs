@@ -59,7 +59,7 @@ framework::shared_session resource::server_for(uint64_t h, unsigned int offset)
 node_found:
 	address addr = it->addr();
 	hslk.unlock();
-	return net->get_server(addr);
+	return net->get_session(addr);
 }
 
 

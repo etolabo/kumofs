@@ -41,12 +41,6 @@ private:
 public:
 	proto_network&   scope_proto_network()   { return m_proto_network;   }
 
-public:
-	shared_session get_server(const address& addr)
-	{
-		return get_session(addr);
-	}
-
 private:
 	framework();
 	framework(const framework&);
