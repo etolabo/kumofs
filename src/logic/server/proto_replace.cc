@@ -290,7 +290,7 @@ void proto_replace::finish_replace_copy(ClockTime replace_time, REQUIRE_STLK)
 			BIND_RESPONSE(proto_replace, ReplaceCopyEnd), 10);
 }
 
-RPC_REPLY_IMPL(proto_replace, ReplaceCopyEnd, from, res, err, life)
+RPC_REPLY_IMPL(proto_replace, ReplaceCopyEnd, from, res, err, z)
 {
 	if(!err.is_nil()) { LOG_ERROR("ReplaceCopyEnd failed: ",err); }
 	// FIXME retry
@@ -353,7 +353,7 @@ void proto_replace::for_each_replace_delete::operator() (Storage::iterator& kv)
 	}
 }
 
-RPC_REPLY_IMPL(proto_replace, ReplaceDeleteEnd, from, res, err, life)
+RPC_REPLY_IMPL(proto_replace, ReplaceDeleteEnd, from, res, err, z)
 {
 	if(!err.is_nil()) {
 		LOG_ERROR("ReplaceDeleteEnd failed: ",err);

@@ -93,7 +93,7 @@ void proto_network::sync_hash_space_partner(REQUIRE_HSLK)
 			BIND_RESPONSE(proto_network, HashSpaceSync), 10);
 }
 
-RPC_REPLY_IMPL(proto_network, HashSpaceSync, from, res, err, life)
+RPC_REPLY_IMPL(proto_network, HashSpaceSync, from, res, err, z)
 {
 	// FIXME retry
 }
@@ -138,7 +138,7 @@ try {
 	LOG_ERROR("HashSpacePush failed: unknown error");
 }
 
-RPC_REPLY_IMPL(proto_network, HashSpacePush, from, res, err, life)
+RPC_REPLY_IMPL(proto_network, HashSpacePush, from, res, err, z)
 { }
 
 
@@ -215,7 +215,7 @@ void proto_network::keep_alive()
 	}
 }
 
-RPC_REPLY_IMPL(proto_network, KeepAlive, from, res, err, life)
+RPC_REPLY_IMPL(proto_network, KeepAlive, from, res, err, z)
 {
 	if(err.is_nil()) {
 		LOG_TRACE("KeepAlive succeeded");

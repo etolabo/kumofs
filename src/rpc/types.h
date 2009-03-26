@@ -27,7 +27,7 @@ class basic_session;
 typedef mp::shared_ptr<basic_session> basic_shared_session;
 typedef mp::weak_ptr<basic_session> basic_weak_session;
 
-typedef mp::function<void (basic_shared_session, msgobj, msgobj, shared_zone)> callback_t;
+typedef mp::function<void (basic_shared_session, msgobj, msgobj, auto_zone)> callback_t;
 
 
 using mp::pthread_scoped_lock;

@@ -104,13 +104,13 @@ struct unknown_method_error : msgpack::type_error { };
 			rpc::weak_responder response)
 
 
-#define RPC_REPLY_DECL(NAME, from, res, err, life, ...) \
+#define RPC_REPLY_DECL(NAME, from, res, err, z, ...) \
 	void res_##NAME(basic_shared_session from, rpc::msgobj res, rpc::msgobj err, \
-			shared_zone life, ##__VA_ARGS__);
+			auto_zone z, ##__VA_ARGS__);
 
-#define RPC_REPLY_IMPL(SCOPE, NAME, from, res, err, life, ...) \
+#define RPC_REPLY_IMPL(SCOPE, NAME, from, res, err, z, ...) \
 	void SCOPE::res_##NAME(basic_shared_session from, rpc::msgobj res, rpc::msgobj err, \
-			shared_zone life, ##__VA_ARGS__)
+			auto_zone z, ##__VA_ARGS__)
 
 
 #define BIND_RESPONSE(SCOPE, NAME, ...) \

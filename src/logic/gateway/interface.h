@@ -35,13 +35,6 @@ struct basic_response {
 	int error;
 };
 
-struct basic_request {
-	uint64_t hash;
-	const char* key;
-	uint32_t keylen;
-	shared_zone life;
-};
-
 struct get_response : basic_response {
 	char* val;
 	uint32_t vallen;
@@ -56,6 +49,21 @@ struct set_response : basic_response {
 
 struct delete_response : basic_response {
 	bool deleted;
+};
+
+
+typedef void (*get_callback)(void* user, get_response& res);
+
+typedef void (*set_callback)(void* user, set_response& res);
+
+typedef void (*delete_callback)(void* user, delete_response& res);
+
+
+struct basic_request {
+	uint64_t hash;
+	const char* key;
+	uint32_t keylen;
+	shared_zone life;
 };
 
 struct get_request : basic_request {

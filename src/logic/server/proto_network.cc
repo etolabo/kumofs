@@ -31,7 +31,7 @@ void proto_network::keep_alive()
 	}
 }
 
-RPC_REPLY_IMPL(proto_network, KeepAlive, from, res, err, life)
+RPC_REPLY_IMPL(proto_network, KeepAlive, from, res, err, z)
 {
 	if(err.is_nil()) {
 		LOG_TRACE("KeepAlive succeeded");
@@ -121,7 +121,7 @@ void proto_network::renew_r_hash_space()
 
 
 // COPY B-1
-RPC_REPLY_IMPL(proto_network, WHashSpaceRequest, from, res, err, life)
+RPC_REPLY_IMPL(proto_network, WHashSpaceRequest, from, res, err, z)
 {
 	// FIXME is this function needed?
 	if(!err.is_nil()) {
@@ -150,7 +150,7 @@ RPC_REPLY_IMPL(proto_network, WHashSpaceRequest, from, res, err, life)
 }
 
 // COPY B-2
-RPC_REPLY_IMPL(proto_network, RHashSpaceRequest, from, res, err, life)
+RPC_REPLY_IMPL(proto_network, RHashSpaceRequest, from, res, err, z)
 {
 	// FIXME is this function needed?
 	if(!err.is_nil()) {

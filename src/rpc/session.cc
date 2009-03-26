@@ -22,7 +22,11 @@ public:
 
 private:
 	void callback_real(basic_shared_session& s,
-			msgobj res, msgobj err, shared_zone z);
+			msgobj res, msgobj err, auto_zone z);
+
+	static void callback_submit_real(
+			callback_t callback, basic_shared_session s,
+			msgobj res, msgobj err, shared_zone life);
 
 private:
 	unsigned short m_timeout_steps;
@@ -61,42 +65,65 @@ callback_entry::callback_entry(
 	m_callback(callback),
 	m_life(life) { }
 
-void callback_entry::callback(basic_shared_session& s,
-		msgobj res, msgobj err, auto_zone& z)
-{
-	// msgpack::zone::push_finalizer is not thread-safe
-	// m_life may null. see {basic_,}session::call
-	//m_life->push_finalizer(&mp::object_delete<msgpack::zone>, z.release());
-	shared_zone life(z.release());
-	if(m_life) { life->allocate<shared_zone>(m_life); }
-	callback_real(s, res, err, life);
-}
 
-void callback_entry::callback(basic_shared_session& s,
-		msgobj res, msgobj err)
-{
-	shared_zone life = m_life;
-	if(!life) { life.reset(new msgpack::zone()); }
-	callback_real(s, res, err, life);
-}
-
-void callback_entry::callback_submit(
-		basic_shared_session& s, msgobj res, msgobj err)
-{
-	shared_zone life = m_life;
-	if(!life) { life.reset(new msgpack::zone()); }
-	wavy::submit(m_callback, s, res, err, life);
-}
-
-inline void callback_entry::callback_real(basic_shared_session& s,
-		msgobj res, msgobj err, shared_zone life)
+void callback_entry::callback_real(basic_shared_session& s,
+		msgobj res, msgobj err, auto_zone z)
 try {
-	m_callback(s, res, err, life);
+	if(m_life) {
+		z->allocate<shared_zone>(m_life);
+	}
+
+	m_callback(s, res, err, z);
+
 } catch (std::exception& e) {
 	LOG_ERROR("response callback error: ",e.what());
 } catch (...) {
 	LOG_ERROR("response callback error: unknown error");
 }
+
+void callback_entry::callback_submit_real(
+		callback_t callback, basic_shared_session s,
+		msgobj res, msgobj err, shared_zone life)
+try {
+	auto_zone z(new msgpack::zone());
+
+	if(life) {
+		z->allocate<shared_zone>(life);
+	}
+
+	callback(s, res, err, z);
+
+} catch (std::exception& e) {
+	LOG_ERROR("response callback error: ",e.what());
+} catch (...) {
+	LOG_ERROR("response callback error: unknown error");
+}
+
+
+inline void callback_entry::callback(
+		basic_shared_session& s, msgobj res, msgobj err,
+		auto_zone& z)
+{
+	// msgpack::zone::push_finalizer is not thread-safe
+	// m_life may null. see {basic_,}session::call
+	//m_life->push_finalizer(&mp::object_delete<msgpack::zone>, z.release());
+	callback_real(s, res, err, z);
+}
+
+inline void callback_entry::callback(
+		basic_shared_session& s, msgobj res, msgobj err)
+{
+	auto_zone z(new msgpack::zone());
+	callback_real(s, res, err, z);
+}
+
+inline void callback_entry::callback_submit(
+		basic_shared_session& s, msgobj res, msgobj err)
+{
+	wavy::submit(&callback_entry::callback_submit_real,
+			m_callback, s, res, err, m_life);
+}
+
 
 bool callback_entry::step_timeout()
 {

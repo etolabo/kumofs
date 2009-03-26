@@ -14,31 +14,31 @@ public:
 	~scope_store();
 
 public:
-	void Get(void (*callback)(void*, get_response&), void* user,
+	void Get(get_callback callback, void* user,
 			shared_zone life,
 			const char* key, uint32_t keylen, uint64_t hash);
 
-	void Set(void (*callback)(void*, set_response&), void* user,
+	void Set(set_callback callback, void* user,
 			shared_zone life,
 			const char* key, uint32_t keylen, uint64_t hash,
 			const char* val, uint32_t vallen);
 
-	void Delete(void (*callback)(void*, delete_response&), void* user,
+	void Delete(delete_callback callback, void* user,
 			shared_zone life,
 			const char* key, uint32_t keylen, uint64_t hash);
 
 private:
-	RPC_REPLY_DECL(Get, from, res, err, life,
+	RPC_REPLY_DECL(Get, from, res, err, z,
 			rpc::retry<server::proto_store::Get>* retry,
-			void (*callback)(void*, get_response&), void* user);
+			get_callback callback, void* user);
 
-	RPC_REPLY_DECL(Set, from, res, err, life,
+	RPC_REPLY_DECL(Set, from, res, err, z,
 			rpc::retry<server::proto_store::Set>* retry,
-			void (*callback)(void*, set_response&), void* user);
+			set_callback callback, void* user);
 
-	RPC_REPLY_DECL(Delete, from, res, err, life,
+	RPC_REPLY_DECL(Delete, from, res, err, z,
 			rpc::retry<server::proto_store::Delete>* retry,
-			void (*callback)(void*, delete_response&), void* user);
+			delete_callback callback, void* user);
 };
 
 

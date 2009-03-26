@@ -44,9 +44,9 @@ public:
 	void renew_r_hash_space();
 
 private:
-	RPC_REPLY_DECL(KeepAlive, from, res, err, life);
-	RPC_REPLY_DECL(WHashSpaceRequest, from, res, err, life);
-	RPC_REPLY_DECL(RHashSpaceRequest, from, res, err, life);
+	RPC_REPLY_DECL(KeepAlive, from, res, err, z);
+	RPC_REPLY_DECL(WHashSpaceRequest, from, res, err, z);
+	RPC_REPLY_DECL(RHashSpaceRequest, from, res, err, z);
 @end
 
 
@@ -119,7 +119,7 @@ private:
 			msgtype::DBKey& key, msgtype::DBValue& val,
 			bool is_async);
 
-	RPC_REPLY_DECL(ReplicateSet, from, res, err, life,
+	RPC_REPLY_DECL(ReplicateSet, from, res, err, z,
 			rpc::retry<ReplicateSet>* retry,
 			volatile unsigned int* copy_required,
 			rpc::weak_responder response, ClockTime clocktime);
@@ -131,7 +131,7 @@ private:
 			msgtype::DBKey& key,
 			bool is_async);
 
-	RPC_REPLY_DECL(ReplicateDelete, from, res, err, life,
+	RPC_REPLY_DECL(ReplicateDelete, from, res, err, z,
 			rpc::retry<ReplicateDelete>* retry,
 			volatile unsigned int* copy_required,
 			rpc::weak_responder response, bool deleted);
@@ -161,11 +161,11 @@ private:
 	void replace_copy(const address& manager_addr, HashSpace& hs);
 	struct for_each_replace_copy;
 	void finish_replace_copy(ClockTime clocktime, REQUIRE_STLK);
-	RPC_REPLY_DECL(ReplaceCopyEnd, from, res, err, life);
+	RPC_REPLY_DECL(ReplaceCopyEnd, from, res, err, z);
 
 	void replace_delete(shared_node& manager, HashSpace& hs);
 	struct for_each_replace_delete;
-	RPC_REPLY_DECL(ReplaceDeleteEnd, from, res, err, life);
+	RPC_REPLY_DECL(ReplaceDeleteEnd, from, res, err, z);
 
 private:
 	class replace_state {
@@ -253,7 +253,7 @@ private:
 	static accum_set_t::iterator accum_set_find(
 			accum_set_t& map, const address& addr);
 
-	RPC_REPLY_DECL(ReplaceOffer, from, res, err, life,
+	RPC_REPLY_DECL(ReplaceOffer, from, res, err, z,
 			address addr);
 
 	void stream_accepted(int fd, int err);

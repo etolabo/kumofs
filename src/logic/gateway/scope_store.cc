@@ -98,7 +98,7 @@ catch (msgpack::type_error& e) { \
 }
 
 
-void scope_store::Get(void (*callback)(void*, get_response&), void* user,
+void scope_store::Get(get_callback callback, void* user,
 		shared_zone life,
 		const char* key, uint32_t keylen, uint64_t hash)
 try {
@@ -115,7 +115,7 @@ try {
 GATEWAY_CATCH(Get, get_response)
 
 
-void scope_store::Set(void (*callback)(void*, set_response&), void* user,
+void scope_store::Set(set_callback callback, void* user,
 		shared_zone life,
 		const char* key, uint32_t keylen, uint64_t hash,
 		const char* val, uint32_t vallen)
@@ -138,7 +138,7 @@ try {
 GATEWAY_CATCH(Set, set_response)
 
 
-void scope_store::Delete(void (*callback)(void*, delete_response&), void* user,
+void scope_store::Delete(delete_callback callback, void* user,
 		shared_zone life,
 		const char* key, uint32_t keylen, uint64_t hash)
 try {
@@ -193,9 +193,11 @@ void retry_after(unsigned int steps,
 }  // noname namespace
 
 
-RPC_REPLY_IMPL(scope_store, Get, from, res, err, life,
+RPC_REPLY_IMPL(scope_store, Get, from, res, err, z,
 		rpc::retry<server::proto_store::Get>* retry,
-		void (*callback)(void*, get_response&), void* user)
+		get_callback callback, void* user)
+{
+SHARED_ZONE(life, z);
 try {
 	msgtype::DBKey key(retry->param().dbkey);
 	LOG_TRACE("ResGet ",err);
@@ -252,11 +254,14 @@ try {
 	}
 }
 GATEWAY_CATCH(ResGet, get_response)
+}
 
 
-RPC_REPLY_IMPL(scope_store, Set, from, res, err, life,
+RPC_REPLY_IMPL(scope_store, Set, from, res, err, z,
 		rpc::retry<server::proto_store::Set>* retry,
-		void (*callback)(void*, set_response&), void* user)
+		set_callback callback, void* user)
+{
+SHARED_ZONE(life, z);
 try {
 	msgtype::DBKey key(retry->param().dbkey);
 	msgtype::DBValue val(retry->param().dbval);
@@ -304,11 +309,14 @@ try {
 	}
 }
 GATEWAY_CATCH(ResSet, set_response)
+}
 
 
-RPC_REPLY_IMPL(scope_store, Delete, from, res, err, life,
+RPC_REPLY_IMPL(scope_store, Delete, from, res, err, z,
 		rpc::retry<server::proto_store::Delete>* retry,
-		void (*callback)(void*, delete_response&), void* user)
+		delete_callback callback, void* user)
+{
+SHARED_ZONE(life, z);
 try {
 	msgtype::DBKey key(retry->param().dbkey);
 	LOG_TRACE("ResDelete ",err);
@@ -350,6 +358,7 @@ try {
 	}
 }
 GATEWAY_CATCH(ResDelete, delete_response)
+}
 
 
 }  // namespace gateway

@@ -68,7 +68,7 @@ RPC_IMPL(proto_control, CreateBackup, req, z, response)
 	response.null();
 }
 
-RPC_REPLY_IMPL(proto_control, CreateBackup, from, res, err, life)
+RPC_REPLY_IMPL(proto_control, CreateBackup, from, res, err, z)
 { }
 
 RPC_IMPL(proto_control, SetAutoReplace, req, z, response)

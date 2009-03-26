@@ -45,7 +45,7 @@ void proto_network::renew_hash_space_for(const address& addr)
 			BIND_RESPONSE(proto_network, HashSpaceRequest), 10);
 }
 
-RPC_REPLY_IMPL(proto_network, HashSpaceRequest, from, res, err, life)
+RPC_REPLY_IMPL(proto_network, HashSpaceRequest, from, res, err, z)
 {
 	if(!err.is_nil()) {
 		LOG_DEBUG("HashSpaceRequest failed ",err);

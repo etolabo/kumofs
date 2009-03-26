@@ -59,10 +59,9 @@ public:
 	void push_hash_space_clients(REQUIRE_HSLK);
 
 private:
-	RPC_REPLY_DECL(KeepAlive, from, res, err, life);
-
-	RPC_REPLY_DECL(HashSpaceSync, from, res, err, life);
-	RPC_REPLY_DECL(HashSpacePush, from, res, err, life);
+	RPC_REPLY_DECL(KeepAlive, from, res, err, z);
+	RPC_REPLY_DECL(HashSpaceSync, from, res, err, z);
+	RPC_REPLY_DECL(HashSpacePush, from, res, err, z);
 @end
 
 
@@ -109,9 +108,9 @@ private:
 	void cas_checked_replace_election(int cas);
 	int m_delayed_replace_cas;
 
-	RPC_REPLY_DECL(ReplaceElection, from, res, err, life);
-	RPC_REPLY_DECL(ReplaceCopyStart, from, res, err, life);
-	RPC_REPLY_DECL(ReplaceDeleteStart, from, res, err, life);
+	RPC_REPLY_DECL(ReplaceElection, from, res, err, z);
+	RPC_REPLY_DECL(ReplaceCopyStart, from, res, err, z);
+	RPC_REPLY_DECL(ReplaceDeleteStart, from, res, err, z);
 
 	void finish_replace_copy(REQUIRE_RELK);
 	void finish_replace(REQUIRE_RELK);
@@ -179,7 +178,7 @@ private:
 		std::vector<address>& newcomers() { return get<1>(); }
 	};
 
-	RPC_REPLY_DECL(CreateBackup, from, res, err, life);
+	RPC_REPLY_DECL(CreateBackup, from, res, err, z);
 @end
 
 

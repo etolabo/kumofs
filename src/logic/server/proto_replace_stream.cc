@@ -117,7 +117,7 @@ void proto_replace_stream::send_offer(proto_replace_stream::offer_storage& offer
 }
 
 
-RPC_REPLY_IMPL(proto_replace_stream, ReplaceOffer, from, res, err, life,
+RPC_REPLY_IMPL(proto_replace_stream, ReplaceOffer, from, res, err, z,
 		address addr)
 {
 	LOG_TRACE("ResReplaceOffer from ",addr," res:",res," err:",err);

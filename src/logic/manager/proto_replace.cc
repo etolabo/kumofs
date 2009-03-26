@@ -124,7 +124,7 @@ void proto_replace::replace_election()
 	}
 }
 
-RPC_REPLY_IMPL(proto_replace, ReplaceElection, from, res, err, life)
+RPC_REPLY_IMPL(proto_replace, ReplaceElection, from, res, err, z)
 {
 	if(!err.is_nil() || res.is_nil()) {
 		LOG_INFO("replace delegate failed, elected");
@@ -261,7 +261,7 @@ void proto_replace::start_replace(REQUIRE_HSLK)
 	net->scope_proto_network().push_hash_space_clients(hslk);
 }
 
-RPC_REPLY_IMPL(proto_replace, ReplaceCopyStart, from, res, err, life)
+RPC_REPLY_IMPL(proto_replace, ReplaceCopyStart, from, res, err, z)
 {
 	// FIXME
 }
@@ -373,7 +373,7 @@ void proto_replace::finish_replace_copy(REQUIRE_RELK)
 	net->scope_proto_network().sync_hash_space_partner(hslk);
 }
 
-RPC_REPLY_IMPL(proto_replace, ReplaceDeleteStart, from, res, err, life)
+RPC_REPLY_IMPL(proto_replace, ReplaceDeleteStart, from, res, err, z)
 {
 	// FIXME
 }

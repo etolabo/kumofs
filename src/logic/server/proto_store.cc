@@ -444,7 +444,7 @@ RPC_IMPL(proto_store, Delete, req, z, response)
 
 
 
-RPC_REPLY_IMPL(proto_store, ReplicateSet, from, res, err, life,
+RPC_REPLY_IMPL(proto_store, ReplicateSet, from, res, err, z,
 		rpc::retry<ReplicateSet>* retry,
 		volatile unsigned int* copy_required,
 		rpc::weak_responder response, ClockTime clocktime)
@@ -455,6 +455,7 @@ RPC_REPLY_IMPL(proto_store, ReplicateSet, from, res, err, life,
 		if(SESSION_IS_ACTIVE(from)) {
 			// FIXME delayed retry?
 			if(retry->retry_incr(share->cfg_replicate_set_retry_num())) {
+				SHARED_ZONE(life, z);
 				retry->call(from, life);
 				LOG_WARN("ReplicateSet error: ",err,", retry ",retry->num_retried());
 				return;
@@ -486,7 +487,7 @@ RPC_REPLY_IMPL(proto_store, ReplicateSet, from, res, err, life,
 	}
 }
 
-RPC_REPLY_IMPL(proto_store, ReplicateDelete, from, res, err, life,
+RPC_REPLY_IMPL(proto_store, ReplicateDelete, from, res, err, z,
 		rpc::retry<ReplicateDelete>* retry,
 		volatile unsigned int* copy_required,
 		rpc::weak_responder response, bool deleted)
@@ -496,6 +497,7 @@ RPC_REPLY_IMPL(proto_store, ReplicateDelete, from, res, err, life,
 		if(SESSION_IS_ACTIVE(from)) {
 			// FIXME delayed retry?
 			if(retry->retry_incr(share->cfg_replicate_delete_retry_num())) {
+				SHARED_ZONE(life, z);
 				retry->call(from, life);
 				LOG_WARN("ReplicateDelete error: ",err,", retry ",retry->num_retried());
 				return;
