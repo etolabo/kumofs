@@ -30,10 +30,10 @@ void proto_network::renew_hash_space()
 	net->get_session(share->manager1())->call(
 			param, nullz, callback, 10);
 
-	if(share->manager2().connectable()) {
-		net->get_session(share->manager2())->call(
-				param, nullz, callback, 10);
-	}
+	if(!share->manager2().connectable()) { return; }
+
+	net->get_session(share->manager2())->call(
+			param, nullz, callback, 10);
 }
 
 void proto_network::renew_hash_space_for(const address& addr)
@@ -44,6 +44,28 @@ void proto_network::renew_hash_space_for(const address& addr)
 	ns->call(param, nullz,
 			BIND_RESPONSE(proto_network, HashSpaceRequest), 10);
 }
+
+void proto_network::keep_alive()
+{
+	shared_zone nullz;
+	manager::proto_network::HashSpaceRequest param;
+	shared_session ns;
+
+	ns = net->get_session(share->manager1());
+	if(!ns->is_bound()) {  // FIXME
+		ns->call(param, nullz,
+				BIND_RESPONSE(proto_network, HashSpaceRequest), 10);
+	}
+
+	if(!share->manager2().connectable()) { return; }
+
+	ns = net->get_session(share->manager2());
+	if(!ns->is_bound()) {  // FIXME
+		ns->call(param, nullz,
+				BIND_RESPONSE(proto_network, HashSpaceRequest), 10);
+	}
+}
+
 
 RPC_REPLY_IMPL(proto_network, HashSpaceRequest, from, res, err, z)
 {
@@ -63,17 +85,6 @@ RPC_REPLY_IMPL(proto_network, HashSpaceRequest, from, res, err, z)
 			share->update_whs(st.wseed, hslk);
 			share->update_rhs(st.rseed, hslk);
 		}
-	}
-}
-
-
-void proto_network::keep_alive()
-{
-	// FIXME?
-	net->get_session(share->manager1());
-
-	if(share->manager2().connectable()) {
-		net->get_session(share->manager2());
 	}
 }
 
