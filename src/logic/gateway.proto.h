@@ -20,6 +20,8 @@ namespace gateway {
 	};
 
 public:
+	void keep_alive();
+
 	void renew_hash_space();
 	void renew_hash_space_for(const address& addr);
 	RPC_REPLY_DECL(HashSpaceRequest, from, res, err, z);

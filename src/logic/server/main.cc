@@ -4,7 +4,7 @@
 
 using namespace kumo;
 
-struct arg_t : rpc_cluster_args {
+struct arg_t : cluster_args {
 
 	std::string dbpath;
 
@@ -32,10 +32,6 @@ struct arg_t : rpc_cluster_args {
 
 	virtual void convert()
 	{
-		cluster_addr = rpc::address(cluster_addr_in);
-		cluster_addr_in.sin_addr.s_addr = INADDR_ANY;  // listen any
-		cluster_lsock = scoped_listen_tcp::listen(rpc::address(cluster_addr_in));
-
 		stream_addr = cluster_addr;
 		stream_addr.set_port(stream_port);
 		stream_lsock = scoped_listen_tcp::listen(stream_addr);
@@ -49,8 +45,7 @@ struct arg_t : rpc_cluster_args {
 		}
 
 		db_backup_basename = dbpath + "-";
-
-		rpc_cluster_args::convert();
+		cluster_args::convert();
 	}
 
 	arg_t(int argc, char** argv) :
@@ -92,22 +87,37 @@ struct arg_t : rpc_cluster_args {
 
 	void show_usage()
 	{
-std::cout <<
-"usage: "<<prog<<" -m <addr[:port="<<MANAGER_DEFAULT_PORT<<"]> -p <addr[:port"<<MANAGER_DEFAULT_PORT<<"]> -l <addr[:port="<<SERVER_DEFAULT_PORT<<"]> -s <path.tch>\n"
-"\n"
-"  -l  <addr[:port="<<SERVER_DEFAULT_PORT<<"]>   "        "--listen         listen address\n"
-"  -L  <port="<<SERVER_STREAM_DEFAULT_PORT<<">          " "--stream-listen  listen port for replacing stream\n"
-"  -f  <dir="<<"/tmp"<<">            "                    "--offer-tmp      path to temporary directory for replacing\n"
-"  -s  <path.tch>            "                            "--store          path to database\n"
-"  -m  <addr[:port="<<MANAGER_DEFAULT_PORT<<"]>   "       "--manager1       address of manager 1\n"
-"  -p  <addr[:port="<<MANAGER_DEFAULT_PORT<<"]>   "       "--manager2       address of manager 2\n"
-"  -S  <number="<<replicate_set_retry_num<<">        "    "--replicate-set-retry    replicate set retry limit\n"
-"  -D  <number="<<replicate_delete_retry_num<<">        " "--replicate-delete-retry replicate delete retry limit\n"
-"  -gN <seconds="<<garbage_min_time_sec<<">       "       "--garbage-min-time       minimum time to maintenance deleted key\n"
-"  -gX <seconds="<<garbage_max_time_sec<<">     "         "--garbage-max-time       maximum time to maintenance deleted key\n"
-"  -gS <kilobytes="<<garbage_mem_limit_kb<<">   "         "--garbage-mem-limit      maximum memory usage to memory deleted key\n"
-;
-rpc_cluster_args::show_usage();
+		std::cout <<
+		"usage: "<<prog<<
+					" -m <addr[:port="<<MANAGER_DEFAULT_PORT<<"]>"
+					" -p <addr[:port"<<MANAGER_DEFAULT_PORT<<"]>"
+					" -l <addr[:port="<<SERVER_DEFAULT_PORT<<"]>"
+					" -s <path.tch>\n"
+		"\n"
+		"  -l  <addr[:port="<<SERVER_DEFAULT_PORT<<"]>   "
+			"--listen         listen address\n"
+		"  -L  <port="<<SERVER_STREAM_DEFAULT_PORT<<">          "
+			"--stream-listen  listen port for replacing stream\n"
+		"  -f  <dir="<<"/tmp"<<">            "
+			"--offer-tmp      path to temporary directory for replacing\n"
+		"  -s  <path.tch>            "
+			"--store          path to database\n"
+		"  -m  <addr[:port="<<MANAGER_DEFAULT_PORT<<"]>   "
+			"--manager1       address of manager 1\n"
+		"  -p  <addr[:port="<<MANAGER_DEFAULT_PORT<<"]>   "
+			"--manager2       address of manager 2\n"
+		"  -S  <number="<<replicate_set_retry_num<<">        "
+			"--replicate-set-retry    replicate set retry limit\n"
+		"  -D  <number="<<replicate_delete_retry_num<<">        "
+			"--replicate-delete-retry replicate delete retry limit\n"
+		"  -gN <seconds="<<garbage_min_time_sec<<">       "
+			"--garbage-min-time       minimum time to maintenance deleted key\n"
+		"  -gX <seconds="<<garbage_max_time_sec<<">     "
+			"--garbage-max-time       maximum time to maintenance deleted key\n"
+		"  -gS <kilobytes="<<garbage_mem_limit_kb<<">   "
+			"--garbage-mem-limit      maximum memory usage to memory deleted key\n"
+		;
+		cluster_args::show_usage();
 	}
 };
 

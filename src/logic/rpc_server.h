@@ -42,6 +42,15 @@ public:
 	static const unsigned long DO_AFTER_BY_SECONDS = 1000*1000 / TIMER_PRECISION_USEC;
 
 protected:
+	void start_keepalive(unsigned long interval)
+	{
+		struct timespec ts = {interval / 1000000, interval % 1000000 * 1000};
+		wavy::timer(&ts, mp::bind(&Framework::keep_alive,
+					static_cast<Framework*>(this)));
+		LOG_TRACE("start keepalive interval = ",interval," usec");
+	}
+
+protected:
 	// call Framework::step_timeout() every `interval_usec' microseconds.
 	void start_timeout_step(unsigned long interval_usec)
 	{

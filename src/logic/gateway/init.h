@@ -18,6 +18,7 @@ framework::framework(const Config& cfg) :
 			"mgr1", share->manager1(),
 			"mgr2", share->manager2());
 	start_timeout_step(cfg.clock_interval_usec);  // rpc_server
+	start_keepalive(cfg.keepalive_interval_usec);  // rpc_server
 }
 
 void framework::run()

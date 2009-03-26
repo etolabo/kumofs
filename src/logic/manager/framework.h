@@ -27,7 +27,7 @@ public:
 	void new_node(address addr, role_type id, shared_node n);
 	void lost_node(address addr, role_type id);
 
-	// cluster_logic
+	// rpc_server
 	void keep_alive()
 	{
 		scope_proto_network().keep_alive();

@@ -4,7 +4,7 @@
 
 using namespace kumo;
 
-struct arg_t : rpc_cluster_args {
+struct arg_t : cluster_args {
 	unsigned short replace_delay_seconds;
 
 	bool auto_replace;
@@ -15,13 +15,8 @@ struct arg_t : rpc_cluster_args {
 
 	virtual void convert()
 	{
-		cluster_addr = rpc::address(cluster_addr_in);
-		cluster_addr_in.sin_addr.s_addr = INADDR_ANY;  // listen any
-		cluster_lsock = scoped_listen_tcp::listen(rpc::address(cluster_addr_in));
-
 		partner = rpc::address(partner_in);
-
-		rpc_cluster_args::convert();
+		cluster_args::convert();
 	}
 
 	arg_t(int argc, char** argv) :
@@ -42,14 +37,19 @@ struct arg_t : rpc_cluster_args {
 
 	void show_usage()
 	{
-std::cout <<
-"usage: "<<prog<<" -l <addr[:port="<<MANAGER_DEFAULT_PORT<<"]> -p <addr[:port="<<MANAGER_DEFAULT_PORT<<"]>\n"
-"\n"
-"  -p  <addr[:port="<<MANAGER_DEFAULT_PORT  <<"]>   "      "--partner        master-slave replication partner\n"
-"  -a                        "                             "--auto-replace   enable auto replacing\n"
-"  -Rs <number="<<replace_delay_seconds  <<">            "  "--replace-delay  delay time of auto replacing in sec.\n"
-;
-rpc_cluster_args::show_usage();
+		std::cout <<
+		"usage: "<<prog<<
+				" -l <addr[:port="<<MANAGER_DEFAULT_PORT<<"]>"
+				" -p <addr[:port="<<MANAGER_DEFAULT_PORT<<"]>\n"
+		"\n"
+		"  -p  <addr[:port="<<MANAGER_DEFAULT_PORT  <<"]>   "
+			"--partner        master-slave replication partner\n"
+		"  -a                        "
+			"--auto-replace   enable auto replacing\n"
+		"  -Rs <number="<<replace_delay_seconds  <<">            "
+			"--replace-delay  delay time of auto replacing in sec.\n"
+		;
+		cluster_args::show_usage();
 	}
 };
 

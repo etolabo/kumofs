@@ -23,6 +23,12 @@ public:
 	// override wavy_server::run
 	virtual void run();
 
+	// rpc_server
+	void keep_alive()
+	{
+		scope_proto_network().keep_alive();
+	}
+
 public:
 	void submit(get_request& req);
 	void submit(set_request& req);

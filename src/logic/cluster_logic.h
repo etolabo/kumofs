@@ -33,15 +33,6 @@ public:
 				connect_retry_limit) { }
 
 protected:
-	void start_keepalive(unsigned long interval)
-	{
-		struct timespec ts = {interval / 1000000, interval % 1000000 * 1000};
-		wavy::timer(&ts, mp::bind(&Framework::keep_alive,
-					static_cast<Framework*>(this)));
-		LOG_TRACE("start keepalive interval = ",interval," usec");
-	}
-
-protected:
 	void listen_cluster(int fd)
 	{
 		using namespace mp::placeholders;

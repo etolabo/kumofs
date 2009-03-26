@@ -67,6 +67,12 @@ RPC_REPLY_IMPL(proto_network, HashSpaceRequest, from, res, err, z)
 }
 
 
+void proto_network::keep_alive()
+{
+	// FIXME
+}
+
+
 }  // namespace gateway
 }  // namespace kumo
 

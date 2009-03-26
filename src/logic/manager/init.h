@@ -22,7 +22,7 @@ framework::framework(const Config& cfg) :
 			"Padd", share->partner());
 	listen_cluster(cfg.cluster_lsock);  // cluster_logic
 	start_timeout_step(cfg.clock_interval_usec);  // rpc_server
-	start_keepalive(cfg.keepalive_interval_usec);  // cluster_logic
+	start_keepalive(cfg.keepalive_interval_usec);  // rpc_server
 }
 
 template <typename Config>

@@ -44,9 +44,9 @@ void do_daemonize(bool close_stdio, const char* pidfile);
 
 void init_mlogger(const std::string& logfile, bool use_tty, mlogger::level level);
 
-struct rpc_server_args {
-	rpc_server_args();
-	~rpc_server_args();
+struct rpc_args {
+	rpc_args();
+	~rpc_args();
 
 	bool verbose;
 
@@ -86,9 +86,9 @@ protected:
 };
 
 
-struct rpc_cluster_args : rpc_server_args {
-	rpc_cluster_args();
-	~rpc_cluster_args();
+struct cluster_args : rpc_args {
+	cluster_args();
+	~cluster_args();
 
 	virtual void set_basic_args();
 	virtual void show_usage();

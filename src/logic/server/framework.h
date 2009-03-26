@@ -58,7 +58,7 @@ public:
 	virtual void run();
 	virtual void end_preprocess();
 
-	// cluster_logic
+	// rpc_server
 	void keep_alive()
 	{
 		scope_proto_network().keep_alive();

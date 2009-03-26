@@ -103,7 +103,7 @@ void init_mlogger(const std::string& logfile, bool use_tty, mlogger::level level
 }
 
 
-rpc_server_args::rpc_server_args() :
+rpc_args::rpc_args() :
 	keepalive_interval(2.0),
 	clock_interval(2.0),
 	connect_timeout_sec(1.0),
@@ -114,18 +114,35 @@ rpc_server_args::rpc_server_args() :
 	kazuhiki::init();
 }
 
-rpc_server_args::~rpc_server_args() { }
+rpc_args::~rpc_args() { }
 
-rpc_cluster_args::rpc_cluster_args() :
+cluster_args::cluster_args() :
 	cluster_lsock(-1) { }
 
-rpc_cluster_args::~rpc_cluster_args()
+cluster_args::~cluster_args()
 {
 	::close(cluster_lsock);
 }
 
 
-void rpc_server_args::set_basic_args()
+void rpc_args::convert()
+{
+	keepalive_interval_usec = keepalive_interval *1000 *1000;
+	clock_interval_usec = clock_interval * 1000 * 1000;
+	connect_timeout_sec = connect_timeout_msec * 1000;
+}
+
+void cluster_args::convert()
+{
+	cluster_addr = rpc::address(cluster_addr_in);
+	cluster_addr_in.sin_addr.s_addr = INADDR_ANY;  // listen any
+	cluster_lsock = scoped_listen_tcp::listen(
+			rpc::address(cluster_addr_in));
+	rpc_args::convert();
+}
+
+
+void rpc_args::set_basic_args()
 {
 	using namespace kazuhiki;
 	on("-v", "--verbose",
@@ -148,38 +165,43 @@ void rpc_server_args::set_basic_args()
 			type::numeric(&rthreads, rthreads));
 }
 
-void rpc_server_args::show_usage()
+void rpc_args::show_usage()
 {
-std::cout <<
-"  -Ys <number="<<connect_timeout_sec<<">    "  "--connect-timeout        connect timeout time in seconds\n"
-"  -Yn <number="<<connect_retry_limit<<">    "  "--connect-retry-limit    connect retry limit\n"
-"  -Ci <number="<<clock_interval<<">    "       "--clock-interval         clock interval in seconds\n"
-"  -TW <number="<<wthreads<<">    "             "--write-threads          number of threads for asynchronous writing\n"
-"  -TR <number="<<rthreads<<">    "             "--read-threads           number of threads for asynchronous reading\n"
-"  -o  <path.log>    "                          "--log                    output logs to the file\n"
-"  -g  <path.mpac>   "                          "--binary-log             enable binary log\n"
-"  -v                "                          "--verbose\n"
-"  -d  <path.pid>    "                          "--daemon\n"
-<< std::endl;
+	std::cout <<
+		"  -k  <number="<<keepalive_interval<<">    "
+			"--keepalive-interval     keepalive interval in seconds\n"
+		"  -Ys <number="<<connect_timeout_sec<<">    "
+			"--connect-timeout        connect timeout time in seconds\n"
+		"  -Yn <number="<<connect_retry_limit<<">    "
+			"--connect-retry-limit    connect retry limit\n"
+		"  -Ci <number="<<clock_interval<<">    "
+			"--clock-interval         clock interval in seconds\n"
+		"  -TW <number="<<wthreads<<">    "
+			"--write-threads          number of threads for asynchronous writing\n"
+		"  -TR <number="<<rthreads<<">    "
+			"--read-threads           number of threads for asynchronous reading\n"
+		"  -o  <path.log>    "
+			"--log                    output logs to the file\n"
+		"  -g  <path.mpac>   "
+			"--binary-log             enable binary log\n"
+		"  -v                "
+			"--verbose\n"
+		"  -d  <path.pid>    "
+			"--daemon\n"
+	<< std::endl;
 }
 
-void rpc_cluster_args::set_basic_args()
+void cluster_args::set_basic_args()
 {
-	using namespace kazuhiki;
-	on("-k", "--keepalive-interval",
-			type::numeric(&keepalive_interval, keepalive_interval));
-	rpc_server_args::set_basic_args();
+	rpc_args::set_basic_args();
 }
 
-void rpc_cluster_args::show_usage()
+void cluster_args::show_usage()
 {
-std::cout <<
-"  -k  <number="<<keepalive_interval<<">    "   "--keepalive-interval     keepalive interval in seconds\n"
-;
-rpc_server_args::show_usage();
+	rpc_args::show_usage();
 }
 
-void rpc_server_args::parse(int argc, char** argv)
+void rpc_args::parse(int argc, char** argv)
 try {
 	prog = argv[0];
 	--argc;
@@ -192,18 +214,6 @@ try {
 	show_usage();
 	std::cerr << "error: " << e.what() << std::endl;
 	exit(1);
-}
-
-void rpc_server_args::convert()
-{
-	clock_interval_usec = clock_interval * 1000 * 1000;
-	connect_timeout_sec = connect_timeout_msec * 1000;
-}
-
-void rpc_cluster_args::convert()
-{
-	keepalive_interval_usec = keepalive_interval *1000 *1000;
-	rpc_server_args::convert();
 }
 
 

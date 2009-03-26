@@ -11,7 +11,7 @@ using namespace kumo;
 #define MEMPROTO_DEFAULT_PORT 11511
 #define CLOUDY_DEFAULT_PORT   11611
 
-struct arg_t : rpc_server_args {
+struct arg_t : rpc_args {
 
 	sockaddr_in manager1_in;
 	sockaddr_in manager2_in;
@@ -58,7 +58,7 @@ struct arg_t : rpc_server_args {
 			cloudy_lsock = scoped_listen_tcp::listen(cloudy_addr_in);
 		}
 
-		rpc_server_args::convert();
+		rpc_args::convert();
 	}
 
 	arg_t(int& argc, char* argv[]) :
@@ -96,22 +96,36 @@ struct arg_t : rpc_server_args {
 
 	void show_usage()
 	{
-std::cout <<
-"usage: "<<prog<<" -m <addr[:port]> -p <addr[:port]> [-t port] [-b port] [-c port]\n"
-"\n"
-"  -m  <addr[:port="<<MANAGER_DEFAULT_PORT<<"]>   "       "--manager1        address of manager 1\n"
-"  -p  <addr[:port="<<MANAGER_DEFAULT_PORT<<"]>   "       "--manager2        address of manager 2\n"
-"  -t  <[addr:]port="<<MEMTEXT_DEFAULT_PORT<<">   "       "--memproto-text   memcached text protocol listen port\n"
-"  -b  <[addr:]port="<<MEMPROTO_DEFAULT_PORT<<">   "      "--memproto-binary memcached binary protocol listen port\n"
-"  -c  <[addr:]port="<<CLOUDY_DEFAULT_PORT<<">   "        "--cloudy          asynchronous memcached binary protocol listen port\n"
-"  -As               "                                    "--async-replicate-set    send response without waiting replication on set\n"
-"  -Ad               "                                    "--async-replicate-delete send response without waiting replication on delete\n"
-"  -G  <number="<<get_retry_num<<">    "                  "--get-retry              get retry limit\n"
-"  -S  <number="<<set_retry_num<<">   "                   "--set-retry              set retry limit\n"
-"  -D  <number="<<delete_retry_num<<">   "                "--delete-retry           delete retry limit\n"
-"  -rn <number="<<renew_threshold<<">    "                "--renew-threshold        hash space renew threshold\n"
-;
-rpc_server_args::show_usage();
+		std::cout <<
+		"usage: "<<prog<<
+				" -m <addr[:port]>"
+				" -p <addr[:port]>"
+				" [-t port] [-b port] [-c port]\n"
+		"\n"
+		"  -m  <addr[:port="<<MANAGER_DEFAULT_PORT<<"]>   "
+			"--manager1        address of manager 1\n"
+		"  -p  <addr[:port="<<MANAGER_DEFAULT_PORT<<"]>   "
+			"--manager2        address of manager 2\n"
+		"  -t  <[addr:]port="<<MEMTEXT_DEFAULT_PORT<<">   "
+			"--memproto-text   memcached text protocol listen port\n"
+		"  -b  <[addr:]port="<<MEMPROTO_DEFAULT_PORT<<">   "
+			"--memproto-binary memcached binary protocol listen port\n"
+		"  -c  <[addr:]port="<<CLOUDY_DEFAULT_PORT<<">   "
+			"--cloudy          asynchronous memcached binary protocol listen port\n"
+		"  -As               "
+			"--async-replicate-set    send response without waiting replication on set\n"
+		"  -Ad               "
+			"--async-replicate-delete send response without waiting replication on delete\n"
+		"  -G  <number="<<get_retry_num<<">    "
+			"--get-retry              get retry limit\n"
+		"  -S  <number="<<set_retry_num<<">   "
+			"--set-retry              set retry limit\n"
+		"  -D  <number="<<delete_retry_num<<">   "
+			"--delete-retry           delete retry limit\n"
+		"  -rn <number="<<renew_threshold<<">    "
+			"--renew-threshold        hash space renew threshold\n"
+		;
+		rpc_args::show_usage();
 	}
 
 };
