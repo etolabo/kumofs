@@ -40,7 +40,18 @@ public:
 	void* buffer();
 	size_t buffer_capacity() const;
 
-	struct reference;
+	class reference {
+	public:
+		reference();
+		reference(void* p);
+		reference(const reference& o);
+		~reference();
+		void clear();
+		void reset(void* p);
+		void swap(reference& x);
+	private:
+		void* m;
+	};
 
 	void* allocate(size_t size, reference* result_ref = NULL,
 			size_t init_size = MP_SHARED_BUFFER_INITIAL_BUFFER_SIZE);

@@ -22,38 +22,6 @@
 namespace mp {
 
 
-struct shared_buffer::reference {
-public:
-	reference() : m(NULL) { }
-
-	reference(void* p) : m(p)
-	{
-		incr_count(m);
-	}
-
-	reference(const reference& o)
-	{
-		m = o.m;
-		incr_count(m);
-	}
-
-	void reset(void* p)
-	{
-		if(m) { decr_count(m); }
-		m = p;
-		incr_count(m);
-	}
-
-	~reference()
-	{
-		if(m) { decr_count(m); }
-	}
-
-private:
-	void* m;
-};
-
-
 inline void shared_buffer::init_count(void* d)
 {
 	*(volatile count_t*)d = 1;
@@ -76,6 +44,48 @@ inline void shared_buffer::incr_count(void* d)
 inline shared_buffer::count_t shared_buffer::get_count(void* d)
 {
 	return *(count_t*)d;
+}
+
+
+inline shared_buffer::reference::reference() : m(NULL) { }
+
+inline shared_buffer::reference::reference(void* p) :
+	m(p)
+{
+	incr_count(m);
+}
+
+inline shared_buffer::reference::reference(const reference& o) :
+	m(o.m)
+{
+	incr_count(m);
+}
+
+inline void shared_buffer::reference::clear()
+{
+	if(m) {
+		decr_count(m);
+		m = NULL;
+	}
+}
+
+inline shared_buffer::reference::~reference()
+{
+	clear();
+}
+
+inline void shared_buffer::reference::reset(void* p)
+{
+	clear();
+	m = p;
+	incr_count(m);
+}
+
+inline void shared_buffer::reference::swap(reference& x)
+{
+	void* tmp = m;
+	m = x.m;
+	x.m = tmp;
 }
 
 

@@ -5,7 +5,6 @@
 #include "buffer_queue.h"
 #include "logic/clock.h"
 #include <mp/pthread.h>
-#include <mp/shared_buffer.h>
 #include <stdint.h>
 #include <msgpack.hpp>
 #include <arpa/inet.h>

@@ -24,40 +24,12 @@
 namespace mp {
 
 
-struct stream_buffer::reference {
-public:
-	reference() { }
-
-	~reference()
-	{
-		std::for_each(m_array.begin(), m_array.end(), decl());
-	}
-
-	void push(void* d)
-	{
-		m_array.push_back(d);
-	}
-
-private:
-	std::vector<void*> m_array;
-	struct decl {
-		void operator() (void* d)
-		{
-			stream_buffer::decl_count(d);
-		}
-	};
-
-private:
-	reference(const reference&);
-};
-
-
 inline void stream_buffer::init_count(void* d)
 {
 	*(volatile count_t*)d = 1;
 }
 
-inline void stream_buffer::decl_count(void* d)
+inline void stream_buffer::decr_count(void* d)
 {
 	//if(--*(count_t*)d == 0) {
 	if(__sync_sub_and_fetch((count_t*)d, 1) == 0) {
@@ -77,12 +49,56 @@ inline stream_buffer::count_t stream_buffer::get_count(void* d)
 }
 
 
+struct stream_buffer::reference::each_incr {
+	void operator() (void* d)
+	{
+		stream_buffer::incr_count(d);
+	}
+};
+
+struct stream_buffer::reference::each_decr {
+	void operator() (void* d)
+	{
+		stream_buffer::decr_count(d);
+	}
+};
+
+inline stream_buffer::reference::reference() { }
+
+inline stream_buffer::reference::reference(const reference& o) :
+	m_array(m_array)
+{
+	std::for_each(m_array.begin(), m_array.end(), each_incr());
+}
+
+inline void stream_buffer::reference::clear()
+{
+	std::for_each(m_array.begin(), m_array.end(), each_decr());
+	m_array.clear();
+}
+
+inline stream_buffer::reference::~reference()
+{
+	clear();
+}
+
+inline void stream_buffer::reference::push(void* d)
+{
+	m_array.push_back(d);
+	incr_count(d);
+}
+
+inline void stream_buffer::reference::swap(reference& x)
+{
+	m_array.swap(x.m_array);
+}
+
+
 inline stream_buffer::stream_buffer(size_t initial_buffer_size) :
 	m_buffer(NULL),
 	m_used(0),
 	m_free(0),
-	m_off(0),
-	m_ref(new reference())
+	m_off(0)
 {
 	const size_t initsz = std::max(initial_buffer_size, sizeof(count_t));
 
@@ -97,7 +113,7 @@ inline stream_buffer::stream_buffer(size_t initial_buffer_size) :
 
 inline stream_buffer::~stream_buffer()
 {
-	decl_count(m_buffer);
+	decr_count(m_buffer);
 }
 
 inline void* stream_buffer::buffer()
@@ -134,17 +150,17 @@ inline void stream_buffer::data_used(size_t len)
 
 inline stream_buffer::reference* stream_buffer::release()
 {
-	// FIXME
-	m_ref->push(m_buffer);
-	incr_count(m_buffer);
+	std::auto_ptr<reference> tmp(new reference());
+	m_ref.push(m_buffer);
+	tmp->swap(m_ref);
+	return tmp.release();
+}
 
-	//std::auto_ptr<reference> old(new reference());
-	//m_ref.swap(old);
-	reference* n = new reference();
-	std::auto_ptr<reference> old(m_ref.release());
-	m_ref.reset(n);
-
-	return old.release();
+inline void stream_buffer::release_to(reference* to)
+{
+	to->clear();
+	m_ref.push(m_buffer);
+	to->swap(m_ref);
 }
 
 inline void stream_buffer::reserve_buffer(size_t len, size_t initial_buffer_size)
@@ -184,7 +200,7 @@ inline void stream_buffer::expand_buffer(size_t len, size_t initial_buffer_size)
 		init_count(tmp);
 
 		try {
-			m_ref->push(m_buffer);
+			m_ref.push(m_buffer);
 		} catch (...) { free(tmp); throw; }
 
 		memcpy(tmp+sizeof(count_t), m_buffer+m_off, not_used);

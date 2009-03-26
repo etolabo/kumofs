@@ -47,22 +47,36 @@ public:
 	size_t data_size() const;
 	void data_used(size_t len);
 
-	struct reference;
+	class reference {
+	public:
+		reference();
+		reference(const reference& o);
+		~reference();
+		void clear();
+		void push(void* d);
+		void swap(reference& x);
+	private:
+		std::vector<void*> m_array;
+		struct each_incr;
+		struct each_decr;
+	};
+
 	reference* release();
+	void release_to(reference* to);
 
 private:
 	char* m_buffer;
 	size_t m_used;
 	size_t m_free;
 	size_t m_off;
-	std::auto_ptr<reference> m_ref;
+	reference m_ref;
 
 private:
 	void expand_buffer(size_t len, size_t initial_buffer_size);
 
 	typedef volatile unsigned int count_t;
 	static void init_count(void* d);
-	static void decl_count(void* d);
+	static void decr_count(void* d);
 	static void incr_count(void* d);
 	static count_t get_count(void* d);
 
