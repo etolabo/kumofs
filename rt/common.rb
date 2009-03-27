@@ -17,13 +17,13 @@ begin
 	require 'rubygems'
 rescue LoadError
 end
-require 'memcache'  # system_timer
 require 'chukan'
 
 include Chukan
 
 class Manager < Chukan::LocalProcess
 	def initialize(index = 0, partner = nil)
+		@index = index
 		@host = "127.0.0.1"
 		@port = MANAGER_PORT + index
 
@@ -32,7 +32,7 @@ class Manager < Chukan::LocalProcess
 
 		super(cmd)
 	end
-	attr_reader :host, :port
+	attr_reader :host, :port, :index
 
 	def attach
 		spawn("#{KUMOCTL} #{@host}:#{@port} attach")
@@ -49,6 +49,7 @@ end
 
 class Server < Chukan::LocalProcess
 	def initialize(index, mgr1, mgr2 = nil)
+		@index = index
 		@host = "127.0.0.1"
 		@port = SERVER_PORT + index*2
 		@stream_port = @port + 1
@@ -62,19 +63,23 @@ class Server < Chukan::LocalProcess
 
 		super(cmd)
 	end
+	attr_reader :index
 end
 
 class Gateway < Chukan::LocalProcess
 	def initialize(index, mgr1, mgr2 = nil)
+		@index = index
 		@port = MEMCACHE_PORT + index
 		cmd = "#{KUMO_GATEWAY} -v -m #{mgr1.host}:#{mgr1.port} -t #{@port}"
 		cmd += " -p #{mgr2.host}:#{mgr2.port}" if mgr2
 
 		super(cmd)
 	end
+	attr_reader :index
 
 	def client
-		MemCache.new("127.0.0.1:#{@port}")
+		require 'memcache'  # gem install Ruby-MemCache
+		MemCache.new("127.0.0.1:#{@port}", {:urlencode => false, :compression => false})
 	end
 end
 
