@@ -113,6 +113,7 @@ require 'monitor'
 
 
 module Chukan
+	IO_BUFFER_LIMIT = 1024*1024
 
 	class LocalProcess
 		def initialize(*cmdline)
@@ -126,12 +127,18 @@ module Chukan
 		attr_reader :stdin, :stdout, :stderr
 		attr_reader :pid
 		attr_reader :status
+		attr_reader :msg_prefix
 
 		def join
 			@status = Process.waitpid2(@pid)[1]
 			@stdout_reader.join
 			@stderr_reader.join
 			@killer.killed
+			reason = @status.inspect
+			if m = reason.match(/\,([^\>]*)\>/)
+				reason = m[1]
+			end
+			$stderr.puts "#{@msg_prefix}#{reason}"
 			@status
 		end
 
@@ -168,7 +175,9 @@ module Chukan
 			match = nil
 			io.synchronize {
 				until match = io.scanner.scan_until(pattern)
-					break if io.closed_write?
+					if io.closed_write?
+						raise EOFError.new("io closed: #{pattern.inspect}")
+					end
 					io.cond.wait
 				end
 			}
@@ -195,11 +204,11 @@ module Chukan
 			pout.close
 			perr.close
 
-			msg_prefix = "[%-12s %6d] " % [@shortname, @pid]
-			$stdout.puts "#{msg_prefix}#{@cmdline.join(' ')}"
+			@msg_prefix = "[%-12s %6d] " % [@shortname, @pid]
+			$stdout.puts "#{@msg_prefix}#{@cmdline.join(' ')}"
 
-			@stdout, @stdout_reader = self.class.start_scan(@pout, $stdout, msg_prefix)
-			@stderr, @stderr_reader = self.class.start_scan(@perr, $stderr, msg_prefix)
+			@stdout, @stdout_reader = self.class.start_scan(@pout, $stdout, @msg_prefix)
+			@stderr, @stderr_reader = self.class.start_scan(@perr, $stderr, @msg_prefix)
 
 			@killer = ZombieKiller.define_finalizer(self, @pid)
 		end
@@ -214,22 +223,29 @@ module Chukan
 				define_method(:scanner) { scanner }
 			end
 
-			reader = Thread.start(pipe, io, cond,
+			reader = Thread.start(pipe, io,
 														out, msg_prefix,
 														&method(:reader_thread))
 
 			return io, reader
 		end
 
-		def self.reader_thread(src, dst, cond, msgout, msg_prefix)
+		def self.reader_thread(src, dst, msgout, msg_prefix)
 			buf = ""
+			line = ''
 			begin
-				line = ''
-				while true
-					src.sysread(1024, buf)
+				while src.sysread(1024, buf)
 					dst.synchronize {
 						dst.string << buf
-						cond.signal
+						if dst.string.size > IO_BUFFER_LIMIT
+							cut = dst.string.size - IO_BUFFER_LIMIT
+							dst.string.slice!(0, cut)
+							dst.pos = (dst.pos > cut) ?
+								dst.pos - cut : 0
+							dst.scanner.pos = (dst.scanner.pos > cut) ?
+								dst.scanner.pos - cut : 0
+						end
+						dst.cond.signal
 					}
 					line << buf
 					line.gsub!(/.*\n/) {|l|
@@ -244,8 +260,11 @@ module Chukan
 				src.close
 				dst.synchronize {
 					dst.close_write
-					cond.signal
+					dst.cond.signal
 				}
+				unless line.empty?
+					msgout.puts "#{msg_prefix}#{line}"
+				end
 			end
 		end
 	end
@@ -362,6 +381,7 @@ module Chukan
 		@@data  = nil
 
 		if ENV["TERM"] =~ /color/i && $stdout.stat.chardev?
+			SEPARATOR = ""
 			module Color
 				SUCCESS = "\e[0;32m"
 				FAIL    = "\e[1;33m"
@@ -369,6 +389,7 @@ module Chukan
 				NORMAL  = "\e[00m"
 			end
 		else
+			SEPARATOR = "\n"
 			module Color
 				SUCCESS = ""
 				FAIL    = ""
@@ -442,7 +463,7 @@ module Chukan
 			if directive
 				directive = "  # #{directive.to_s.upcase}"
 			end
-			puts "#{color}\n#{stat} #{count} - #{name}#{directive}"
+			puts "#{color}#{SEPARATOR}#{stat} #{count} - #{name}#{directive}"
 		end
 
 		def print_backtrace(trace, msg)

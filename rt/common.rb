@@ -163,8 +163,8 @@ end
 
 
 def term_daemons(*ds)
-	ds.each {|d| d.term }
-	ds.each {|d| d.join }
+	ds.each {|d| d.term rescue nil }
+	ds.each {|d| d.join rescue nil }
 end
 
 
@@ -209,12 +209,12 @@ class RandomTester
 				source.shuffle.each {|k, v|
 					begin
 						r = @client.get(k)
-						r = r[0] if r.is_a?(Array)  # Ruby 1.9
-						unless r == v
-							raise "get '#{k}' expects '#{v}' but '#{r}': #{$!.inspect}"
-						end
 					rescue
 						raise "get failed '#{k}': #{$!.inspect}"
+					end
+					r = r[0] if r.is_a?(Array)  # Ruby 1.9
+					unless r == v
+						raise "get '#{k}' expects '#{v}' but '#{r}'"
 					end
 				}
 				true

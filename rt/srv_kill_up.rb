@@ -8,23 +8,26 @@ NUM_STORE    = (ARGV[2] || 100).to_i
 NUM_THREAD   = (ARGV[3] ||   4).to_i
 
 mgr, gw, srv1, srv2, srv3 = init_cluster(false, 3)
+begin
 
-tester = RandomTester.start_threads(gw, NUM_THREAD, NUM_STORE)
+	tester = RandomTester.start_threads(gw, NUM_THREAD, NUM_STORE)
 
-LOOP_RESTART.times {
-	sleep SLEEP
-	case rand(3)
-	when 0
-		srv1 = restart_srv(srv1, mgr)
-	when 1
-		srv2 = restart_srv(srv2, mgr)
-	when 2
-		srv3 = restart_srv(srv3, mgr)
-	end
-}
+	LOOP_RESTART.times {
+		sleep SLEEP
+		case rand(3)
+		when 0
+			srv1 = restart_srv(srv1, mgr)
+		when 1
+			srv2 = restart_srv(srv2, mgr)
+		when 2
+			srv3 = restart_srv(srv3, mgr)
+		end
+	}
 
-tester.each {|ra| ra.stop }
-tester.each {|ra| ra.join }
+	tester.each {|ra| ra.stop }
+	tester.each {|ra| ra.join }
 
-term_daemons(srv1, srv2, srv3, gw, mgr)
+ensure
+	term_daemons(srv1, srv2, srv3, gw, mgr)
+end
 
