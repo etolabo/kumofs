@@ -136,11 +136,11 @@ module Chukan
 		end
 
 		def stdout_join(pattern)
-			io_join(@stdout, @stdout_cond, @stdout_scan, pattern)
+			io_join(@stdout, pattern)
 		end
 
 		def stderr_join(pattern)
-			io_join(@stderr, @stderr_cond, @stderr_scan, pattern)
+			io_join(@stderr, pattern)
 		end
 
 		def signal(sig)
@@ -161,15 +161,15 @@ module Chukan
 		end
 
 		private
-		def io_join(io, cond, scan, pattern)
+		def io_join(io, pattern)
 			if pattern.is_a?(String)
 				pattern = Regexp.new(Regexp.escape(pattern))
 			end
 			match = nil
 			io.synchronize {
-				until match = scan.scan_until(pattern)
+				until match = io.scanner.scan_until(pattern)
 					break if io.closed_write?
-					cond.wait
+					io.cond.wait
 				end
 			}
 			match
@@ -194,20 +194,34 @@ module Chukan
 			stdin.close
 			pout.close
 			perr.close
-			@stdout = StringIO.new.extend(MonitorMixin)
-			@stderr = StringIO.new.extend(MonitorMixin)
-			@stdout_cond = @stdout.new_cond
-			@stderr_cond = @stderr.new_cond
-			@stdout_scan = StringScanner.new(@stdout.string)
-			@stderr_scan = StringScanner.new(@stderr.string)
-			@stdout_reader = Thread.start(@pout, @stdout, @stdout_cond,
-																		$stdout, &method(:reader_thread))
-			@stderr_reader = Thread.start(@perr, @stderr, @stderr_cond,
-																		$stderr, &method(:reader_thread))
+
+			msg_prefix = "[%-12s %6d] " % [@shortname, @pid]
+			$stdout.puts "#{msg_prefix}#{@cmdline.join(' ')}"
+
+			@stdout, @stdout_reader = self.class.start_scan(@pout, $stdout, msg_prefix)
+			@stderr, @stderr_reader = self.class.start_scan(@perr, $stderr, msg_prefix)
+
 			@killer = ZombieKiller.define_finalizer(self, @pid)
 		end
 
-		def reader_thread(src, dst, cond, msgout)
+		def self.start_scan(pipe, out, msg_prefix)
+			io = StringIO.new
+			io.extend(MonitorMixin)
+			cond    = io.new_cond
+			scanner = StringScanner.new(io.string)
+			(class<<io; self; end).instance_eval do
+				define_method(:cond)    { cond    }
+				define_method(:scanner) { scanner }
+			end
+
+			reader = Thread.start(pipe, io, cond,
+														out, msg_prefix,
+														&method(:reader_thread))
+
+			return io, reader
+		end
+
+		def self.reader_thread(src, dst, cond, msgout, msg_prefix)
 			buf = ""
 			begin
 				line = ''
@@ -219,7 +233,8 @@ module Chukan
 					}
 					line << buf
 					line.gsub!(/.*\n/) {|l|
-						msgout.puts "[%-12s %6d] #{l}" % [@shortname, @pid]
+						msgout.puts "#{msg_prefix}#{l}"
+						msgout.flush
 						""
 					}
 				end
@@ -253,21 +268,22 @@ module Chukan
 
 		def self.finalizer(killer)
 			proc {
-				return unless pid = killer.pid
-				[:SIGTERM, :SIGKILL].each {|sig|
-					Process.kill(sig, pid)
-					break if 10.times {
-						begin
-							if Process.waitpid(pid, Process::WNOHANG)
+				if pid = killer.pid
+					[:SIGTERM, :SIGKILL].each {|sig|
+						Process.kill(sig, pid)
+						break if 10.times {
+							begin
+								if Process.waitpid(pid, Process::WNOHANG)
+									break true
+								end
+								sleep 0.1
+							rescue
 								break true
 							end
-							sleep 0.1
-						rescue
-							break true
-						end
-						nil
+							nil
+						}
 					}
-				}
+				end
 			}
 		end
 	end
@@ -378,7 +394,7 @@ module Chukan
 			}
 		end
 	
-		def self.included(*mod)
+		def self.included(mod)
 			unless @@start
 				ObjectSpace.define_finalizer(mod, report)
 				@@start = Time.now

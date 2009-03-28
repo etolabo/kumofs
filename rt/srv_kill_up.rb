@@ -1,5 +1,4 @@
 #!/usr/bin/env ruby
-
 require 'common'
 include Chukan::Test
 
@@ -8,91 +7,24 @@ SLEEP        = (ARGV[1] ||   1).to_i
 NUM_STORE    = (ARGV[2] || 100).to_i
 NUM_THREAD   = (ARGV[3] ||   4).to_i
 
-mgr = Manager.new
+mgr, gw, srv1, srv2, srv3 = init_cluster(false, 3)
 
-srv1 = Server.new(1, mgr)
-srv2 = Server.new(2, mgr)
-srv3 = Server.new(3, mgr)
-mgr.stdout_join("new node")
-mgr.stdout_join("new node")
-mgr.stdout_join("new node")
-
-mgr.attach.join
-mgr.stdout_join("replace finished")
-
-gw  = Gateway.new(0, mgr)
-gw.stdout_join("connect success")
-
-end_flag = false
-
-threads = (1..NUM_THREAD).to_a.map do
-	Thread.start(gw.client) {|client|
-		until end_flag
-
-			source = (1..NUM_STORE).to_a.shuffle.map {|x| ["key#{x}", "val#{x}"] }
-
-			test "set value" do
-				source.each {|k, v|
-					begin
-						client.set(k, v)
-					rescue
-						raise "set failed '#{k}' => '#{v}': #{$!.inspect}"
-					end
-				}
-				true
-			end
-
-			test "get value" do
-				source.shuffle.each {|k, v|
-					begin
-						unless client.get(k) == v
-							raise "get failed '#{k}' != '#{v}': #{$!.inspect}"
-						end
-					rescue
-						raise "get failed '#{k}': #{$!.inspect}"
-					end
-				}
-				true
-			end
-
-		end
-	}
-end
-
-def restart_srv(mgr, srv)
-	srv.kill
-	srv.join
-	srv = Server.new(srv.index, mgr)
-	mgr.stdout_join("new node")
-	mgr.attach.join
-	mgr.stdout_join("replace finished")
-	srv
-end
+tester = RandomTester.start_threads(gw, NUM_THREAD, NUM_STORE)
 
 LOOP_RESTART.times {
 	sleep SLEEP
 	case rand(3)
-	when 0:
-		srv1 = restart_srv(mgr, srv1)
-	when 1:
-		srv2 = restart_srv(mgr, srv2)
-	when 2:
-		srv3 = restart_srv(mgr, srv3)
+	when 0
+		srv1 = restart_srv(srv1, mgr)
+	when 1
+		srv2 = restart_srv(srv2, mgr)
+	when 2
+		srv3 = restart_srv(srv3, mgr)
 	end
 }
 
-end_flag = true
-threads.each {|th| th.join }
+tester.each {|ra| ra.stop }
+tester.each {|ra| ra.join }
 
-srv1.term
-srv2.term
-srv3.term
-gw.term
-mgr.term
-
-srv1.join
-srv2.join
-srv3.join
-gw.join
-mgr.join
+term_daemons(srv1, srv2, srv3, gw, mgr)
 
