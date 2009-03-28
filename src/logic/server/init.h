@@ -10,13 +10,21 @@ namespace server {
 template <typename Config>
 framework::framework(const Config& cfg) :
 	cluster_logic<framework>(
-			cfg.rthreads, cfg.wthreads,
 			ROLE_SERVER,
 			cfg.cluster_addr,
 			cfg.connect_timeout_msec,
 			cfg.connect_retry_limit),
 	m_proto_replace_stream(cfg.stream_addr)
+{ }
+
+template <typename Config>
+void framework::run(const Config& cfg)
 {
+	init_wavy(cfg.rthreads, cfg.wthreads);  // wavy_server
+	listen_cluster(cfg.cluster_lsock);  // cluster_logic
+	start_timeout_step(cfg.clock_interval_usec);  // rpc_server
+	start_keepalive(cfg.keepalive_interval_usec);  // rpc_server
+	scope_proto_replace_stream().init_stream(cfg.stream_lsock);
 	LOG_INFO("start server ",addr());
 	TLOGPACK("SS",2,
 			"addr", cfg.cluster_addr,
@@ -26,10 +34,6 @@ framework::framework(const Config& cfg) :
 			"sadd", cfg.stream_addr,
 			"tmpd", share->cfg_offer_tmpdir(),
 			"bkup", share->cfg_db_backup_basename());
-	listen_cluster(cfg.cluster_lsock);  // cluster_logic
-	scope_proto_replace_stream().init_stream(cfg.stream_lsock);
-	start_timeout_step(cfg.clock_interval_usec);  // rpc_server
-	start_keepalive(cfg.keepalive_interval_usec);  // rpc_server
 }
 
 template <typename Config>

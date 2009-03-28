@@ -10,21 +10,20 @@ namespace gateway {
 template <typename Config>
 framework::framework(const Config& cfg) :
 	client_logic<framework>(
-			cfg.rthreads, cfg.wthreads,
 			cfg.connect_timeout_msec,
 			cfg.connect_retry_limit)
+{ }
+
+template <typename Config>
+void framework::run(const Config& cfg)
 {
+	init_wavy(cfg.rthreads, cfg.wthreads);  // wavy_server
+	start_timeout_step(cfg.clock_interval_usec);  // rpc_server
+	start_keepalive(cfg.keepalive_interval_usec);  // rpc_server
+	scope_proto_network().renew_hash_space();
 	TLOGPACK("SW",2,
 			"mgr1", share->manager1(),
 			"mgr2", share->manager2());
-	start_timeout_step(cfg.clock_interval_usec);  // rpc_server
-	start_keepalive(cfg.keepalive_interval_usec);  // rpc_server
-}
-
-void framework::run()
-{
-	wavy_server::run();
-	scope_proto_network().renew_hash_space();
 }
 
 template <typename Config>

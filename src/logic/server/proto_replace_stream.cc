@@ -25,10 +25,6 @@ void proto_replace_stream::init_stream(int fd)
 	m_stream_core->listen(fd, mp::bind(
 				&proto_replace_stream::stream_accepted, this,
 				_1, _2));
-}
-
-void proto_replace_stream::run_stream()
-{
 	m_stream_core->add_thread(2);  // FIXME 2
 }
 

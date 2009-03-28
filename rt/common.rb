@@ -163,8 +163,8 @@ end
 
 
 def term_daemons(*ds)
-	ds.each {|d| d.term rescue nil }
-	ds.each {|d| d.join rescue nil }
+	ds.each {|d| d.term rescue p($!) }
+	ds.each {|d| d.join rescue p($!) }
 end
 
 

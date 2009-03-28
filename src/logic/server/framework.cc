@@ -42,12 +42,6 @@ try {
 }
 DISPATCH_CATCH(method, response)
 
-void framework::run()
-{
-	wavy_server::run();
-	scope_proto_replace_stream().run_stream();
-	// FIXME end
-}
 
 void framework::end_preprocess()
 {

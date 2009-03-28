@@ -16,6 +16,9 @@ public:
 	template <typename Config>
 	framework(const Config& cfg);
 
+	template <typename Config>
+	void run(const Config& cfg);
+
 	void cluster_dispatch(
 			shared_node from, weak_responder response,
 			rpc::method_id method, rpc::msgobj param, auto_zone z);

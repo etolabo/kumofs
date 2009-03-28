@@ -10,19 +10,23 @@ namespace manager {
 template <typename Config>
 framework::framework(const Config& cfg) :
 	cluster_logic<framework>(
-			cfg.rthreads, cfg.wthreads,
 			ROLE_MANAGER,
 			cfg.cluster_addr,
 			cfg.connect_timeout_msec,
 			cfg.connect_retry_limit)
+{ }
+
+template <typename Config>
+void framework::run(const Config& cfg)
 {
+	init_wavy(cfg.rthreads, cfg.wthreads);  // wavy_server
+	listen_cluster(cfg.cluster_lsock);  // cluster_logic
+	start_timeout_step(cfg.clock_interval_usec);  // rpc_server
+	start_keepalive(cfg.keepalive_interval_usec);  // rpc_server
 	LOG_INFO("start manager ",addr());
 	TLOGPACK("SM",2,
 			"addr", cfg.cluster_addr,
 			"Padd", share->partner());
-	listen_cluster(cfg.cluster_lsock);  // cluster_logic
-	start_timeout_step(cfg.clock_interval_usec);  // rpc_server
-	start_keepalive(cfg.keepalive_interval_usec);  // rpc_server
 }
 
 template <typename Config>

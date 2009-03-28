@@ -216,7 +216,6 @@ public:
 	}
 
 	void init_stream(int lsock);
-	void run_stream();
 	void stop_stream();
 
 private:

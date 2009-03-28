@@ -149,7 +149,7 @@ int main(int argc, char* argv[])
 
 	// run server
 	server::init(arg);
-	server::net->run();
+	server::net->run(arg);
 	server::net->join();
 
 	return 0;

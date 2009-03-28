@@ -165,7 +165,7 @@ int main(int argc, char* argv[])
 	if(mpb.get()) { gateway::add_gate(mpb.get()); }
 	if(cl.get())  { gateway::add_gate(cl.get());  }
 
-	gateway::net->run();
+	gateway::net->run(arg);
 	gateway::net->join();
 }
 

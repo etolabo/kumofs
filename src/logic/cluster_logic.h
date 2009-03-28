@@ -20,12 +20,11 @@ using rpc::shared_peer;
 template <typename Framework>
 class cluster_logic : public rpc_server<Framework>, public rpc::cluster {
 public:
-	cluster_logic(unsigned short rthreads, unsigned short wthreads,
+	cluster_logic(
 			role_type self_id,
 			const address& self_addr,
 			unsigned int connect_timeout_msec,
 			unsigned short connect_retry_limit) :
-		rpc_server<Framework>(rthreads, wthreads),
 		rpc::cluster(
 				self_id,
 				self_addr,

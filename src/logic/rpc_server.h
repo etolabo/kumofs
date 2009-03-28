@@ -30,10 +30,7 @@ using mp::pthread_scoped_wrlock;
 template <typename Framework>
 class rpc_server : public wavy_server {
 public:
-	rpc_server(unsigned short rthreads, unsigned short wthreads)
-	{
-		init_wavy(rthreads, wthreads);
-	}
+	rpc_server() { }
 
 	~rpc_server() { }
 

@@ -73,7 +73,7 @@ int main(int argc, char* argv[])
 
 	// run server
 	manager::init(arg);
-	manager::net->run();
+	manager::net->run(arg);
 	manager::net->join();
 
 	return 0;

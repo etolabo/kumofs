@@ -5,10 +5,10 @@ include Chukan::Test
 LOOP_RESTART = (ARGV[0] ||  30).to_i
 SLEEP        = (ARGV[1] ||   1).to_i
 NUM_STORE    = (ARGV[2] || 100).to_i
-NUM_THREAD   = (ARGV[3] ||   4).to_i
+NUM_THREAD   = (ARGV[3] ||   1).to_i
 
 mgr1, mgr2, gw, srv1, srv2, srv3 = init_cluster(true, 3)
-begin
+test "run normally" do
 
 	tester = RandomTester.start_threads(gw, NUM_THREAD, NUM_STORE)
 
@@ -34,7 +34,7 @@ begin
 	tester.each {|ra| ra.stop }
 	tester.each {|ra| ra.join }
 
-ensure
-	term_daemons(srv1, srv2, srv3, gw, mgr1, mgr2)
+	true
 end
+term_daemons(srv1, srv2, srv3, gw, mgr1, mgr2)
 

@@ -4,9 +4,10 @@
 namespace kumo {
 
 
-wavy_server::wavy_server() :
-	m_core_threads(0), m_output_threads(0)
-{ }
+wavy_server::wavy_server()
+{
+	wavy::initialize(0, 0);
+}
 
 wavy_server::~wavy_server() { }
 
@@ -53,6 +54,7 @@ namespace {
 	}
 }  // noname namespace
 
+
 void wavy_server::init_wavy(unsigned short rthreads, unsigned short wthreads)
 {
 	// ignore SIGPIPE
@@ -72,17 +74,8 @@ void wavy_server::init_wavy(unsigned short rthreads, unsigned short wthreads)
 				get_signal_handler(),
 				reinterpret_cast<void*>(this)) );
 
-	// initialize wavy
-	m_core_threads = rthreads;
-	m_output_threads = wthreads;
-	wavy::initialize(0,0);
-}
-
-
-void wavy_server::run()
-{
-	wavy::add_output_thread(m_output_threads);
-	wavy::add_core_thread(m_core_threads);
+	wavy::add_core_thread(rthreads);
+	wavy::add_output_thread(wthreads);
 }
 
 void wavy_server::join()

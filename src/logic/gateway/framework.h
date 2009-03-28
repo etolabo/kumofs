@@ -14,14 +14,14 @@ public:
 	template <typename Config>
 	framework(const Config& cfg);
 
+	template <typename Config>
+	void run(const Config& cfg);
+
 	void dispatch(
 			shared_session from, weak_responder response,
 			rpc::method_id method, rpc::msgobj param, auto_zone z);
 
 	void session_lost(const address& addr, shared_session& s);
-
-	// override wavy_server::run
-	virtual void run();
 
 	// rpc_server
 	void keep_alive()

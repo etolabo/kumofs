@@ -43,6 +43,9 @@ public:
 	template <typename Config>
 	framework(const Config& cfg);
 
+	template <typename Config>
+	void run(const Config& cfg);
+
 	void cluster_dispatch(
 			shared_node from, weak_responder response,
 			rpc::method_id method, rpc::msgobj param, auto_zone z);
@@ -54,8 +57,7 @@ public:
 	void new_node(address addr, role_type id, shared_node n);
 	void lost_node(address addr, role_type id);
 
-	// override wavy_server::run
-	virtual void run();
+	// override wavy_server::end_preprocess
 	virtual void end_preprocess();
 
 	// rpc_server

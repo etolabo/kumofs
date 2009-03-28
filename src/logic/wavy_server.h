@@ -22,6 +22,7 @@ public:
 	void do_after(unsigned int steps, mp::function<void ()> func);
 
 protected:
+	// call this function before starting any threads
 	void init_wavy(unsigned short rthreads, unsigned short wthreads);
 
 	virtual void end_preprocess() { }
@@ -29,7 +30,6 @@ protected:
 	void step_do_after();
 
 public:
-	virtual void run();
 	virtual void join();
 
 	void signal_handler(int signo);

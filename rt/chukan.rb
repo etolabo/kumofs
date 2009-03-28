@@ -151,7 +151,7 @@ module Chukan
 		end
 
 		def signal(sig)
-			Process.kill(sig, @pid)
+			Process.kill(sig, @pid) rescue nil
 			self
 		end
 
