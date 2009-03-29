@@ -154,14 +154,14 @@ void proto_replace::replace_copy(const address& manager_addr, HashSpace& hs)
 
 	LOG_INFO("start replace copy for time(",replace_time.get(),")");
 
-	pthread_scoped_wrlock whlock(share->whs_mutex());
+	pthread_scoped_wrlock whlk(share->whs_mutex());
 	pthread_scoped_wrlock rhlk(share->rhs_mutex());
 
 	HashSpace srchs(share->rhs());
-	whlock.unlock();
+	rhlk.unlock();
 
 	share->whs() = hs;
-	whlock.unlock();
+	whlk.unlock();
 
 	HashSpace& dsths(hs);
 
@@ -315,9 +315,10 @@ void proto_replace::replace_delete(shared_node& manager, HashSpace& hs)
 {
 	pthread_scoped_rdlock whlk(share->whs_mutex());
 
-	pthread_scoped_wrlock rhlk(share->rhs_mutex());
-	share->rhs() = share->whs();
-	rhlk.unlock();
+	{
+		pthread_scoped_wrlock rhlk(share->rhs_mutex());
+		share->rhs() = share->whs();
+	}
 
 	LOG_INFO("start replace delete for time(",share->whs().clocktime().get(),")");
 

@@ -115,7 +115,8 @@ extern std::auto_ptr<resource> share;
 
 inline bool resource::update_rhs(const HashSpace::Seed& seed, REQUIRE_HSLK_WRLOCK)
 {
-	if(m_rhs.empty() || m_rhs.clocktime() <= seed.clocktime()) {
+	if(m_rhs.empty() ||
+			(m_rhs.clocktime() <= seed.clocktime() && !seed.empty())) {
 		m_rhs = HashSpace(seed);
 		return true;
 	} else {
@@ -125,7 +126,8 @@ inline bool resource::update_rhs(const HashSpace::Seed& seed, REQUIRE_HSLK_WRLOC
 
 inline bool resource::update_whs(const HashSpace::Seed& seed, REQUIRE_HSLK_WRLOCK)
 {
-	if(m_whs.empty() || m_whs.clocktime() <= seed.clocktime()) {
+	if(m_whs.empty() ||
+			(m_whs.clocktime() <= seed.clocktime() && !seed.empty())) {
 		m_whs = HashSpace(seed);
 		return true;
 	} else {

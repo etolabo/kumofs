@@ -52,14 +52,16 @@ RPC_IMPL(proto_network, HashSpaceSync, req, z, response)
 
 	pthread_scoped_wrlock whlk(share->whs_mutex());
 
-	if(share->whs().clocktime() <= ClockTime(req.param().wseed.clocktime())) {
+	if(share->whs().clocktime() <= req.param().wseed.clocktime() &&
+			!req.param().wseed.empty()) {
 		share->whs() = HashSpace(req.param().wseed);
 		ret = true;
 	}
 
 	pthread_scoped_wrlock rhlk(share->rhs_mutex());
 
-	if(share->rhs().clocktime() <= ClockTime(req.param().rseed.clocktime())) {
+	if(share->rhs().clocktime() <= req.param().rseed.clocktime() &&
+			!req.param().rseed.empty()) {
 		share->rhs() = HashSpace(req.param().rseed);
 		ret = true;
 	}

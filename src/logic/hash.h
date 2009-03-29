@@ -201,7 +201,7 @@ public:
 		define_type(msgpack_type( hs.m_nodes, hs.m_timestamp )) {}
 	const nodes_t& nodes()     const { return get<0>(); }
 	ClockTime      clocktime() const { return get<1>(); }
-	bool           empty()     const { return get<0>().empty(); }
+	bool           empty()     const;
 };
 
 inline HashSpace::HashSpace(const Seed& seed) :
@@ -231,6 +231,15 @@ inline HashSpace::iterator HashSpace::find(uint64_t h) const
 inline bool HashSpace::empty() const
 {
 	for(nodes_t::const_iterator it(m_nodes.begin()), it_end(m_nodes.end());
+			it != it_end; ++it) {
+		if(it->is_active()) { return false; }
+	}
+	return true;
+}
+
+inline bool HashSpace::Seed::empty() const
+{
+	for(nodes_t::const_iterator it(get<0>().begin()), it_end(get<0>().end());
 			it != it_end; ++it) {
 		if(it->is_active()) { return false; }
 	}
