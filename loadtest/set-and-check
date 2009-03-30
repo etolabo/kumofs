@@ -164,7 +164,7 @@ MAIN: {
         my $l = sprintf("host: %-12s ", $host);
 
         my $amcd = Cache::Memcached::Fast->new({servers => [ $host ],
-                                                io_timeout => 6.0,
+                                                io_timeout => 60.0,
                                             }) or croak $!;
 
         ## check value

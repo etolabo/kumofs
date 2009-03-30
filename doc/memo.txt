@@ -1,6 +1,7 @@
 ?title Kumofs memo -- Kumo Fast Storage rev.1012
 ?author FURUHASHI Sadayuki
 
+?css user.css
 
 *概要
 kumofsはkey-value型のデータを保存する分散ストレージ。key=>valueを保存する''set''、keyを取得する''get''、keyを削除する''delete''の3つの操作をサポートする。

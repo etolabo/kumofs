@@ -1,0 +1,51 @@
+
+body {
+	margin: 0;
+}
+
+h1 {
+	margin: 2em 0.2em 0 0.3em;
+	padding: 0.1em 0.1em 0.1em 0.4em;
+	border-left: 5px solid red;
+}
+
+h2 {
+	border-bottom: 1px solid red;
+	padding-left: 0.3em;
+	margin-top: 2em;
+}
+
+h3 {
+	border-bottom: 1px solid #aaaaff;
+	padding-left: 0.5em;
+	margin-top: 2em;
+}
+
+h4 {
+	padding-left: 0.5em;
+	margin-bottom: 0;
+}
+
+p {
+	margin: 1em;
+	line-height: 150%;
+}
+
+pre {
+	color: white;
+	background-color: #333333;
+	border: 1px solid black;
+	padding: 0.5em;
+	margin: 1em;
+}
+
+dl {
+	margin: 1em;
+	line-height: 150%;
+}
+
+dt {
+	font-weight: bold;
+	margin-top: 0.1em;
+}
+
