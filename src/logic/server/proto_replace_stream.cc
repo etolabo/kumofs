@@ -304,6 +304,7 @@ try {
 
 	LOG_DEBUG("send offer storage to ",iaddr);
 	accum->send(fd);
+	sleep(2);   // FIXME XXX ad-hoc write wait
 	LOG_DEBUG("finish to send offer storage to ",iaddr);
 
 	pthread_scoped_lock relk(net->scope_proto_replace().state_mutex());
