@@ -3,7 +3,7 @@ require 'common'
 include Chukan::Test
 
 LOOP_RESTART = (ARGV[0] ||  30).to_i
-SLEEP        = (ARGV[1] ||   1).to_i
+SLEEP        = (ARGV[1] ||   2).to_i
 NUM_STORE    = (ARGV[2] || 100).to_i
 NUM_THREAD   = (ARGV[3] ||   1).to_i
 

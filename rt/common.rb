@@ -154,6 +154,7 @@ end
 
 def restart_srv(srv, *mgrs)
 	srv.kill.join
+	mgrs[0].stdout_join("lost node")
 	srv = Server.new(srv.index, *mgrs)
 	mgrs[0].stdout_join("new node")
 	mgrs[0].attach.join
