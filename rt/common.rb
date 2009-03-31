@@ -143,23 +143,31 @@ def init_cluster(manager2, num_srv)
 end
 
 
-def restart_mgr(mgr, partner)
-	mgr.kill.join
+def start_mgr(mgr, partner)
 	mgr = Manager.new(mgr.index, partner)
 	mgr.stdout_join("partner connected")
 	partner.stdout_join("partner connected")
 	mgr
 end
 
+def restart_mgr(mgr, partner)
+	mgr.kill.join
+	start_mgr(mgr, partner)
+end
 
-def restart_srv(srv, *mgrs)
-	srv.kill.join
-	mgrs[0].stdout_join("lost node")
+
+def start_srv(srv, *mgrs)
 	srv = Server.new(srv.index, *mgrs)
 	mgrs[0].stdout_join("new node")
 	mgrs[0].attach.join
 	mgrs[0].stdout_join("replace finished")
 	srv
+end
+
+def restart_srv(srv, *mgrs)
+	srv.kill.join
+	mgrs[0].stdout_join("lost node")
+	start_srv(srv, *mgrs)
 end
 
 
