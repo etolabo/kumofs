@@ -181,7 +181,7 @@ void proto_replace::replace_copy(const address& manager_addr, HashSpace& hs)
 		}
 	
 		if(src_nodes.empty() || dst_nodes.empty()) {
-			LOG_INFO("empty hash space. skip replacing.");
+			LOG_WARN("empty hash space. skip replacing.");
 			goto skip_replace;
 		}
 	

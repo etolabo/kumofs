@@ -266,7 +266,7 @@ try {
 
 	scopeout_close fdscope(fd);
 	if(::fcntl(fd, F_SETFL, 0) < 0) {  // set blocking mode
-		LOG_ERROR("stream connect: fcntl failed", strerror(err));
+		LOG_ERROR("stream connect: fcntl failed: ", strerror(err));
 		return;
 	}
 
@@ -279,7 +279,7 @@ try {
 		while(true) {
 			ssize_t rl = ::read(fd, p, sz);
 			if(rl <= 0) {
-				LOG_ERROR("failed to recv init address", strerror(err));
+				LOG_ERROR("failed to recv init address: ", strerror(err));
 				return;
 			}
 			if((size_t)rl >= sz) { break; }
@@ -321,16 +321,16 @@ try {
 
 void proto_replace_stream::stream_connected(int fd, int err)
 try {
-	LOG_TRACE("stream connected fd(",fd,") err:",err);
+	LOG_TRACE("stream connected fd(",fd,") err: ",err);
 	if(fd < 0) {
-		LOG_ERROR("stream connect failed", strerror(err));
+		LOG_ERROR("stream connect failed: ", strerror(err));
 		return;
 	}
 
 	scopeout_close fdscope(fd);
 
 	if(::fcntl(fd, F_SETFL, 0) < 0) {  // set blocking mode
-		LOG_ERROR("stream connect: fcntl failed", strerror(err));
+		LOG_ERROR("stream connect: fcntl failed: ", strerror(err));
 		return;
 	}
 
@@ -345,7 +345,7 @@ try {
 		while(true) {
 			ssize_t rl = ::write(fd, p, sz);
 			if(rl <= 0) {
-				LOG_ERROR("failed to send init address", strerror(err));
+				LOG_ERROR("failed to send init address: ", strerror(err));
 				return;
 			}
 			if((size_t)rl >= sz) { break; }
