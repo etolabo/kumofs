@@ -110,6 +110,7 @@ score: 100
 require 'stringio'
 require 'strscan'
 require 'monitor'
+require 'fcntl'
 
 
 module Chukan
@@ -142,12 +143,12 @@ module Chukan
 			@status
 		end
 
-		def stdout_join(pattern)
-			io_join(@stdout, pattern)
+		def stdout_join(pattern, &block)
+			io_join(@stdout, pattern, &block)
 		end
 
-		def stderr_join(pattern)
-			io_join(@stderr, pattern)
+		def stderr_join(pattern, &block)
+			io_join(@stderr, pattern, &block)
 		end
 
 		def signal(sig)
@@ -168,11 +169,13 @@ module Chukan
 		end
 
 		private
-		def io_join(io, pattern)
+		def io_join(io, pattern, &block)
+			io.read if block
 			if pattern.is_a?(String)
 				pattern = Regexp.new(Regexp.escape(pattern))
 			end
 			match = nil
+			yield if block
 			io.synchronize {
 				until match = io.scanner.scan_until(pattern)
 					if io.closed_write?
@@ -203,6 +206,9 @@ module Chukan
 			stdin.close
 			pout.close
 			perr.close
+			@stdin.fcntl(Fcntl::F_SETFD, Fcntl::FD_CLOEXEC)
+			@pout.fcntl(Fcntl::F_SETFD, Fcntl::FD_CLOEXEC)
+			@perr.fcntl(Fcntl::F_SETFD, Fcntl::FD_CLOEXEC)
 
 			@msg_prefix = "[%-12s %6d] " % [@shortname, @pid]
 			$stdout.puts "#{@msg_prefix}#{@cmdline.join(' ')}"

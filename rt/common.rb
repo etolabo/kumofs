@@ -208,7 +208,7 @@ class RandomTester
 					begin
 						@client.set(k, v)
 					rescue
-						raise "set failed '#{k}' => '#{v}': #{$!.inspect}"
+						raise "set failed #{k.inspect} => #{v.inspect}: #{$!.inspect}"
 					end
 				}
 				true
@@ -219,11 +219,11 @@ class RandomTester
 					begin
 						r = @client.get(k)
 					rescue
-						raise "get failed '#{k}': #{$!.inspect}"
+						raise "get failed #{k.inspect}: #{$!.inspect}"
 					end
 					r = r[0] if r.is_a?(Array)  # Ruby 1.9
 					unless r == v
-						raise "get '#{k}' expects '#{v}' but '#{r}'"
+						raise "get #{k.inspect} expects #{v.inspect} but #{r.inspect}"
 					end
 				}
 				true
