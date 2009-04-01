@@ -42,6 +42,7 @@ public:
 public:
 	void add(const char* key, size_t keylen,
 			const char* val, size_t vallen);
+	void flush();
 	void send(int sock);
 
 	const address& addr() const { return m_addr; }
@@ -91,6 +92,8 @@ RPC_IMPL(proto_replace_stream, ReplaceOffer, req, z, response)
 
 void proto_replace_stream::send_offer(proto_replace_stream::offer_storage& offer, ClockTime replace_time)
 {
+	offer.flush();  // add nil-terminate
+
 	pthread_scoped_lock oflk(m_accum_set_mutex);
 	offer.commit(&m_accum_set);
 
@@ -165,6 +168,14 @@ void proto_replace_stream::offer_storage::add(
 	}
 }
 
+void proto_replace_stream::offer_storage::flush()
+{
+	for(accum_set_t::iterator it(m_set.begin()),
+			it_end(m_set.end()); it != it_end; ++it) {
+		(*it)->flush();
+	}
+}
+
 void proto_replace_stream::offer_storage::commit(accum_set_t* dst)
 {
 	*dst = m_set;
@@ -229,6 +240,12 @@ void proto_replace_stream::stream_accumulator::add(
 	pk.pack_raw_body(val, vallen);
 }
 
+void proto_replace_stream::stream_accumulator::flush()
+{
+	msgpack::packer<zmmap_stream> pk(*m_mmap_stream);
+	pk.pack_nil();
+}
+
 void proto_replace_stream::stream_accumulator::send(int sock)
 {
 	m_mmap_stream->flush();
@@ -289,7 +306,7 @@ try {
 		iaddr = address(addrbuf+1, (uint8_t)addrbuf[0]);
 	}
 
-	// take out stream_accumulator from m_accum_set
+	// take stream_accumulator from m_accum_set
 	shared_stream_accumulator accum;
 	{
 		pthread_scoped_lock oflk(m_accum_set_mutex);
@@ -304,7 +321,25 @@ try {
 
 	LOG_DEBUG("send offer storage to ",iaddr);
 	accum->send(fd);
-	sleep(2);   // FIXME XXX ad-hoc write wait
+
+	while(true) {
+		struct timeval timeout = {20, 0};  // FIXME
+		if(::setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO,
+					&timeout, sizeof(timeout)) < 0) {
+			throw std::runtime_error("can't set SO_RCVTIMEO");
+		}
+		char buf[1];
+		if(::read(fd, buf, sizeof(buf)) <= 0) {
+			if(errno == EINTR) { continue; }
+			if(errno == EAGAIN) {
+				throw std::runtime_error("read stream response timed out");
+			} else {
+				throw std::runtime_error("can't read stream response");
+			}
+		}
+		break;
+	}
+
 	LOG_DEBUG("finish to send offer storage to ",iaddr);
 
 	pthread_scoped_lock relk(net->scope_proto_replace().state_mutex());
@@ -380,6 +415,13 @@ public:
 
 void proto_replace_stream::stream_handler::submit_message(rpc::msgobj msg, rpc::auto_zone& z)
 {
+	if(msg.is_nil()) {
+		msgpack::sbuffer buf(8);
+		msgpack::packer<msgpack::sbuffer>(buf).pack_nil();
+		wavy::write(fd(), buf.data(), buf.size());
+		return;
+	}
+
 	msgpack::type::tuple<msgtype::DBKey, msgtype::DBValue> kv(msg);
 	msgtype::DBKey key = kv.get<0>();
 	msgtype::DBValue val = kv.get<1>();

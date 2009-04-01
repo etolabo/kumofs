@@ -232,6 +232,7 @@ public:
 		void add(const address& addr,
 				const char* key, size_t keylen,
 				const char* val, size_t vallen);
+		void flush();
 		void commit(accum_set_t* dst);
 	private:
 		accum_set_t m_set;
