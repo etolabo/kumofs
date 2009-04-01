@@ -1,7 +1,7 @@
 
-1. cd .. && make && cd rt
+1. ./bootstrap && ./configure && make
 
 2. gem install Ruby-MemCache
 
-3. ./srv_kill_up.rb
+3. prove rt/*.rt
 

@@ -2,26 +2,30 @@
 require 'common'
 include Chukan::Test
 
-LOOP_RESTART = (ARGV[0] ||  10).to_i
-SLEEP        = (ARGV[1] ||   1).to_i
+LOOP_RESTART = (ARGV[0] ||  20).to_i
+SLEEP        = (ARGV[1] ||   2).to_i
 NUM_STORE    = (ARGV[2] || 100).to_i
 NUM_THREAD   = (ARGV[3] ||   1).to_i
 
 mgr, gw, srv1, srv2, srv3 = init_cluster(false, 3)
-test "run normally" do
 
+mgrs = [ref(mgr)]
+srvs = [ref(srv1), ref(srv2), ref(srv3)]
+
+test "run normally" do
 	tester = RandomTester.start_threads(gw, NUM_THREAD, NUM_STORE)
 
 	LOOP_RESTART.times {
 		sleep SLEEP
-		case rand(3)
-		when 0
-			srv1 = restart_srv(srv1, mgr)
-		when 1
-			srv2 = restart_srv(srv2, mgr)
-		when 2
-			srv3 = restart_srv(srv3, mgr)
-		end
+		k1, k2 = srvs.shuffle[0,2]
+
+		k1.get.kill
+		k2.get.kill
+		k1.get.join
+		k2.get.join
+
+		k1.set start_srv(k1.get, mgr)
+		k2.set start_srv(k2.get, mgr)
 	}
 
 	tester.each {|ra| ra.stop }
@@ -29,5 +33,5 @@ test "run normally" do
 
 	true
 end
-term_daemons(srv1, srv2, srv3, gw, mgr)
+term_daemons *(mgrs + srvs).map {|r| r.get }
 

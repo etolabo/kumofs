@@ -177,6 +177,23 @@ def term_daemons(*ds)
 end
 
 
+class Ref
+	def initialize(obj = nil)
+		@obj = obj
+	end
+	def get
+		@obj
+	end
+	def set(obj)
+		@obj = obj
+	end
+end
+
+def ref(obj = nil)
+	Ref.new(obj)
+end
+
+
 class RandomTester
 	def initialize(gw, num_store)
 		@client = gw.client
