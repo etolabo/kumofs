@@ -170,12 +170,16 @@ module Chukan
 
 		private
 		def io_join(io, pattern, &block)
-			io.read if block
 			if pattern.is_a?(String)
 				pattern = Regexp.new(Regexp.escape(pattern))
 			end
+			if block
+				io.synchronize {
+					io.read
+				}
+				yield
+			end
 			match = nil
-			yield if block
 			io.synchronize {
 				until match = io.scanner.scan_until(pattern)
 					if io.closed_write?

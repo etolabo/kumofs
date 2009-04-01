@@ -200,8 +200,9 @@ class RandomTester
 
 	private
 	def run(num_store)
+		pid = Process.pid
 		until @end_flag
-			source = (1..num_store).to_a.shuffle.map {|x| ["key#{x}", "val#{x}"] }
+			source = (1..num_store).to_a.shuffle.map {|x| ["#{pid}-key#{x}", "val#{x}"] }
 
 			test "set value" do
 				source.each {|k, v|

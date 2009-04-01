@@ -41,21 +41,25 @@ test "run normally" do
 		mgr.stdout_join("lost node") do
 			k1.get.kill.join
 		end
-		mgr.stdout_join("new node") do
+		mgr.stdout_join("server connected") do
 			k1.set Server.new(k1.get.index, mgr1, mgr2)
 		end
 
+		sleep 4
 		ctl = nil
 		mgr.stdout_join("start replace copy") do
 			ctl = mgr.attach
 		end
 
-		k2.get.kill.join
-		mgr.stdout_join("new node") do
+		mgr.stdout_join("lost node") do
+			k2.get.kill.join
+		end
+		mgr.stdout_join("server connected") do
 			k2.set Server.new(k2.get.index, mgr1, mgr2)
 		end
 
 		ctl.join
+		sleep 4
 		mgr.stdout_join("replace finished") do
 			mgr.attach.join
 		end
