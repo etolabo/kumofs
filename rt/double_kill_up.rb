@@ -34,16 +34,12 @@ test "run normally" do
 
 	LOOP_RESTART.times {
 		sleep SLEEP
-#		#k1 = (mgrs + srvs).choice
-#		#k1 = mgrs.choice
-#		k1 = srvs.choice
-#		if k1.get.is_a?(Manager)
-#			k2 = srvs.choice
-#		else
-#			#k2 = (mgrs + srvs - [k1]).choice
-#			k2 = mgrs.choice
-#		end
-		k1, k2 = srvs.shuffle[0,2]
+		k1 = (mgrs + srvs).choice
+		if k1.get.is_a?(Manager)
+			k2 = srvs.choice
+		else
+			k2 = (mgrs + srvs - [k1]).choice
+		end
 
 		k1.get.kill
 		k2.get.kill
@@ -54,7 +50,8 @@ test "run normally" do
 			if k.get.is_a?(Manager)
 				k.set start_mgr(k.get, (mgrs-[k]).first.get)
 			else
-				k.set start_srv(k.get, *(mgrs-[k1,k2]).map{|m|m.get})
+				# XXX FIXME!!!
+				k.set start_srv(k.get, *mgrs.map{|m|m.get})
 			end
 		}
 	}
