@@ -51,12 +51,25 @@ RPC_IMPL(proto_network, HashSpaceSync, req, z, response)
 	bool ret = false;
 
 	pthread_scoped_wrlock whlk(share->whs_mutex());
+//	typedef std::vector<HashSpace::node> nodes_t;
 
 	if(share->whs().clocktime() <= req.param().wseed.clocktime() &&
 			!req.param().wseed.empty()) {
 		share->whs() = HashSpace(req.param().wseed);
 		ret = true;
 	}
+//	if(share->whs().clocktime() <= req.param().wseed.clocktime() &&
+//			!req.param().wseed.empty()) {
+//		for(nodes_t::const_iterator it(req.param().wseed.nodes().begin()),
+//				it_end(req.param().wseed.nodes().end()); it != it_end; ++it) {
+//			if(!it->is_active()) {
+//LOG_ERROR("whs fault: ",it->addr());
+//				if(share->whs().fault_server(req.param().wseed.clocktime(), it->addr())) {
+//					ret = true;
+//				}
+//			}
+//		}
+//	}
 
 	pthread_scoped_wrlock rhlk(share->rhs_mutex());
 
@@ -65,6 +78,18 @@ RPC_IMPL(proto_network, HashSpaceSync, req, z, response)
 		share->rhs() = HashSpace(req.param().rseed);
 		ret = true;
 	}
+//	if(share->rhs().clocktime() <= req.param().rseed.clocktime() &&
+//			!req.param().rseed.empty()) {
+//		for(nodes_t::const_iterator it(req.param().rseed.nodes().begin()),
+//				it_end(req.param().rseed.nodes().end()); it != it_end; ++it) {
+//			if(!it->is_active()) {
+//LOG_ERROR("rhs fault: ",it->addr());
+//				if(share->rhs().fault_server(req.param().rseed.clocktime(), it->addr())) {
+//					ret = true;
+//				}
+//			}
+//		}
+//	}
 
 	rhlk.unlock();
 	whlk.unlock();

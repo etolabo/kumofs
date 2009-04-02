@@ -44,7 +44,7 @@ void HashSpace::add_server(ClockTime clocktime, const address& addr)
 	m_timestamp = clocktime;
 	m_nodes.push_back( node(addr,true) );
 	add_virtual_nodes(m_nodes.back());
-	std::sort(m_hashspace.begin(), m_hashspace.end());
+	std::stable_sort(m_hashspace.begin(), m_hashspace.end());
 }
 
 bool HashSpace::remove_server(ClockTime clocktime, const address& addr)
@@ -124,7 +124,7 @@ void HashSpace::rehash()
 			it != it_end; ++it) {
 		add_virtual_nodes(*it);
 	}
-	std::sort(m_hashspace.begin(), m_hashspace.end());
+	std::stable_sort(m_hashspace.begin(), m_hashspace.end());
 
 	for(hashspace_t::const_iterator x(m_hashspace.begin()), x_end(m_hashspace.end());
 			x != x_end; ++x) {

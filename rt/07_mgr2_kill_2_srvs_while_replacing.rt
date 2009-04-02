@@ -28,7 +28,7 @@ test "run normally" do
 		mgr.stdout_join("server connected") do
 			k1.set Server.new(k1.get.index, mgr1, mgr2)
 		end
-		sleep 1
+		sleep 2
 
 		ctl = nil
 		mgr.stdout_join("start replace copy") do
@@ -43,7 +43,7 @@ test "run normally" do
 		mgr.stdout_join("server connected") do
 			k2.set Server.new(k2.get.index, mgr1, mgr2)
 		end
-		sleep 1
+		sleep 2
 
 		ctl.join
 		mgr.stdout_join("replace finished") do

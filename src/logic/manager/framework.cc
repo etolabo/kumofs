@@ -85,7 +85,6 @@ void framework::lost_node(address addr, role_type id)
 		// FIXME delayed change
 		scope_proto_replace().remove_server(addr);
 		return;
-
 	}
 }
 
