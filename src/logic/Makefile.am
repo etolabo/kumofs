@@ -54,18 +54,14 @@ kumo_server_LDADD  = \
 
 kumo_gateway_SOURCES = \
 		gateway/framework.cc \
-		gateway/interface.cc \
+		gateway/gate.cc \
 		gateway/main.cc \
 		gateway/proto_network.cc \
-		gateway/scope_store.cc \
-		gateway/gate_cloudy.cc \
-		gateway/gate_memproto.cc \
-		gateway/gate_memtext.cc \
-		gateway/memproto/memproto.c \
-		gateway/memproto/memtext.c
+		gateway/scope_store.cc
 
 kumo_gateway_LDADD  = \
 		libkumo_logic.a \
+		../gate/libkumo_gate.a \
 		../kazuhiki/libkazuhiki.a \
 		../log/libkumo_log.a \
 		../rpc/libkumo_rpc.a \
@@ -95,27 +91,13 @@ noinst_HEADERS = \
 		server/zconnection.h \
 		gateway/framework.h \
 		gateway/init.h \
-		gateway/interface.h \
-		gateway/scope_store.h \
-		gateway/gate_cloudy.h \
-		gateway/gate_memproto.h \
-		gateway/gate_memtext.h \
-		gateway/memproto/memproto.h \
-		gateway/memproto/memtext.h
+		gateway/scope_store.h
 
 EXTRA_DIST = \
 		protogen \
 		gateway.proto.h \
 		manager.proto.h \
-		server.proto.h \
-		gateway/memproto/memtext.rl
-
-gateway/memproto/memtext.c: gateway/memproto/memtext.rl
-	$(RAGEL) -C $< -o $@.tmp
-	mv $@.tmp $@
-
-MOSTLYCLEANFILES = \
-		gateway/memproto/memtext.c
+		server.proto.h
 
 
 # work around for duplicated file name

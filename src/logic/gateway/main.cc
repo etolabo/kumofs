@@ -1,9 +1,9 @@
 #include "logic/boot.h"
 #include "gateway/framework.h"
 #include "gateway/init.h"
-#include "gateway/gate_memtext.h"
-#include "gateway/gate_memproto.h"
-#include "gateway/gate_cloudy.h"
+#include "gate/memcache_text.h"
+#include "gate/memcache_binary.h"
+#include "gate/cloudy.h"
 
 using namespace kumo;
 
@@ -28,13 +28,13 @@ struct arg_t : rpc_args {
 	bool async_replicate_set;
 	bool async_replicate_delete;
 
-	bool memtext_set;
-	sockaddr_in memtext_addr_in;
-	int memtext_lsock;  // convert
+	bool mctext_set;
+	sockaddr_in mctext_addr_in;
+	int mctext_lsock;  // convert
 
-	bool memproto_set;
-	sockaddr_in memproto_addr_in;
-	int memproto_lsock;  // convert
+	bool mcbin_set;
+	sockaddr_in mcbin_addr_in;
+	int mcbin_lsock;  // convert
 
 	bool cloudy_set;
 	sockaddr_in cloudy_addr_in;
@@ -45,14 +45,14 @@ struct arg_t : rpc_args {
 		manager1 = rpc::address(manager1_in);
 		manager2 = rpc::address(manager2_in);
 
-		if(!memtext_set && !memproto_set && !cloudy_set) {
+		if(!mctext_set && !mcbin_set && !cloudy_set) {
 			throw std::runtime_error("-t, -b or -c is required");
 		}
-		if(memtext_set) {
-			memtext_lsock = scoped_listen_tcp::listen(memtext_addr_in);
+		if(mctext_set) {
+			mctext_lsock = scoped_listen_tcp::listen(mctext_addr_in);
 		}
-		if(memproto_set) {
-			memproto_lsock = scoped_listen_tcp::listen(memproto_addr_in);
+		if(mcbin_set) {
+			mcbin_lsock = scoped_listen_tcp::listen(mcbin_addr_in);
 		}
 		if(cloudy_set) {
 			cloudy_lsock = scoped_listen_tcp::listen(cloudy_addr_in);
@@ -73,10 +73,10 @@ struct arg_t : rpc_args {
 				type::connectable(&manager1_in, MANAGER_DEFAULT_PORT));
 		on("-p", "--manager2", &manager2_set,
 				type::connectable(&manager2_in, MANAGER_DEFAULT_PORT));
-		on("-t", "--memproto-text", &memtext_set,
-				type::listenable(&memtext_addr_in, MEMTEXT_DEFAULT_PORT));
-		on("-b", "--memproto-binary", &memproto_set,
-				type::listenable(&memproto_addr_in, MEMPROTO_DEFAULT_PORT));
+		on("-t", "--memproto-text", &mctext_set,
+				type::listenable(&mctext_addr_in, MEMTEXT_DEFAULT_PORT));
+		on("-b", "--memproto-binary", &mcbin_set,
+				type::listenable(&mcbin_addr_in, MEMPROTO_DEFAULT_PORT));
 		on("-c", "--cloudy", &cloudy_set,
 				type::listenable(&cloudy_addr_in, CLOUDY_DEFAULT_PORT));
 		on("-G", "--get-retry",
@@ -141,12 +141,12 @@ int main(int argc, char* argv[])
 	init_mlogger(arg.logfile, arg.pidfile.empty(), loglevel);
 
 	// initialize gate
-	std::auto_ptr<Memtext> mpt;
-	std::auto_ptr<Memproto> mpb;
-	std::auto_ptr<Cloudy> cl;
-	if(arg.memtext_set)  { mpt.reset(new Memtext(arg.memtext_lsock));   }
-	if(arg.memproto_set) { mpb.reset(new Memproto(arg.memproto_lsock)); }
-	if(arg.cloudy_set)   { cl.reset(new Cloudy(arg.cloudy_lsock));      }
+	std::auto_ptr<MemcacheText> mctext;
+	std::auto_ptr<MemcacheBinary> mcbin;
+	std::auto_ptr<Cloudy> cloudy;
+	if(arg.mctext_set) { mctext.reset(new MemcacheText(arg.mctext_lsock)); }
+	if(arg.mcbin_set)  { mcbin.reset(new MemcacheBinary(arg.mcbin_lsock)); }
+	if(arg.cloudy_set) { cloudy.reset(new Cloudy(arg.cloudy_lsock)); }
 
 	// daemonize
 	if(!arg.pidfile.empty()) {
@@ -161,9 +161,9 @@ int main(int argc, char* argv[])
 	// run server
 	gateway::init(arg);
 
-	if(mpt.get()) { gateway::add_gate(mpt.get()); }
-	if(mpb.get()) { gateway::add_gate(mpb.get()); }
-	if(cl.get())  { gateway::add_gate(cl.get());  }
+	if(mctext.get()) { mctext->run(); }
+	if(mcbin.get())  { mcbin->run();  }
+	if(cloudy.get()) { cloudy->run(); }
 
 	gateway::net->run(arg);
 	gateway::net->join();

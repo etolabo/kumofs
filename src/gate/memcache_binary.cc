@@ -1,12 +1,14 @@
-#include "gateway/gate_memproto.h"
-#include "gateway/memproto/memproto.h"
+#include "gate/memcache_binary.h"
+#include "gate/memproto/memproto.h"
 #include "log/mlogger.h"
-#include "gateway/framework.h"  // FIXME net->signal_end()
 #include <mp/object_callback.h>
 #include <mp/stream_buffer.h>
 #include <stdexcept>
 #include <string.h>
 #include <errno.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <netinet/tcp.h>
 #include <sys/types.h>
 #include <sys/uio.h>
 #include <unistd.h>
@@ -15,47 +17,11 @@
 #include <deque>
 
 namespace kumo {
-
-
 namespace {
-	class handler;
-}
 
-
-Memproto::Memproto(int lsock) :
-	m_lsock(lsock) { }
-
-Memproto::~Memproto() {}
-
-
-void Memproto::accepted(int fd, int err)
-{
-	if(fd < 0) {
-		LOG_FATAL("accept failed: ",strerror(err));
-		gateway::net->signal_end();  // FIXME gateway::fatal_end()
-		return;
-	}
-#ifndef NO_TCP_NODELAY
-	int on = 1;
-	::setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &on, sizeof(on));  // ignore error
-#endif
-#ifndef NO_SO_LINGER
-	struct linger opt = {0, 0};
-	::setsockopt(fd, SOL_SOCKET, SO_LINGER, (void *)&opt, sizeof(opt));  // ignore error
-#endif
-	LOG_DEBUG("accept memproto text user fd=",fd);
-	wavy::add<handler>(fd);
-}
-
-void Memproto::listen()
-{
-	using namespace mp::placeholders;
-	wavy::listen(m_lsock,
-			mp::bind(&Memproto::accepted, _1, _2));
-}
-
-
-namespace {
+using gate::wavy;
+using gate::shared_zone;
+using gate::auto_zone;
 
 static const size_t MEMPROTO_INITIAL_ALLOCATION_SIZE = 32*1024;
 static const size_t MEMPROTO_RESERVE_SIZE = 4*1024;
@@ -94,29 +60,15 @@ private:
 	memproto_parser m_memproto;
 	mp::stream_buffer m_buffer;
 
-	typedef gateway::get_request gw_get_request;
-	typedef gateway::set_request gw_set_request;
-	typedef gateway::delete_request gw_delete_request;
-
-	typedef gateway::get_response gw_get_response;
-	typedef gateway::set_response gw_set_response;
-	typedef gateway::delete_response gw_delete_response;
-
-	typedef rpc::shared_zone shared_zone;
-
-	shared_zone m_zone;
-
-
 	struct entry;
-
 
 	class response_queue {
 	public:
 		response_queue(int fd);
 		~response_queue();
 
-		void push_entry(entry* e, shared_zone& life);
-		void reached_try_send(entry* e, shared_zone& life,
+		void push_entry(entry* e);
+		void reached_try_send(entry* e, auto_zone z,
 				struct iovec* vec, size_t veclen);
 
 		int is_valid() const;
@@ -127,6 +79,11 @@ private:
 		int m_fd;
 
 		struct element_t {
+			element_t(entry* a) : e(a), vec(NULL), veclen(0) { }
+
+			void filled() { e = NULL; }
+			bool is_filled() const { return e == NULL; }
+
 			entry* e;
 			shared_zone life;
 			struct iovec* vec;
@@ -160,27 +117,30 @@ private:
 		bool flag_key;
 		bool flag_quiet;
 	};
-	static void response_getx(void* user, gw_get_response& res);
+	static void response_getx(void* user,
+			gate::res_get& res, auto_zone z);
 
 
 	// set
 	struct set_entry : entry {
 	};
-	static void response_set(void* user, gw_set_response& res);
+	static void response_set(void* user,
+			gate::res_set& res, auto_zone z);
 
 
 	// delete
 	struct delete_entry : entry {
 	};
-	static void response_delete(void* user, gw_delete_response& res);
+	static void response_delete(void* user,
+			gate::res_delete& res, auto_zone z);
 
 
-	static void send_response_nosend(entry* e, shared_zone& life);
+	static void send_response_nosend(entry* e, auto_zone z);
 
-	static void send_response_nodata(entry* e, shared_zone& life,
+	static void send_response_nodata(entry* e, auto_zone z,
 			uint8_t status);
 
-	static void send_response(entry* e, shared_zone& life,
+	static void send_response(entry* e, auto_zone z,
 			uint8_t status,
 			const char* key, uint16_t keylen,
 			const void* val, uint16_t vallen,
@@ -214,10 +174,9 @@ inline void handler::response_queue::invalidate()
 }
 
 
-void handler::response_queue::push_entry(
-		entry* e, shared_zone& life)
+void handler::response_queue::push_entry(entry* e)
 {
-	element_t m = {e, life};
+	element_t m(e);
 
 	mp::pthread_scoped_lock mqlk(m_queue_mutex);
 	m_queue.push_back(m);
@@ -236,7 +195,7 @@ struct handler::response_queue::find_entry_compare {
 };
 
 void handler::response_queue::reached_try_send(
-		entry* e, shared_zone& life,
+		entry* e, auto_zone z,
 		struct iovec* vec, size_t veclen)
 {
 	mp::pthread_scoped_lock mqlk(m_queue_mutex);
@@ -249,15 +208,17 @@ void handler::response_queue::reached_try_send(
 		return;
 	}
 
-	found->e = NULL;
+	shared_zone life(z.release());
+
 	found->life = life;
 	found->vec = vec;
 	found->veclen = veclen;
+	found->filled();
 
 	do {
 		element_t& elem(m_queue.front());
 
-		if(elem.e) {
+		if(!elem.is_filled()) {
 			break;
 		}
 
@@ -335,42 +296,42 @@ void handler::pack_header(
 	*(uint32_t*)&hbuf[20] = htonl((uint32_t)(cas&0xffffffff));
 }
 
-void handler::send_response_nosend(entry* e, shared_zone& life)
+inline void handler::send_response_nosend(entry* e, auto_zone z)
 {
-	e->queue->reached_try_send(e, life, NULL, 0);
+	e->queue->reached_try_send(e, z, NULL, 0);
 }
 
 void handler::send_response_nodata(
-		entry* e, shared_zone& life,
+		entry* e, auto_zone z,
 		uint8_t status)
 {
-	char* header = (char*)life->malloc(MEMPROTO_HEADER_SIZE);
+	char* header = (char*)z->malloc(MEMPROTO_HEADER_SIZE);
 
 	pack_header(header, status, e->header.opcode,
 			0, 0, 0,
 			e->header.opaque, 0);  // cas = 0
 
-	struct iovec* vec = (struct iovec*)life->malloc(
+	struct iovec* vec = (struct iovec*)z->malloc(
 			sizeof(struct iovec) * 1);
 	vec[0].iov_base = header;
 	vec[0].iov_len  = MEMPROTO_HEADER_SIZE;
 
-	e->queue->reached_try_send(e, life, vec, 1);
+	e->queue->reached_try_send(e, z, vec, 1);
 }
 
 void handler::send_response(
-		entry* e, shared_zone& life,
+		entry* e, auto_zone z,
 		uint8_t status,
 		const char* key, uint16_t keylen,
 		const void* val, uint16_t vallen,
 		const char* extra, uint16_t extralen)
 {
-	char* header = (char*)life->malloc(MEMPROTO_HEADER_SIZE);
+	char* header = (char*)z->malloc(MEMPROTO_HEADER_SIZE);
 	pack_header(header, status, e->header.opcode,
 			keylen, vallen, extralen,
 			e->header.opaque, 0);  // cas = 0
 
-	struct iovec* vec = (struct iovec*)life->malloc(
+	struct iovec* vec = (struct iovec*)z->malloc(
 			sizeof(struct iovec) * 4);
 
 	vec[0].iov_base = header;
@@ -395,14 +356,13 @@ void handler::send_response(
 		++cnt;
 	}
 
-	e->queue->reached_try_send(e, life, vec, cnt);
+	e->queue->reached_try_send(e, z, vec, cnt);
 }
 
 
 handler::handler(int fd) :
 	wavy::handler(fd),
 	m_buffer(MEMPROTO_INITIAL_ALLOCATION_SIZE),
-	m_zone(new msgpack::zone()),
 	m_queue(new response_queue(fd))
 {
 	void (*cmd_getx)(void*, memproto_header*,
@@ -497,17 +457,11 @@ try {
 
 		m_buffer.data_used(off);
 
-		m_zone->push_finalizer(
-				&mp::object_delete<mp::stream_buffer::reference>,
-				m_buffer.release());
-
 		ret = memproto_dispatch(&m_memproto);
 		if(ret <= 0) {
 			LOG_DEBUG("unknown command ",(uint16_t)-ret);
 			throw std::runtime_error("unknown command");
 		}
-
-		m_zone.reset(new msgpack::zone());
 
 	} while(m_buffer.data_size() > 0);
 
@@ -520,28 +474,45 @@ try {
 }
 
 
+#define RELEASE_REFERENCE(life) \
+	shared_zone life(new msgpack::zone()); \
+	{ \
+		mp::stream_buffer::reference* ref = \
+			life->allocate<mp::stream_buffer::reference>(); \
+		m_buffer.release_to(ref); \
+	}
+
+#define RELEASE_REFERENCE_AUTO(z) \
+	auto_zone z(new msgpack::zone()); \
+	{ \
+		mp::stream_buffer::reference* ref = \
+			z->allocate<mp::stream_buffer::reference>(); \
+		m_buffer.release_to(ref); \
+	}
+
+
 void handler::request_getx(memproto_header* h,
 		const char* key, uint16_t keylen)
 {
 	LOG_TRACE("getx");
+	RELEASE_REFERENCE(life);
 
-	get_entry* e = m_zone->allocate<get_entry>();
+	get_entry* e = life->allocate<get_entry>();
 	e->queue      = m_queue;
 	e->header     = *h;
 	e->flag_key   = (h->opcode == MEMPROTO_CMD_GETK || h->opcode == MEMPROTO_CMD_GETKQ);
 	e->flag_quiet = (h->opcode == MEMPROTO_CMD_GETQ || h->opcode == MEMPROTO_CMD_GETKQ);
 
-	gw_get_request req;
+	gate::req_get req;
 	req.keylen   = keylen;
 	req.key      = key;
-	req.hash     = gateway::stdhash(req.key, req.keylen);
-	req.life     = m_zone;
+	req.hash     = gate::stdhash(req.key, req.keylen);
 	req.user     = reinterpret_cast<void*>(e);
 	req.callback = &handler::response_getx;
+	req.life     = life;
 
-	m_queue->push_entry(e, m_zone);
-
-	gateway::submit(req);
+	m_queue->push_entry(e);
+	req.submit();
 }
 
 void handler::request_set(memproto_header* h,
@@ -550,29 +521,29 @@ void handler::request_set(memproto_header* h,
 		uint32_t flags, uint32_t expiration)
 {
 	LOG_TRACE("set");
+	RELEASE_REFERENCE(life);
 
 	if(h->cas || flags || expiration) {
 		// FIXME error response
 		throw std::runtime_error("memcached binary protocol: invalid argument");
 	}
 
-	set_entry* e = m_zone->allocate<set_entry>();
+	set_entry* e = life->allocate<set_entry>();
 	e->queue      = m_queue;
 	e->header     = *h;
 
-	gw_set_request req;
+	gate::req_set req;
 	req.keylen   = keylen;
 	req.key      = key;
 	req.vallen   = vallen;
 	req.val      = val;
-	req.hash     = gateway::stdhash(req.key, req.keylen);
-	req.life     = m_zone;
+	req.hash     = gate::stdhash(req.key, req.keylen);
 	req.user     = reinterpret_cast<void*>(e);
 	req.callback = &handler::response_set;
+	req.life     = life;
 
-	m_queue->push_entry(e, m_zone);
-
-	gateway::submit(req);
+	m_queue->push_entry(e);
+	req.submit();
 }
 
 void handler::request_delete(memproto_header* h,
@@ -580,63 +551,68 @@ void handler::request_delete(memproto_header* h,
 		uint32_t expiration)
 {
 	LOG_TRACE("delete");
+	RELEASE_REFERENCE(life);
 
 	if(expiration) {
 		// FIXME error response
 		throw std::runtime_error("memcached binary protocol: invalid argument");
 	}
 
-	delete_entry* e = m_zone->allocate<delete_entry>();
+	delete_entry* e = life->allocate<delete_entry>();
 	e->queue      = m_queue;
 	e->header     = *h;
 
-	gw_delete_request req;
+	gate::req_delete req;
 	req.key      = key;
 	req.keylen   = keylen;
-	req.hash     = gateway::stdhash(req.key, req.keylen);
-	req.life     = m_zone;
+	req.hash     = gate::stdhash(req.key, req.keylen);
 	req.user     = reinterpret_cast<void*>(e);
 	req.callback = &handler::response_delete;
+	req.life     = life;
 
-	m_queue->push_entry(e, m_zone);
-
-	gateway::submit(req);
+	m_queue->push_entry(e);
+	req.submit();
 }
 
 void handler::request_noop(memproto_header* h)
 {
 	LOG_TRACE("noop");
+	RELEASE_REFERENCE_AUTO(z);
 
-	entry* e = m_zone->allocate<entry>();
+	entry* e = z->allocate<entry>();
 	e->queue      = m_queue;
 	e->header     = *h;
 
-	m_queue->push_entry(e, m_zone);
-	send_response_nodata(e, m_zone, MEMPROTO_RES_NO_ERROR);
+	m_queue->push_entry(e);
+
+	send_response_nodata(e, z, MEMPROTO_RES_NO_ERROR);
 }
 
 void handler::request_flush(memproto_header* h,
 		uint32_t expiration)
 {
 	LOG_TRACE("flush");
+	RELEASE_REFERENCE_AUTO(z);
 
 	if(expiration) {
 		// FIXME error response
 		throw std::runtime_error("memcached binary protocol: invalid argument");
 	}
 
-	entry* e = m_zone->allocate<entry>();
+	entry* e = z->allocate<entry>();
 	e->queue      = m_queue;
 	e->header     = *h;
 
-	m_queue->push_entry(e, m_zone);
-	send_response_nodata(e, m_zone, MEMPROTO_RES_NO_ERROR);
+	m_queue->push_entry(e);
+
+	send_response_nodata(e, z, MEMPROTO_RES_NO_ERROR);
 }
 
 
 static const uint32_t ZERO_FLAG = 0;
 
-void handler::response_getx(void* user, gw_get_response& res)
+void handler::response_getx(void* user,
+		gate::res_get& res, auto_zone z)
 {
 	get_entry* e = reinterpret_cast<get_entry*>(user);
 	if(!e->queue->is_valid()) { return; }
@@ -646,32 +622,33 @@ void handler::response_getx(void* user, gw_get_response& res)
 	if(res.error) {
 		// error
 		if(e->flag_quiet) {
-			send_response_nosend(e, res.life);
+			send_response_nosend(e, z);
 			return;
 		}
 		LOG_TRACE("getx res err");
-		send_response_nodata(e, res.life, MEMPROTO_RES_INVALID_ARGUMENTS);
+		send_response_nodata(e, z, MEMPROTO_RES_INVALID_ARGUMENTS);
 		return;
 	}
 
 	if(!res.val) {
 		// not found
 		if(e->flag_quiet) {
-			send_response_nosend(e, res.life);
+			send_response_nosend(e, z);
 			return;
 		}
-		send_response_nodata(e, res.life, MEMPROTO_RES_KEY_NOT_FOUND);
+		send_response_nodata(e, z, MEMPROTO_RES_KEY_NOT_FOUND);
 		return;
 	}
 
 	// found
-	send_response(e, res.life, MEMPROTO_RES_NO_ERROR,
+	send_response(e, z, MEMPROTO_RES_NO_ERROR,
 			res.key, (e->flag_key ? res.keylen : 0),
 			res.val, res.vallen,
 			(char*)&ZERO_FLAG, 4);
 }
 
-void handler::response_set(void* user, gw_set_response& res)
+void handler::response_set(void* user,
+		gate::res_set& res, auto_zone z)
 {
 	set_entry* e = reinterpret_cast<set_entry*>(user);
 	if(!e->queue->is_valid()) { return; }
@@ -680,15 +657,16 @@ void handler::response_set(void* user, gw_set_response& res)
 
 	if(res.error) {
 		// error
-		send_response_nodata(e, res.life, MEMPROTO_RES_OUT_OF_MEMORY);
+		send_response_nodata(e, z, MEMPROTO_RES_OUT_OF_MEMORY);
 		return;
 	}
 
 	// stored
-	send_response_nodata(e, res.life, MEMPROTO_RES_NO_ERROR);
+	send_response_nodata(e, z, MEMPROTO_RES_NO_ERROR);
 }
 
-void handler::response_delete(void* user, gw_delete_response& res)
+void handler::response_delete(void* user,
+		gate::res_delete& res, auto_zone z)
 {
 	delete_entry* e = reinterpret_cast<delete_entry*>(user);
 	if(!e->queue->is_valid()) { return; }
@@ -697,18 +675,53 @@ void handler::response_delete(void* user, gw_delete_response& res)
 
 	if(res.error) {
 		// error
-		send_response_nodata(e, res.life, MEMPROTO_RES_INVALID_ARGUMENTS);
+		send_response_nodata(e, z, MEMPROTO_RES_INVALID_ARGUMENTS);
 		return;
 	}
 
 	if(res.deleted) {
-		send_response_nodata(e, res.life, MEMPROTO_RES_NO_ERROR);
+		send_response_nodata(e, z, MEMPROTO_RES_NO_ERROR);
 	} else {
-		send_response_nodata(e, res.life, MEMPROTO_RES_OUT_OF_MEMORY);
+		send_response_nodata(e, z, MEMPROTO_RES_OUT_OF_MEMORY);
 	}
 }
 
 
+void accepted(int fd, int err)
+{
+	if(fd < 0) {
+		LOG_FATAL("accept failed: ",strerror(err));
+		gate::fatal_stop();
+		return;
+	}
+#ifndef NO_TCP_NODELAY
+	int on = 1;
+	::setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &on, sizeof(on));  // ignore error
+#endif
+#ifndef NO_SO_LINGER
+	struct linger opt = {0, 0};
+	::setsockopt(fd, SOL_SOCKET, SO_LINGER, (void *)&opt, sizeof(opt));  // ignore error
+#endif
+	LOG_DEBUG("accept MemcacheBinary gate fd=",fd);
+	wavy::add<handler>(fd);
+}
+
+
 }  // noname namespace
+
+
+MemcacheBinary::MemcacheBinary(int lsock) :
+	m_lsock(lsock) { }
+
+MemcacheBinary::~MemcacheBinary() {}
+
+void MemcacheBinary::run()
+{
+	using namespace mp::placeholders;
+	wavy::listen(m_lsock,
+			mp::bind(&accepted, _1, _2));
+}
+
+
 }  // namespace kumo
 

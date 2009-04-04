@@ -30,45 +30,6 @@ void framework::session_lost(const address& addr, shared_session& s)
 }
 
 
-inline void framework::submit(get_request& req)
-{
-	m_scope_store.Get(req.callback, req.user, req.life,
-			req.key, req.keylen, req.hash);
-}
-
-inline void framework::submit(set_request& req)
-{
-	m_scope_store.Set(req.callback, req.user, req.life,
-			req.key, req.keylen, req.hash,
-			req.val, req.vallen);
-}
-
-inline void framework::submit(delete_request& req)
-{
-	m_scope_store.Delete(req.callback, req.user, req.life,
-			req.key, req.keylen, req.hash);
-}
-
-
-// interface.h:
-void submit(get_request& req)
-{
-	net->submit(req);
-}
-
-// interface.h:
-void submit(set_request& req)
-{
-	net->submit(req);
-}
-
-// interface.h:
-void submit(delete_request& req)
-{
-	net->submit(req);
-}
-
-
 }  // namespace gateway
 }  // namespace kumo
 

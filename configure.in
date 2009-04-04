@@ -189,6 +189,7 @@ AC_MSG_RESULT($enable_trace)
 
 AC_OUTPUT([src/mp/Makefile
 		   src/mpsrc/Makefile
+		   src/gate/Makefile
 		   src/storage/Makefile
 		   src/log/Makefile
 		   src/kazuhiki/Makefile

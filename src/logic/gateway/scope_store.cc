@@ -75,30 +75,32 @@ void resource::incr_error_renew_count()
 }
 
 
-// FIXME submit callback?
-#define GATEWAY_CATCH(NAME, response_type) \
-catch (msgpack::type_error& e) { \
-	LOG_WARN(#NAME " FAILED: type error"); \
-	response_type res; \
-	res.life = life; \
+template <typename Callback, typename ResponseType>
+static void submit_callback_trampoline(
+		Callback callback, void* user, ResponseType res, shared_zone life)
+{
+	auto_zone z(new msgpack::zone());
+	z->allocate<shared_zone>(life);
+	(*callback)(user, res, z);
+}
+
+#define SUBMIT_CATCH(NAME) \
+catch (std::exception& e) { \
+	LOG_WARN("req" #NAME " FAILED: ",e.what()); \
+	gate::res##NAME res; \
 	res.error = 1; \
-	wavy::submit(*callback, user, res); \
-} catch (std::exception& e) { \
-	LOG_WARN(#NAME " FAILED: ",e.what()); \
-	response_type res; \
-	res.life = life; \
-	res.error = 1; \
-	wavy::submit(*callback, user, res); \
+	wavy::submit(submit_callback_trampoline<gate::callback##NAME, gate::res##NAME>, \
+			callback, user, res, life); \
 } catch (...) { \
-	LOG_WARN(#NAME " FAILED: unknown error"); \
-	response_type res; \
-	res.life = life; \
+	LOG_WARN("req" #NAME " FAILED: unknown error"); \
+	gate::res##NAME res; \
 	res.error = 1; \
-	wavy::submit(*callback, user, res); \
+	wavy::submit(submit_callback_trampoline<gate::callback##NAME, gate::res##NAME>, \
+			callback, user, res, life); \
 }
 
 
-void scope_store::Get(get_callback callback, void* user,
+void scope_store::Get(gate::callback_get callback, void* user,
 		shared_zone life,
 		const char* key, uint32_t keylen, uint64_t hash)
 try {
@@ -112,10 +114,10 @@ try {
 	retry->set_callback( BIND_RESPONSE(scope_store, Get, retry, callback, user) );
 	retry->call(share->server_for<resource::HS_READ>(hash), life, 10);
 }
-GATEWAY_CATCH(Get, get_response)
+SUBMIT_CATCH(_get);
 
 
-void scope_store::Set(set_callback callback, void* user,
+void scope_store::Set(gate::callback_set callback, void* user,
 		shared_zone life,
 		const char* key, uint32_t keylen, uint64_t hash,
 		const char* val, uint32_t vallen)
@@ -135,10 +137,10 @@ try {
 	retry->set_callback( BIND_RESPONSE(scope_store, Set, retry, callback, user) );
 	retry->call(share->server_for<resource::HS_WRITE>(hash), life, 10);
 }
-GATEWAY_CATCH(Set, set_response)
+SUBMIT_CATCH(_set);
 
 
-void scope_store::Delete(delete_callback callback, void* user,
+void scope_store::Delete(gate::callback_delete callback, void* user,
 		shared_zone life,
 		const char* key, uint32_t keylen, uint64_t hash)
 try {
@@ -155,7 +157,26 @@ try {
 	retry->set_callback( BIND_RESPONSE(scope_store, Delete, retry, callback, user) );
 	retry->call(share->server_for<resource::HS_WRITE>(hash), life, 10);
 }
-GATEWAY_CATCH(Delete, delete_response)
+SUBMIT_CATCH(_delete);
+
+
+#define GATEWAY_CATCH(NAME, response_type) \
+catch (msgpack::type_error& e) { \
+	LOG_ERROR(#NAME " FAILED: type error"); \
+	response_type res; \
+	res.error = 1; \
+	try { (*callback)(user, res, z); } catch (...) { } \
+} catch (std::exception& e) { \
+	LOG_WARN(#NAME " FAILED: ",e.what()); \
+	response_type res; \
+	res.error = 1; \
+	try { (*callback)(user, res, z); } catch (...) { } \
+} catch (...) { \
+	LOG_WARN(#NAME " FAILED: unknown error"); \
+	response_type res; \
+	res.error = 1; \
+	try { (*callback)(user, res, z); } catch (...) { } \
+}
 
 
 namespace {
@@ -195,17 +216,14 @@ void retry_after(unsigned int steps,
 
 RPC_REPLY_IMPL(scope_store, Get, from, res, err, z,
 		rpc::retry<server::proto_store::Get>* retry,
-		get_callback callback, void* user)
-{
-SHARED_ZONE(life, z);
+		gate::callback_get callback, void* user)
 try {
 	msgtype::DBKey key(retry->param().dbkey);
 	LOG_TRACE("ResGet ",err);
 
 	if(err.is_nil()) {
-		get_response ret;
+		gate::res_get ret;
 		ret.error     = 0;
-		ret.life      = life;
 		ret.key       = key.data();
 		ret.keylen    = key.size();
 		ret.hash      = key.hash();
@@ -219,14 +237,16 @@ try {
 			ret.vallen    = st.size();
 			ret.clocktime = st.clocktime().get();
 		}
-		try { (*callback)(user, ret); } catch (...) { }
+		try { (*callback)(user, ret, z); } catch (...) { }
 
 	} else if( retry->retry_incr((NUM_REPLICATION+1) * share->cfg_get_retry_num() - 1) ) {
 		share->incr_error_renew_count();
 		unsigned short offset = retry->num_retried() % (NUM_REPLICATION+1);
+		SHARED_ZONE(life, z);
 		if(offset == 0) {
 			// FIXME configurable steps
-			retry_after<resource::HS_READ>(1*framework::DO_AFTER_BY_SECONDS, retry, life, key.hash(), offset);
+			retry_after<resource::HS_READ>(1*framework::DO_AFTER_BY_SECONDS,
+					retry, life, key.hash(), offset);
 		} else {
 			retry->call(share->server_for<resource::HS_READ>(key.hash(), offset), life, 10);
 		}
@@ -237,31 +257,27 @@ try {
 				err.via.u64 == (uint64_t)rpc::protocol::SERVER_ERROR) {
 			net->scope_proto_network().renew_hash_space();   // FIXME
 		}
-		get_response ret;
+		gate::res_get ret;
 		ret.error     = 1;  // ERROR
-		ret.life      = life;
 		ret.key       = key.data();
 		ret.keylen    = key.size();
 		ret.hash      = key.hash();
 		ret.val       = NULL;
 		ret.vallen    = 0;
 		ret.clocktime = 0;
-		try { (*callback)(user, ret); } catch (...) { }
+		try { (*callback)(user, ret, z); } catch (...) { }
 		TLOGPACK("eg",3,
 				"key",msgtype::raw_ref(key.data(),key.size()),
 				"err",err.via.u64);
 		LOG_ERROR("Get error: ", err);
 	}
 }
-GATEWAY_CATCH(ResGet, get_response)
-}
+GATEWAY_CATCH(ResGet, gate::res_get)
 
 
 RPC_REPLY_IMPL(scope_store, Set, from, res, err, z,
 		rpc::retry<server::proto_store::Set>* retry,
-		set_callback callback, void* user)
-{
-SHARED_ZONE(life, z);
+		gate::callback_set callback, void* user)
 try {
 	msgtype::DBKey key(retry->param().dbkey);
 	msgtype::DBValue val(retry->param().dbval);
@@ -269,21 +285,22 @@ try {
 
 	if(!res.is_nil()) {
 		ClockTime st = res.as<ClockTime>();
-		set_response ret;
+		gate::res_set ret;
 		ret.error     = 0;
-		ret.life      = life;
 		ret.key       = key.data();
 		ret.keylen    = key.size();
 		ret.hash      = key.hash();
 		ret.val       = val.data();
 		ret.vallen    = val.size();
 		ret.clocktime = st.get();
-		try { (*callback)(user, ret); } catch (...) { }
+		try { (*callback)(user, ret, z); } catch (...) { }
 
 	} else if( retry->retry_incr(share->cfg_set_retry_num()) ) {
 		share->incr_error_renew_count();
 		// FIXME configurable steps
-		retry_after<resource::HS_WRITE>(1*framework::DO_AFTER_BY_SECONDS, retry, life, key.hash());
+		SHARED_ZONE(life, z);
+		retry_after<resource::HS_WRITE>(1*framework::DO_AFTER_BY_SECONDS,
+				retry, life, key.hash());
 		LOG_WARN("Set error: ",err,", retry ",retry->num_retried());
 
 	} else {
@@ -291,16 +308,15 @@ try {
 				err.via.u64 == (uint64_t)rpc::protocol::SERVER_ERROR) {
 			net->scope_proto_network().renew_hash_space();   // FIXME
 		}
-		set_response ret;
+		gate::res_set ret;
 		ret.error     = 1;  // ERROR
-		ret.life      = life;
 		ret.key       = key.data();
 		ret.keylen    = key.size();
 		ret.hash      = key.hash();
 		ret.val       = val.data();
 		ret.vallen    = val.size();
 		ret.clocktime = 0;
-		try { (*callback)(user, ret); } catch (...) { }
+		try { (*callback)(user, ret, z); } catch (...) { }
 		TLOGPACK("es",3,
 				"key",msgtype::raw_ref(key.data(),key.size()),
 				"val",msgtype::raw_ref(val.data(),val.size()),
@@ -308,34 +324,32 @@ try {
 		LOG_ERROR("Set error: ",err);
 	}
 }
-GATEWAY_CATCH(ResSet, set_response)
-}
+GATEWAY_CATCH(ResSet, gate::res_set)
 
 
 RPC_REPLY_IMPL(scope_store, Delete, from, res, err, z,
 		rpc::retry<server::proto_store::Delete>* retry,
-		delete_callback callback, void* user)
-{
-SHARED_ZONE(life, z);
+		gate::callback_delete callback, void* user)
 try {
 	msgtype::DBKey key(retry->param().dbkey);
 	LOG_TRACE("ResDelete ",err);
 
 	if(!res.is_nil()) {
 		bool st = res.as<bool>();
-		delete_response ret;
+		gate::res_delete ret;
 		ret.error     = 0;
-		ret.life      = life;
 		ret.key       = key.data();
 		ret.keylen    = key.size();
 		ret.hash      = key.hash();
 		ret.deleted   = st;
-		try { (*callback)(user, ret); } catch (...) { }
+		try { (*callback)(user, ret, z); } catch (...) { }
 
 	} else if( retry->retry_incr(share->cfg_delete_retry_num()) ) {
 		share->incr_error_renew_count();
 		// FIXME configurable steps
-		retry_after<resource::HS_WRITE>(1*framework::DO_AFTER_BY_SECONDS, retry, life, key.hash());
+		SHARED_ZONE(life, z);
+		retry_after<resource::HS_WRITE>(1*framework::DO_AFTER_BY_SECONDS,
+				retry, life, key.hash());
 		LOG_WARN("Delete error: ",err,", retry ",retry->num_retried());
 
 	} else {
@@ -343,22 +357,20 @@ try {
 				err.via.u64 == (uint64_t)rpc::protocol::SERVER_ERROR) {
 			net->scope_proto_network().renew_hash_space();   // FIXME
 		}
-		delete_response ret;
+		gate::res_delete ret;
 		ret.error     = 1;  // ERROR
-		ret.life      = life;
 		ret.key       = key.data();
 		ret.keylen    = key.size();
 		ret.hash      = key.hash();
 		ret.deleted   = false;
-		try { (*callback)(user, ret); } catch (...) { }
+		try { (*callback)(user, ret, z); } catch (...) { }
 		TLOGPACK("ed",3,
 				"key",msgtype::raw_ref(key.data(),key.size()),
 				"err",err.via.u64);
 		LOG_ERROR("Delete error: ",err);
 	}
 }
-GATEWAY_CATCH(ResDelete, delete_response)
-}
+GATEWAY_CATCH(ResDelete, gate::res_delete)
 
 
 }  // namespace gateway

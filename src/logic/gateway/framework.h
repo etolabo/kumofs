@@ -29,17 +29,13 @@ public:
 		scope_proto_network().keep_alive();
 	}
 
-public:
-	void submit(get_request& req);
-	void submit(set_request& req);
-	void submit(delete_request& req);
-
 private:
 	proto_network m_proto_network;
 	scope_store m_scope_store;
 
 public:
 	proto_network&   scope_proto_network()   { return m_proto_network;   }
+	scope_store&     scope_scope_store()     { return m_scope_store;   }
 
 private:
 	framework();
