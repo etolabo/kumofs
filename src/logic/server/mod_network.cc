@@ -1,26 +1,26 @@
 #include "server/framework.h"
-#include "server/proto_network.h"
-#include "manager/proto_network.h"
+#include "server/mod_network.h"
+#include "manager/mod_network.h"
 
 namespace kumo {
 namespace server {
 
 
-RPC_IMPL(proto_network, KeepAlive, req, z, response)
+RPC_IMPL(mod_network_t, KeepAlive, req, z, response)
 {
 	net->clock_update(req.param().adjust_clock);
 	response.null();
 }
 
 
-void proto_network::keep_alive()
+void mod_network_t::keep_alive()
 {
 	LOG_TRACE("keep alive ...");
 	shared_zone nullz;
-	manager::proto_network::KeepAlive param(net->clock_incr());
+	manager::mod_network_t::KeepAlive param(net->clock_incr());
 
 	using namespace mp::placeholders;
-	rpc::callback_t callback( BIND_RESPONSE(proto_network, KeepAlive) );
+	rpc::callback_t callback( BIND_RESPONSE(mod_network_t, KeepAlive) );
 
 	net->get_node(share->manager1())->call(
 			param, nullz, callback, 10);
@@ -31,7 +31,7 @@ void proto_network::keep_alive()
 	}
 }
 
-RPC_REPLY_IMPL(proto_network, KeepAlive, from, res, err, z)
+RPC_REPLY_IMPL(mod_network_t, KeepAlive, from, res, err, z)
 {
 	if(err.is_nil()) {
 		LOG_TRACE("KeepAlive succeeded");
@@ -42,7 +42,7 @@ RPC_REPLY_IMPL(proto_network, KeepAlive, from, res, err, z)
 
 
 
-RPC_IMPL(proto_network, HashSpaceSync, req, z, response)
+RPC_IMPL(mod_network_t, HashSpaceSync, req, z, response)
 {
 	LOG_DEBUG("HashSpaceSync");
 
@@ -105,13 +105,13 @@ RPC_IMPL(proto_network, HashSpaceSync, req, z, response)
 
 // FIXME needed?: renew_w_hash_space, renew_r_hash_space
 // COPY A-1
-void proto_network::renew_w_hash_space()
+void mod_network_t::renew_w_hash_space()
 {
 	shared_zone nullz;
-	manager::proto_network::WHashSpaceRequest param;
+	manager::mod_network_t::WHashSpaceRequest param;
 	//              ^
 
-	rpc::callback_t callback( BIND_RESPONSE(proto_network, WHashSpaceRequest) );
+	rpc::callback_t callback( BIND_RESPONSE(mod_network_t, WHashSpaceRequest) );
 	//                                         ^
 
 	net->get_node(share->manager1())->call(
@@ -126,13 +126,13 @@ void proto_network::renew_w_hash_space()
 }
 
 // COPY A-2
-void proto_network::renew_r_hash_space()
+void mod_network_t::renew_r_hash_space()
 {
 	shared_zone nullz;
-	manager::proto_network::RHashSpaceRequest param;
+	manager::mod_network_t::RHashSpaceRequest param;
 	//              ^
 
-	rpc::callback_t callback( BIND_RESPONSE(proto_network, RHashSpaceRequest) );
+	rpc::callback_t callback( BIND_RESPONSE(mod_network_t, RHashSpaceRequest) );
 	//                                         ^
 
 	net->get_node(share->manager1())->call(
@@ -148,19 +148,19 @@ void proto_network::renew_r_hash_space()
 
 
 // COPY B-1
-RPC_REPLY_IMPL(proto_network, WHashSpaceRequest, from, res, err, z)
+RPC_REPLY_IMPL(mod_network_t, WHashSpaceRequest, from, res, err, z)
 {
 	// FIXME is this function needed?
 	if(!err.is_nil()) {
 		LOG_DEBUG("WHashSpaceRequest failed ",err);
 		if(SESSION_IS_ACTIVE(from)) {
 			shared_zone nullz;
-			manager::proto_network::WHashSpaceRequest param;
+			manager::mod_network_t::WHashSpaceRequest param;
 			//              ^
 
 			from->call(param, nullz,
 			//                   ^
-					BIND_RESPONSE(proto_network, WHashSpaceRequest), 10);
+					BIND_RESPONSE(mod_network_t, WHashSpaceRequest), 10);
 					//               ^
 		}  // retry on lost_node() if err.via.u64 == NODE_LOST?
 	} else {
@@ -177,19 +177,19 @@ RPC_REPLY_IMPL(proto_network, WHashSpaceRequest, from, res, err, z)
 }
 
 // COPY B-2
-RPC_REPLY_IMPL(proto_network, RHashSpaceRequest, from, res, err, z)
+RPC_REPLY_IMPL(mod_network_t, RHashSpaceRequest, from, res, err, z)
 {
 	// FIXME is this function needed?
 	if(!err.is_nil()) {
 		LOG_DEBUG("WHashSpaceRequest failed ",err);
 		if(SESSION_IS_ACTIVE(from)) {
 			shared_zone nullz;
-			manager::proto_network::RHashSpaceRequest param;
+			manager::mod_network_t::RHashSpaceRequest param;
 			//              ^
 
 			from->call(param, nullz,
 			//                   ^
-					BIND_RESPONSE(proto_network, RHashSpaceRequest), 10);
+					BIND_RESPONSE(mod_network_t, RHashSpaceRequest), 10);
 					//               ^
 		}  // retry on lost_node() if err.via.u64 == NODE_LOST?
 	} else {

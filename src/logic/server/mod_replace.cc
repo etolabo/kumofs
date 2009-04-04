@@ -1,12 +1,12 @@
 #include "server/framework.h"
-#include "server/proto_replace.h"
-#include "manager/proto_replace.h"
+#include "server/mod_replace.h"
+#include "manager/mod_replace.h"
 
 namespace kumo {
 namespace server {
 
 
-bool proto_replace::test_replicator_assign(const HashSpace& hs, uint64_t h, const address& target)
+bool mod_replace_t::test_replicator_assign(const HashSpace& hs, uint64_t h, const address& target)
 {
 	EACH_ASSIGN(hs, h, r,
 			if(r.is_active()) {  // don't write to fault node
@@ -16,51 +16,51 @@ bool proto_replace::test_replicator_assign(const HashSpace& hs, uint64_t h, cons
 }
 
 
-proto_replace::replace_state::replace_state() :
+mod_replace_t::replace_state::replace_state() :
 	m_push_waiting(0),
 	m_clocktime(0) {}
 
-proto_replace::replace_state::~replace_state() {}
+mod_replace_t::replace_state::~replace_state() {}
 
-inline void proto_replace::replace_state::reset(const address& mgr, ClockTime ct)
+inline void mod_replace_t::replace_state::reset(const address& mgr, ClockTime ct)
 {
 	m_push_waiting = 0;
 	m_clocktime = ct;
 	m_mgr = mgr;
 }
 
-inline void proto_replace::replace_state::pushed(ClockTime ct)
+inline void mod_replace_t::replace_state::pushed(ClockTime ct)
 {
 	if(ct == m_clocktime) { ++m_push_waiting; }
 }
 
-inline void proto_replace::replace_state::push_returned(ClockTime ct)
+inline void mod_replace_t::replace_state::push_returned(ClockTime ct)
 {
 	if(ct == m_clocktime) { --m_push_waiting; }
 }
 
-inline bool proto_replace::replace_state::is_finished(ClockTime ct) const
+inline bool mod_replace_t::replace_state::is_finished(ClockTime ct) const
 {
 	return m_clocktime == ct && m_push_waiting == 0;
 }
 
-inline void proto_replace::replace_state::invalidate()
+inline void mod_replace_t::replace_state::invalidate()
 {
 	m_push_waiting = -1;
 }
 
-inline const address& proto_replace::replace_state::mgr_addr() const
+inline const address& mod_replace_t::replace_state::mgr_addr() const
 {
 	return m_mgr;
 }
 
 
-void proto_replace::replace_offer_push(ClockTime replace_time, REQUIRE_STLK)
+void mod_replace_t::replace_offer_push(ClockTime replace_time, REQUIRE_STLK)
 {
 	m_state.pushed(replace_time);
 }
 
-void proto_replace::replace_offer_pop(ClockTime replace_time, REQUIRE_STLK)
+void mod_replace_t::replace_offer_pop(ClockTime replace_time, REQUIRE_STLK)
 {
 	m_state.push_returned(replace_time);
 	if(m_state.is_finished(replace_time)) {
@@ -70,7 +70,7 @@ void proto_replace::replace_offer_pop(ClockTime replace_time, REQUIRE_STLK)
 
 
 
-RPC_IMPL(proto_replace, ReplaceCopyStart, req, z, response)
+RPC_IMPL(mod_replace_t, ReplaceCopyStart, req, z, response)
 {
 	net->clock_update(req.param().adjust_clock);
 
@@ -88,7 +88,7 @@ RPC_IMPL(proto_replace, ReplaceCopyStart, req, z, response)
 }
 
 
-RPC_IMPL(proto_replace, ReplaceDeleteStart, req, z, response)
+RPC_IMPL(mod_replace_t, ReplaceDeleteStart, req, z, response)
 {
 	net->clock_update(req.param().adjust_clock);
 
@@ -106,11 +106,11 @@ RPC_IMPL(proto_replace, ReplaceDeleteStart, req, z, response)
 }
 
 
-struct proto_replace::for_each_replace_copy {
+struct mod_replace_t::for_each_replace_copy {
 	for_each_replace_copy(
 			const address& addr,
 			const HashSpace& src, const HashSpace& dst,
-			proto_replace_stream::offer_storage& offer_storage,
+			mod_replace_stream_t::offer_storage& offer_storage,
 			const addrvec_t& faults) :
 		self(addr),
 		srchs(src), dsths(dst),
@@ -135,14 +135,14 @@ private:
 	const HashSpace& srchs;
 	const HashSpace& dsths;
 
-	proto_replace_stream::offer_storage& offer;
+	mod_replace_stream_t::offer_storage& offer;
 	const addrvec_t& fault_nodes;
 
 private:
 	for_each_replace_copy();
 };
 
-void proto_replace::replace_copy(const address& manager_addr, HashSpace& hs)
+void mod_replace_t::replace_copy(const address& manager_addr, HashSpace& hs)
 {
 	ClockTime replace_time = hs.clocktime();
 
@@ -205,13 +205,14 @@ void proto_replace::replace_copy(const address& manager_addr, HashSpace& hs)
 	}
 
 	{
-		proto_replace_stream::offer_storage offer(share->cfg_offer_tmpdir(), replace_time);
+		mod_replace_stream_t::offer_storage offer(
+				share->cfg_offer_tmpdir(), replace_time);
 
 		share->db().for_each(
 				for_each_replace_copy(net->addr(), srchs, dsths, offer, fault_nodes),
 				net->clocktime_now());
 
-		net->scope_proto_replace_stream().send_offer(offer, replace_time);
+		net->mod_replace_stream.send_offer(offer, replace_time);
 	}
 
 skip_replace:
@@ -219,7 +220,7 @@ skip_replace:
 	replace_offer_pop(replace_time, stlk);  // replace_copy
 }
 
-void proto_replace::for_each_replace_copy::operator() (Storage::iterator& kv)
+void mod_replace_t::for_each_replace_copy::operator() (Storage::iterator& kv)
 {
 	const char* raw_key = kv.key();
 	size_t raw_keylen = kv.keylen();
@@ -270,12 +271,12 @@ void proto_replace::for_each_replace_copy::operator() (Storage::iterator& kv)
 
 
 
-void proto_replace::finish_replace_copy(ClockTime replace_time, REQUIRE_STLK)
+void mod_replace_t::finish_replace_copy(ClockTime replace_time, REQUIRE_STLK)
 {
 	LOG_INFO("finish replace copy for time(",replace_time.get(),")");
 
 	shared_zone nullz;
-	manager::proto_replace::ReplaceCopyEnd param(
+	manager::mod_replace_t::ReplaceCopyEnd param(
 			replace_time, net->clock_incr());
 
 	address addr;
@@ -287,17 +288,17 @@ void proto_replace::finish_replace_copy(ClockTime replace_time, REQUIRE_STLK)
 
 	using namespace mp::placeholders;
 	net->get_node(addr)->call(param, nullz,
-			BIND_RESPONSE(proto_replace, ReplaceCopyEnd), 10);
+			BIND_RESPONSE(mod_replace_t, ReplaceCopyEnd), 10);
 }
 
-RPC_REPLY_IMPL(proto_replace, ReplaceCopyEnd, from, res, err, z)
+RPC_REPLY_IMPL(mod_replace_t, ReplaceCopyEnd, from, res, err, z)
 {
 	if(!err.is_nil()) { LOG_ERROR("ReplaceCopyEnd failed: ",err); }
 	// FIXME retry
 }
 
 
-struct proto_replace::for_each_replace_delete {
+struct mod_replace_t::for_each_replace_delete {
 	for_each_replace_delete(const HashSpace& hs, const address& addr) :
 		self(addr), m_hs(hs) { }
 
@@ -311,7 +312,7 @@ private:
 	for_each_replace_delete();
 };
 
-void proto_replace::replace_delete(shared_node& manager, HashSpace& hs)
+void mod_replace_t::replace_delete(shared_node& manager, HashSpace& hs)
 {
 	pthread_scoped_rdlock whlk(share->whs_mutex());
 
@@ -329,17 +330,17 @@ void proto_replace::replace_delete(shared_node& manager, HashSpace& hs)
 	}
 
 	shared_zone nullz;
-	manager::proto_replace::ReplaceDeleteEnd param(
+	manager::mod_replace_t::ReplaceDeleteEnd param(
 			share->whs().clocktime(), net->clock_incr());
 
 	using namespace mp::placeholders;
 	manager->call(param, nullz,
-			BIND_RESPONSE(proto_replace, ReplaceDeleteEnd), 10);
+			BIND_RESPONSE(mod_replace_t, ReplaceDeleteEnd), 10);
 
 	LOG_INFO("finish replace for time(",share->whs().clocktime().get(),")");
 }
 
-void proto_replace::for_each_replace_delete::operator() (Storage::iterator& kv)
+void mod_replace_t::for_each_replace_delete::operator() (Storage::iterator& kv)
 {
 	// Note: it is done in storage wrapper.
 	//if(kv.keylen() < Storage::KEY_META_SIZE ||
@@ -348,13 +349,13 @@ void proto_replace::for_each_replace_delete::operator() (Storage::iterator& kv)
 	//	kv.del();
 	//}
 	uint64_t h = Storage::hash_of(kv.key());
-	if(!proto_replace::test_replicator_assign(m_hs, h, self)) {
+	if(!mod_replace_t::test_replicator_assign(m_hs, h, self)) {
 		LOG_TRACE("replace delete key: ",kv.key());
 		kv.del();
 	}
 }
 
-RPC_REPLY_IMPL(proto_replace, ReplaceDeleteEnd, from, res, err, z)
+RPC_REPLY_IMPL(mod_replace_t, ReplaceDeleteEnd, from, res, err, z)
 {
 	if(!err.is_nil()) {
 		LOG_ERROR("ReplaceDeleteEnd failed: ",err);

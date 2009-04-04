@@ -1,7 +1,7 @@
 #include "manager/framework.h"
-#include "manager/proto_network.h"
-#include "server/proto_network.h"
-#include "gateway/proto_network.h"
+#include "manager/mod_network.h"
+#include "server/mod_network.h"
+#include "gateway/mod_network.h"
 
 
 #define EACH_ACTIVE_NEW_COMERS_BEGIN(NODE) \
@@ -19,14 +19,14 @@ namespace kumo {
 namespace manager {
 
 
-RPC_IMPL(proto_network, KeepAlive, req, z, response)
+RPC_IMPL(mod_network_t, KeepAlive, req, z, response)
 {
 	net->clock_update(req.param().adjust_clock);
 	response.null();
 }
 
 
-RPC_IMPL(proto_network, HashSpaceRequest, req, z, response)
+RPC_IMPL(mod_network_t, HashSpaceRequest, req, z, response)
 {
 	HashSpace::Seed* wseed;
 	HashSpace::Seed* rseed;
@@ -36,12 +36,12 @@ RPC_IMPL(proto_network, HashSpaceRequest, req, z, response)
 		rseed = z->allocate<HashSpace::Seed>(share->rhs());
 	}
 
-	gateway::proto_network::HashSpacePush arg(*wseed, *rseed);
+	gateway::mod_network_t::HashSpacePush arg(*wseed, *rseed);
 	response.result(arg, z);
 }
 
 
-RPC_IMPL(proto_network, WHashSpaceRequest, req, z, response)
+RPC_IMPL(mod_network_t, WHashSpaceRequest, req, z, response)
 {
 	HashSpace::Seed* seed;
 	{
@@ -52,7 +52,7 @@ RPC_IMPL(proto_network, WHashSpaceRequest, req, z, response)
 }
 
 
-RPC_IMPL(proto_network, RHashSpaceRequest, req, z, response)
+RPC_IMPL(mod_network_t, RHashSpaceRequest, req, z, response)
 {
 	HashSpace::Seed* seed;
 	{
@@ -64,22 +64,22 @@ RPC_IMPL(proto_network, RHashSpaceRequest, req, z, response)
 
 
 
-void proto_network::sync_hash_space_servers(REQUIRE_HSLK)
+void mod_network_t::sync_hash_space_servers(REQUIRE_HSLK)
 {
 	shared_zone life(new msgpack::zone());
 	HashSpace::Seed* wseed = life->allocate<HashSpace::Seed>(share->whs());
 	HashSpace::Seed* rseed = life->allocate<HashSpace::Seed>(share->rhs());
 
-	server::proto_network::HashSpaceSync param(*wseed, *rseed, net->clock_incr());
+	server::mod_network_t::HashSpaceSync param(*wseed, *rseed, net->clock_incr());
 
-	rpc::callback_t callback( BIND_RESPONSE(proto_network, HashSpaceSync) );
+	rpc::callback_t callback( BIND_RESPONSE(mod_network_t, HashSpaceSync) );
 
 	net->for_each_node(ROLE_SERVER,
 			for_each_call(param, life, callback, 10));
 }
 
 
-void proto_network::sync_hash_space_partner(REQUIRE_HSLK)
+void mod_network_t::sync_hash_space_partner(REQUIRE_HSLK)
 {
 	if(!share->partner().connectable()) { return; }
 
@@ -87,13 +87,13 @@ void proto_network::sync_hash_space_partner(REQUIRE_HSLK)
 	HashSpace::Seed* wseed = life->allocate<HashSpace::Seed>(share->whs());
 	HashSpace::Seed* rseed = life->allocate<HashSpace::Seed>(share->rhs());
 
-	manager::proto_network::HashSpaceSync param(*wseed, *rseed, net->clock_incr());
+	manager::mod_network_t::HashSpaceSync param(*wseed, *rseed, net->clock_incr());
 	net->get_node(share->partner())->call(
 			param, life,
-			BIND_RESPONSE(proto_network, HashSpaceSync), 10);
+			BIND_RESPONSE(mod_network_t, HashSpaceSync), 10);
 }
 
-RPC_REPLY_IMPL(proto_network, HashSpaceSync, from, res, err, z)
+RPC_REPLY_IMPL(mod_network_t, HashSpaceSync, from, res, err, z)
 {
 	// FIXME retry
 }
@@ -115,12 +115,12 @@ namespace {
 
 	private:
 		rpc::shared_zone& life;
-		gateway::proto_network::HashSpacePush param;
+		gateway::mod_network_t::HashSpacePush param;
 		rpc::callback_t callback;
 	};
 }  // noname namespace
 
-void proto_network::push_hash_space_clients(REQUIRE_HSLK)
+void mod_network_t::push_hash_space_clients(REQUIRE_HSLK)
 try {
 	LOG_WARN("push hash space ...");
 
@@ -128,7 +128,7 @@ try {
 	HashSpace::Seed* wseed = life->allocate<HashSpace::Seed>(share->whs());
 	HashSpace::Seed* rseed = life->allocate<HashSpace::Seed>(share->rhs());
 
-	rpc::callback_t callback( BIND_RESPONSE(proto_network, HashSpacePush) );
+	rpc::callback_t callback( BIND_RESPONSE(mod_network_t, HashSpacePush) );
 	net->subsystem().for_each_peer( each_client_push(wseed, rseed, callback, life) );
 
 	// ignore error
@@ -138,12 +138,12 @@ try {
 	LOG_ERROR("HashSpacePush failed: unknown error");
 }
 
-RPC_REPLY_IMPL(proto_network, HashSpacePush, from, res, err, z)
+RPC_REPLY_IMPL(mod_network_t, HashSpacePush, from, res, err, z)
 { }
 
 
 
-RPC_IMPL(proto_network, HashSpaceSync, req, z, response)
+RPC_IMPL(mod_network_t, HashSpaceSync, req, z, response)
 {
 	if(req.node()->addr() != share->partner()) {
 		throw std::runtime_error("unknown partner node");
@@ -189,13 +189,13 @@ RPC_IMPL(proto_network, HashSpaceSync, req, z, response)
 }
 
 
-void proto_network::keep_alive()
+void mod_network_t::keep_alive()
 {
 	LOG_TRACE("keep alive ...");
 	shared_zone nullz;
-	server::proto_network::KeepAlive param(net->clock_incr());
+	server::mod_network_t::KeepAlive param(net->clock_incr());
 
-	rpc::callback_t callback( BIND_RESPONSE(proto_network, KeepAlive) );
+	rpc::callback_t callback( BIND_RESPONSE(mod_network_t, KeepAlive) );
 
 	// FIXME exception
 	net->for_each_node(ROLE_SERVER,
@@ -215,7 +215,7 @@ void proto_network::keep_alive()
 	}
 }
 
-RPC_REPLY_IMPL(proto_network, KeepAlive, from, res, err, z)
+RPC_REPLY_IMPL(mod_network_t, KeepAlive, from, res, err, z)
 {
 	if(err.is_nil()) {
 		LOG_TRACE("KeepAlive succeeded");

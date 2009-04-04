@@ -21,9 +21,9 @@ libkumo_logic_a_SOURCES = \
 kumo_manager_SOURCES = \
 		manager/framework.cc \
 		manager/main.cc \
-		manager/proto_control.cc \
-		manager/proto_network.cc \
-		manager/proto_replace.cc
+		manager/mod_control.cc \
+		manager/mod_network.cc \
+		manager/mod_replace.cc
 
 kumo_manager_LDADD  = \
 		libkumo_logic.a \
@@ -37,11 +37,11 @@ kumo_server_SOURCES = \
 		server/framework.cc \
 		server/main.cc \
 		server/zmmap_stream.cc \
-		server/proto_control.cc \
-		server/proto_network.cc \
-		server/proto_replace.cc \
-		server/proto_replace_stream.cc \
-		server/proto_store.cc
+		server/mod_control.cc \
+		server/mod_network.cc \
+		server/mod_replace.cc \
+		server/mod_replace_stream.cc \
+		server/mod_store.cc
 
 kumo_server_LDADD  = \
 		libkumo_logic.a \
@@ -56,8 +56,8 @@ kumo_gateway_SOURCES = \
 		gateway/framework.cc \
 		gateway/gate.cc \
 		gateway/main.cc \
-		gateway/proto_network.cc \
-		gateway/scope_store.cc
+		gateway/mod_network.cc \
+		gateway/mod_store.cc
 
 kumo_gateway_LDADD  = \
 		libkumo_logic.a \
@@ -91,7 +91,7 @@ noinst_HEADERS = \
 		server/zconnection.h \
 		gateway/framework.h \
 		gateway/init.h \
-		gateway/scope_store.h
+		gateway/mod_store.h
 
 EXTRA_DIST = \
 		protogen \

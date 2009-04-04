@@ -3,9 +3,9 @@
 
 #include "logic/cluster_logic.h"
 #include "logic/clock_logic.h"
-#include "manager/proto_network.h"
-#include "manager/proto_replace.h"
-#include "manager/proto_control.h"
+#include "manager/mod_network.h"
+#include "manager/mod_replace.h"
+#include "manager/mod_control.h"
 
 namespace kumo {
 namespace manager {
@@ -33,7 +33,7 @@ public:
 	// rpc_server
 	void keep_alive()
 	{
-		scope_proto_network().keep_alive();
+		mod_network.keep_alive();
 	}
 
 	// override rpc_server<framework>::timer_handler
@@ -43,15 +43,10 @@ public:
 		rpc_server<framework>::timer_handler();
 	}
 
-private:
-	proto_network m_proto_network;
-	proto_replace m_proto_replace;
-	proto_control m_proto_control;
-
 public:
-	proto_network& scope_proto_network() { return m_proto_network; }
-	proto_replace& scope_proto_replace() { return m_proto_replace; }
-	proto_control& scope_proto_control() { return m_proto_control; }
+	mod_network_t mod_network;
+	mod_replace_t mod_replace;
+	mod_control_t mod_control;
 
 private:
 	framework();

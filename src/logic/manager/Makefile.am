@@ -1,9 +1,9 @@
 
 PROTOGEN_AUTOGEN_FILES = \
-		manager/proto.h \
-		manager/proto_control.h \
-		manager/proto_network.h \
-		manager/proto_replace.h
+		proto.h \
+		mod_control.h \
+		mod_network.h \
+		mod_replace.h
 
 proto.generated: ../protogen ../manager.proto.h
 	$(RUBY) ../protogen ../manager.proto.h

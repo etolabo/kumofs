@@ -1,19 +1,19 @@
 #include "manager/framework.h"
-#include "manager/proto_replace.h"
-#include "server/proto_replace.h"
+#include "manager/mod_replace.h"
+#include "server/mod_replace.h"
 
 namespace kumo {
 namespace manager {
 
 
-proto_replace::proto_replace() :
+mod_replace_t::mod_replace_t() :
 	m_delayed_replace_cas(0)
 { }
 
-proto_replace::~proto_replace() { }
+mod_replace_t::~mod_replace_t() { }
 
 
-void proto_replace::add_server(const address& addr, shared_node& s)
+void mod_replace_t::add_server(const address& addr, shared_node& s)
 {
 	LOG_INFO("server connected ",s->addr());
 	TLOGPACK("nS",3,
@@ -38,7 +38,7 @@ void proto_replace::add_server(const address& addr, shared_node& s)
 	}
 }
 
-void proto_replace::remove_server(const address& addr)
+void mod_replace_t::remove_server(const address& addr)
 {
 	LOG_INFO("server lost ",addr);
 	TLOGPACK("lS",3,
@@ -53,9 +53,9 @@ void proto_replace::remove_server(const address& addr)
 	bool rfault = share->rhs().fault_server(ct, addr);
 
 	if(wfault || rfault) {
-		net->scope_proto_network().sync_hash_space_partner(hslk);
-		net->scope_proto_network().sync_hash_space_servers(hslk);
-		net->scope_proto_network().push_hash_space_clients(hslk);
+		net->mod_network.sync_hash_space_partner(hslk);
+		net->mod_network.sync_hash_space_servers(hslk);
+		net->mod_network.push_hash_space_clients(hslk);
 	}
 	hslk.unlock();
 
@@ -80,16 +80,16 @@ void proto_replace::remove_server(const address& addr)
 }
 
 
-void proto_replace::delayed_replace_election()
+void mod_replace_t::delayed_replace_election()
 {
 	int cas = __sync_add_and_fetch(&m_delayed_replace_cas, 1);
 	net->do_after(
 			share->cfg_replace_delay_seconds() * framework::DO_AFTER_BY_SECONDS,
-			mp::bind(&proto_replace::cas_checked_replace_election, this, cas));
+			mp::bind(&mod_replace_t::cas_checked_replace_election, this, cas));
 	LOG_INFO("set delayed replace after ",share->cfg_replace_delay_seconds()," seconds");
 }
 
-void proto_replace::cas_checked_replace_election(int cas)
+void mod_replace_t::cas_checked_replace_election(int cas)
 {
 	if(m_delayed_replace_cas == cas) {
 		replace_election();
@@ -97,7 +97,7 @@ void proto_replace::cas_checked_replace_election(int cas)
 }
 
 
-void proto_replace::replace_election()
+void mod_replace_t::replace_election()
 {
 	// XXX
 	// election: smaller address has priority
@@ -114,17 +114,17 @@ void proto_replace::replace_election()
 		HashSpace::Seed* seed = life->allocate<HashSpace::Seed>(share->whs());
 		hslk.unlock();
 
-		manager::proto_replace::ReplaceElection param(*seed, net->clock_incr());
+		manager::mod_replace_t::ReplaceElection param(*seed, net->clock_incr());
 		net->get_node(share->partner())->call(  // FIXME exception
 				param, life,
-				BIND_RESPONSE(proto_replace, ReplaceElection), 10);
+				BIND_RESPONSE(mod_replace_t, ReplaceElection), 10);
 	} else {
 		LOG_INFO("replace self elected");
 		start_replace(hslk);
 	}
 }
 
-RPC_REPLY_IMPL(proto_replace, ReplaceElection, from, res, err, z)
+RPC_REPLY_IMPL(mod_replace_t, ReplaceElection, from, res, err, z)
 {
 	if(!err.is_nil() || res.is_nil()) {
 		LOG_INFO("replace delegate failed, elected");
@@ -137,7 +137,7 @@ RPC_REPLY_IMPL(proto_replace, ReplaceElection, from, res, err, z)
 
 
 
-void proto_replace::attach_new_servers(REQUIRE_HSLK)
+void mod_replace_t::attach_new_servers(REQUIRE_HSLK)
 {
 	// update hash space
 	ClockTime ct = net->clock_incr_clocktime();
@@ -162,40 +162,40 @@ void proto_replace::attach_new_servers(REQUIRE_HSLK)
 
 	nslk.unlock();
 
-	net->scope_proto_network().sync_hash_space_partner(hslk);
-	//net->scope_proto_network().sync_hash_space_servers(hslk);
-	//net->scope_proto_network().push_hash_space_clients(hslk);
+	net->mod_network.sync_hash_space_partner(hslk);
+	//net->mod_network.sync_hash_space_servers(hslk);
+	//net->mod_network.push_hash_space_clients(hslk);
 }
 
-void proto_replace::detach_fault_servers(REQUIRE_HSLK)
+void mod_replace_t::detach_fault_servers(REQUIRE_HSLK)
 {
 	ClockTime ct = net->clock_incr_clocktime();
 
 	share->whs().remove_fault_servers(ct);
 
-	net->scope_proto_network().sync_hash_space_partner(hslk);
-	//net->scope_proto_network().sync_hash_space_servers(hslk);
-	//net->scope_proto_network().push_hash_space_clients(hslk);
+	net->mod_network.sync_hash_space_partner(hslk);
+	//net->mod_network.sync_hash_space_servers(hslk);
+	//net->mod_network.push_hash_space_clients(hslk);
 }
 
 
-proto_replace::progress::progress() :
+mod_replace_t::progress::progress() :
 	m_clocktime(0) { }
 
-proto_replace::progress::~progress() { }
+mod_replace_t::progress::~progress() { }
 
-inline ClockTime proto_replace::progress::clocktime() const
+inline ClockTime mod_replace_t::progress::clocktime() const
 {
 	return m_clocktime;
 }
 
-inline void proto_replace::progress::reset(ClockTime replace_time, const nodes_t& nodes)
+inline void mod_replace_t::progress::reset(ClockTime replace_time, const nodes_t& nodes)
 {
 	m_target_nodes = m_remainder = nodes;
 	m_clocktime = replace_time;
 }
 
-bool proto_replace::progress::pop(ClockTime replace_time, const rpc::address& node)
+bool mod_replace_t::progress::pop(ClockTime replace_time, const rpc::address& node)
 {
 	if(m_clocktime != replace_time) { return false; }
 	if(m_remainder.empty()) { return false; }
@@ -207,7 +207,7 @@ bool proto_replace::progress::pop(ClockTime replace_time, const rpc::address& no
 	return m_remainder.empty();
 }
 
-proto_replace::progress::nodes_t proto_replace::progress::invalidate()
+mod_replace_t::progress::nodes_t mod_replace_t::progress::invalidate()
 {
 	m_clocktime = ClockTime(0);
 	m_remainder.clear();
@@ -232,7 +232,7 @@ namespace {
 	};
 }  // noname namespace
 
-void proto_replace::start_replace(REQUIRE_HSLK)
+void mod_replace_t::start_replace(REQUIRE_HSLK)
 {
 	LOG_INFO("start replace copy");
 	pthread_scoped_lock relk(m_replace_mutex);
@@ -242,10 +242,10 @@ void proto_replace::start_replace(REQUIRE_HSLK)
 	HashSpace::Seed* seed = life->allocate<HashSpace::Seed>(share->whs());
 	ClockTime replace_time(share->whs().clocktime());
 
-	server::proto_replace::ReplaceCopyStart param(*seed, net->clock_incr());
+	server::mod_replace_t::ReplaceCopyStart param(*seed, net->clock_incr());
 
 	using namespace mp::placeholders;
-	rpc::callback_t callback( BIND_RESPONSE(proto_replace, ReplaceCopyStart) );
+	rpc::callback_t callback( BIND_RESPONSE(mod_replace_t, ReplaceCopyStart) );
 
 	progress::nodes_t target_nodes;
 	net->for_each_node(ROLE_SERVER,
@@ -258,16 +258,16 @@ void proto_replace::start_replace(REQUIRE_HSLK)
 	relk.unlock();
 
 	// push hashspace to the clients
-	net->scope_proto_network().push_hash_space_clients(hslk);
+	net->mod_network.push_hash_space_clients(hslk);
 }
 
-RPC_REPLY_IMPL(proto_replace, ReplaceCopyStart, from, res, err, z)
+RPC_REPLY_IMPL(mod_replace_t, ReplaceCopyStart, from, res, err, z)
 {
 	// FIXME
 }
 
 
-RPC_IMPL(proto_replace, ReplaceElection, req, z, response)
+RPC_IMPL(mod_replace_t, ReplaceElection, req, z, response)
 {
 	LOG_DEBUG("ReplaceElection");
 
@@ -308,7 +308,7 @@ RPC_IMPL(proto_replace, ReplaceElection, req, z, response)
 
 
 
-RPC_IMPL(proto_replace, ReplaceCopyEnd, req, z, response)
+RPC_IMPL(mod_replace_t, ReplaceCopyEnd, req, z, response)
 {
 	net->clock_update(req.param().adjust_clock);
 
@@ -325,7 +325,7 @@ RPC_IMPL(proto_replace, ReplaceCopyEnd, req, z, response)
 }
 
 
-RPC_IMPL(proto_replace, ReplaceDeleteEnd, req, z, response)
+RPC_IMPL(mod_replace_t, ReplaceDeleteEnd, req, z, response)
 {
 	net->clock_update(req.param().adjust_clock);
 
@@ -342,7 +342,7 @@ RPC_IMPL(proto_replace, ReplaceDeleteEnd, req, z, response)
 }
 
 
-void proto_replace::finish_replace_copy(REQUIRE_RELK)
+void mod_replace_t::finish_replace_copy(REQUIRE_RELK)
 {
 	ClockTime replace_time = m_copying.clocktime();
 	LOG_INFO("start replace delete time(",replace_time.get(),")");
@@ -351,12 +351,12 @@ void proto_replace::finish_replace_copy(REQUIRE_RELK)
 
 	shared_zone life(new msgpack::zone());
 	HashSpace::Seed* seed = life->allocate<HashSpace::Seed>(share->whs());
-	// FIXME server::proto_replace::ReplaceDeleteStart has HashSpace::Seed:
+	// FIXME server::mod_replace_t::ReplaceDeleteStart has HashSpace::Seed:
 	//       not so good efficiency
-	server::proto_replace::ReplaceDeleteStart param(*seed, net->clock_incr());
+	server::mod_replace_t::ReplaceDeleteStart param(*seed, net->clock_incr());
 
 	using namespace mp::placeholders;
-	rpc::callback_t callback( BIND_RESPONSE(proto_replace, ReplaceDeleteStart) );
+	rpc::callback_t callback( BIND_RESPONSE(mod_replace_t, ReplaceDeleteStart) );
 
 	for(progress::nodes_t::iterator it(target_nodes.begin()),
 			it_end(target_nodes.end()); it != it_end; ++it) {
@@ -368,18 +368,18 @@ void proto_replace::finish_replace_copy(REQUIRE_RELK)
 	pthread_scoped_lock hslk(share->hs_mutex());
 	share->rhs() = share->whs();
 
-	net->scope_proto_network().push_hash_space_clients(hslk);
-	//net->scope_proto_network().sync_hash_space_servers(hslk);
-	net->scope_proto_network().sync_hash_space_partner(hslk);
+	net->mod_network.push_hash_space_clients(hslk);
+	//net->mod_network.sync_hash_space_servers(hslk);
+	net->mod_network.sync_hash_space_partner(hslk);
 }
 
-RPC_REPLY_IMPL(proto_replace, ReplaceDeleteStart, from, res, err, z)
+RPC_REPLY_IMPL(mod_replace_t, ReplaceDeleteStart, from, res, err, z)
 {
 	// FIXME
 }
 
 
-inline void proto_replace::finish_replace(REQUIRE_RELK)
+inline void mod_replace_t::finish_replace(REQUIRE_RELK)
 {
 	LOG_INFO("replace finished time(",m_deleting.clocktime().get(),")");
 	m_deleting.invalidate();

@@ -1,12 +1,12 @@
 #include "gateway/framework.h"
-#include "gateway/proto_network.h"
-#include "manager/proto_network.h"
+#include "gateway/mod_network.h"
+#include "manager/mod_network.h"
 
 namespace kumo {
 namespace gateway {
 
 
-RPC_IMPL(proto_network, HashSpacePush, req, z, response)
+RPC_IMPL(mod_network_t, HashSpacePush, req, z, response)
 {
 	LOG_DEBUG("HashSpacePush");
 
@@ -20,12 +20,12 @@ RPC_IMPL(proto_network, HashSpacePush, req, z, response)
 }
 
 
-void proto_network::renew_hash_space()
+void mod_network_t::renew_hash_space()
 {
 	shared_zone nullz;
-	manager::proto_network::HashSpaceRequest param;
+	manager::mod_network_t::HashSpaceRequest param;
 
-	rpc::callback_t callback( BIND_RESPONSE(proto_network, HashSpaceRequest) );
+	rpc::callback_t callback( BIND_RESPONSE(mod_network_t, HashSpaceRequest) );
 
 	net->get_session(share->manager1())->call(
 			param, nullz, callback, 10);
@@ -36,25 +36,25 @@ void proto_network::renew_hash_space()
 			param, nullz, callback, 10);
 }
 
-void proto_network::renew_hash_space_for(const address& addr)
+void mod_network_t::renew_hash_space_for(const address& addr)
 {
 	shared_session ns(net->get_session(addr));
 	shared_zone nullz;
-	manager::proto_network::HashSpaceRequest param;
+	manager::mod_network_t::HashSpaceRequest param;
 	ns->call(param, nullz,
-			BIND_RESPONSE(proto_network, HashSpaceRequest), 10);
+			BIND_RESPONSE(mod_network_t, HashSpaceRequest), 10);
 }
 
-void proto_network::keep_alive()
+void mod_network_t::keep_alive()
 {
 	shared_zone nullz;
-	manager::proto_network::HashSpaceRequest param;
+	manager::mod_network_t::HashSpaceRequest param;
 	shared_session ns;
 
 	ns = net->get_session(share->manager1());
 	if(!ns->is_bound()) {  // FIXME
 		ns->call(param, nullz,
-				BIND_RESPONSE(proto_network, HashSpaceRequest), 10);
+				BIND_RESPONSE(mod_network_t, HashSpaceRequest), 10);
 	}
 
 	if(!share->manager2().connectable()) { return; }
@@ -62,24 +62,24 @@ void proto_network::keep_alive()
 	ns = net->get_session(share->manager2());
 	if(!ns->is_bound()) {  // FIXME
 		ns->call(param, nullz,
-				BIND_RESPONSE(proto_network, HashSpaceRequest), 10);
+				BIND_RESPONSE(mod_network_t, HashSpaceRequest), 10);
 	}
 }
 
 
-RPC_REPLY_IMPL(proto_network, HashSpaceRequest, from, res, err, z)
+RPC_REPLY_IMPL(mod_network_t, HashSpaceRequest, from, res, err, z)
 {
 	if(!err.is_nil()) {
 		LOG_DEBUG("HashSpaceRequest failed ",err);
 		if(SESSION_IS_ACTIVE(from)) {
 			shared_zone nullz;
-			manager::proto_network::HashSpaceRequest param;
+			manager::mod_network_t::HashSpaceRequest param;
 
 			from->call(param, nullz,
-					BIND_RESPONSE(proto_network, HashSpaceRequest), 10);
+					BIND_RESPONSE(mod_network_t, HashSpaceRequest), 10);
 		}  // retry on Gateway::session_lost() if the node is lost
 	} else {
-		gateway::proto_network::HashSpacePush st(res.convert());
+		gateway::mod_network_t::HashSpacePush st(res.convert());
 		{
 			pthread_scoped_wrlock hslk(share->hs_rwlock());
 			share->update_whs(st.wseed, hslk);

@@ -96,17 +96,17 @@ struct unknown_method_error : msgpack::type_error { };
 #define SHARED_ZONE(life, z) shared_zone life(z.release())
 
 
-#define RPC_DISPATCH(SCOPE, NAME) \
-	case SCOPE::NAME::method::id: \
+#define RPC_DISPATCH(MOD, NAME) \
+	case MOD##_t::NAME::method::id: \
 		{ \
-			rpc::request<SCOPE::NAME> req(from, param); \
-			m_##SCOPE.rpc_##NAME(req, z, response); \
+			rpc::request<MOD##_t::NAME> req(from, param); \
+			MOD.rpc_##NAME(req, z, response); \
 			break; \
 		} \
 
 
-#define RPC_IMPL(SCOPE, NAME, req, z, response) \
-	void SCOPE::rpc_##NAME(rpc::request<NAME>& req, rpc::auto_zone z, \
+#define RPC_IMPL(MOD, NAME, req, z, response) \
+	void MOD::rpc_##NAME(rpc::request<NAME>& req, rpc::auto_zone z, \
 			rpc::weak_responder response)
 
 
@@ -114,13 +114,13 @@ struct unknown_method_error : msgpack::type_error { };
 	void res_##NAME(basic_shared_session from, rpc::msgobj res, rpc::msgobj err, \
 			auto_zone z, ##__VA_ARGS__);
 
-#define RPC_REPLY_IMPL(SCOPE, NAME, from, res, err, z, ...) \
-	void SCOPE::res_##NAME(basic_shared_session from, rpc::msgobj res, rpc::msgobj err, \
+#define RPC_REPLY_IMPL(MOD, NAME, from, res, err, z, ...) \
+	void MOD::res_##NAME(basic_shared_session from, rpc::msgobj res, rpc::msgobj err, \
 			auto_zone z, ##__VA_ARGS__)
 
 
-#define BIND_RESPONSE(SCOPE, NAME, ...) \
-	mp::bind(&SCOPE::res_##NAME, this, _1, _2, _3, _4, ##__VA_ARGS__)
+#define BIND_RESPONSE(MOD, NAME, ...) \
+	mp::bind(&MOD::res_##NAME, this, _1, _2, _3, _4, ##__VA_ARGS__)
 
 
 

@@ -289,10 +289,12 @@ class OutputFiles
 
 	def generate(dir)
 		@headers.each_pair {|name, header|
-			header.generate(File.join(dir, "#{name}.h"))
+			fname = name.sub(/_t$/, "")
+			header.generate(File.join(dir, "#{fname}.h"))
 		}
 		@dispatches.each_pair {|name, dispatch|
-			dispatch.generate(File.join(dir, "#{name}_dispatch.h"))
+			fname = name.sub(/_t$/, "")
+			dispatch.generate(File.join(dir, "#{fname}_dispatch.h"))
 		}
 		if @protonum
 			@protonum.generate(File.join(dir, "proto.h"), @headers)

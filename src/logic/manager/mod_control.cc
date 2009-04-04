@@ -1,15 +1,15 @@
 #include "manager/framework.h"
-#include "server/proto_control.h"
+#include "server/mod_control.h"
 
 namespace kumo {
 namespace manager {
 
 
-proto_control::proto_control() { }
-proto_control::~proto_control() { }
+mod_control_t::mod_control_t() { }
+mod_control_t::~mod_control_t() { }
 
 
-RPC_IMPL(proto_control, GetNodesInfo, req, z, response)
+RPC_IMPL(mod_control_t, GetNodesInfo, req, z, response)
 {
 	Status res;
 
@@ -31,35 +31,35 @@ RPC_IMPL(proto_control, GetNodesInfo, req, z, response)
 	response.result(res);
 }
 
-RPC_IMPL(proto_control, AttachNewServers, req, z, response)
+RPC_IMPL(mod_control_t, AttachNewServers, req, z, response)
 {
 	{
 		pthread_scoped_lock hslk(share->hs_mutex());
-		net->scope_proto_replace().attach_new_servers(hslk);
-		net->scope_proto_replace().start_replace(hslk);
+		net->mod_replace.attach_new_servers(hslk);
+		net->mod_replace.start_replace(hslk);
 	}
 	response.null();
 }
 
-RPC_IMPL(proto_control, DetachFaultServers, req, z, response)
+RPC_IMPL(mod_control_t, DetachFaultServers, req, z, response)
 {
 	{
 		pthread_scoped_lock hslk(share->hs_mutex());
-		net->scope_proto_replace().detach_fault_servers(hslk);
-		net->scope_proto_replace().start_replace(hslk);
+		net->mod_replace.detach_fault_servers(hslk);
+		net->mod_replace.start_replace(hslk);
 	}
 	response.null();
 }
 
-RPC_IMPL(proto_control, CreateBackup, req, z, response)
+RPC_IMPL(mod_control_t, CreateBackup, req, z, response)
 {
 	if(req.param().suffix.empty()) {
 		std::string msg("empty suffix");
 		response.error(msg);
 		return;
 	}
-	server::proto_control::CreateBackup param(req.param().suffix);
-	rpc::callback_t callback( BIND_RESPONSE(proto_control, CreateBackup) );
+	server::mod_control_t::CreateBackup param(req.param().suffix);
+	rpc::callback_t callback( BIND_RESPONSE(mod_control_t, CreateBackup) );
 	shared_zone nullz;
 
 	net->for_each_node(ROLE_SERVER,
@@ -68,10 +68,10 @@ RPC_IMPL(proto_control, CreateBackup, req, z, response)
 	response.null();
 }
 
-RPC_REPLY_IMPL(proto_control, CreateBackup, from, res, err, z)
+RPC_REPLY_IMPL(mod_control_t, CreateBackup, from, res, err, z)
 { }
 
-RPC_IMPL(proto_control, SetAutoReplace, req, z, response)
+RPC_IMPL(mod_control_t, SetAutoReplace, req, z, response)
 {
 	if(share->cfg_auto_replace() && !req.param().enable) {
 		share->cfg_auto_replace() = false;
@@ -81,8 +81,8 @@ RPC_IMPL(proto_control, SetAutoReplace, req, z, response)
 
 		{
 			pthread_scoped_lock hslk(share->hs_mutex());
-			net->scope_proto_replace().attach_new_servers(hslk);
-			net->scope_proto_replace().detach_fault_servers(hslk);
+			net->mod_replace.attach_new_servers(hslk);
+			net->mod_replace.detach_fault_servers(hslk);
 		}
 
 		response.result(true);
@@ -90,11 +90,11 @@ RPC_IMPL(proto_control, SetAutoReplace, req, z, response)
 	response.null();
 }
 
-RPC_IMPL(proto_control, StartReplace, req, z, response)
+RPC_IMPL(mod_control_t, StartReplace, req, z, response)
 {
 	{
 		pthread_scoped_lock hslk(share->hs_mutex());
-		net->scope_proto_replace().start_replace(hslk);
+		net->mod_replace.start_replace(hslk);
 	}
 
 	response.null();

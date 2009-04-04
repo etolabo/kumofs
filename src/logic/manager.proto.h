@@ -9,30 +9,30 @@ namespace kumo {
 namespace manager {
 
 
-@message proto_network::KeepAlive           =   0
-@message proto_network::HashSpaceRequest    =   1
-@message proto_network::HashSpaceSync       =   2
-@message proto_network::WHashSpaceRequest   =   4
-@message proto_network::RHashSpaceRequest   =   5
-@message proto_replace::ReplaceCopyEnd      =  10
-@message proto_replace::ReplaceDeleteEnd    =  11
-@message proto_replace::ReplaceElection     =  12
-@message proto_control::GetNodesInfo        =  99
-@message proto_control::AttachNewServers    = 100
-@message proto_control::DetachFaultServers  = 101
-@message proto_control::CreateBackup        = 102
-@message proto_control::SetAutoReplace      = 103
-@message proto_control::StartReplace        = 104
+@message mod_network_t::KeepAlive           =   0
+@message mod_network_t::HashSpaceRequest    =   1
+@message mod_network_t::HashSpaceSync       =   2
+@message mod_network_t::WHashSpaceRequest   =   4
+@message mod_network_t::RHashSpaceRequest   =   5
+@message mod_replace_t::ReplaceCopyEnd      =  10
+@message mod_replace_t::ReplaceDeleteEnd    =  11
+@message mod_replace_t::ReplaceElection     =  12
+@message mod_control_t::GetNodesInfo        =  99
+@message mod_control_t::AttachNewServers    = 100
+@message mod_control_t::DetachFaultServers  = 101
+@message mod_control_t::CreateBackup        = 102
+@message mod_control_t::SetAutoReplace      = 103
+@message mod_control_t::StartReplace        = 104
 
 
-@rpc proto_network
+@rpc mod_network_t
 	message KeepAlive +cluster {
 		Clock adjust_clock;
 		// ok: UNDEFINED
 	};
 
 	message HashSpaceRequest {
-		// success: gateway::proto_network::HashSpacePush
+		// success: gateway::mod_network_t::HashSpacePush
 	};
 
 	message WHashSpaceRequest {
@@ -65,11 +65,11 @@ private:
 @end
 
 
-@code proto_replace
+@code mod_replace_t
 class framework;
 @end
 
-@rpc proto_replace
+@rpc mod_replace_t
 	message ReplaceCopyEnd +cluster {
 		ClockTime replace_time;
 		Clock adjust_clock;
@@ -90,8 +90,8 @@ class framework;
 	};
 
 public:
-	proto_replace();
-	~proto_replace();
+	mod_replace_t();
+	~mod_replace_t();
 
 public:
 	void attach_new_servers(REQUIRE_HSLK);
@@ -139,7 +139,7 @@ private:
 @end
 
 
-@rpc proto_control
+@rpc mod_control_t
 	message GetNodesInfo {
 	};
 
@@ -164,8 +164,8 @@ private:
 
 
 public:
-	proto_control();
-	~proto_control();
+	mod_control_t();
+	~mod_control_t();
 
 public:
 	void listen_control(int lsock);

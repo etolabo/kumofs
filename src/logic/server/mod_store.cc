@@ -1,5 +1,5 @@
 #include "server/framework.h"
-#include "server/proto_control.h"
+#include "server/mod_control.h"
 
 #define EACH_ASSIGNED_ACTIVE_NODE_EXCLUDE_ONE(EXCLUDE, HS, HASH, NODE, CODE) \
 	EACH_ASSIGN(HS, HASH, _real_, \
@@ -28,7 +28,7 @@ namespace kumo {
 namespace server {
 
 
-void proto_store::check_replicator_assign(HashSpace& hs, uint64_t h)
+void mod_store_t::check_replicator_assign(HashSpace& hs, uint64_t h)
 {
 	if(hs.empty()) {
 		throw std::runtime_error("server not ready");
@@ -40,7 +40,7 @@ void proto_store::check_replicator_assign(HashSpace& hs, uint64_t h)
 	throw std::runtime_error("obsolete hash space");
 }
 
-void proto_store::check_coordinator_assign(HashSpace& hs, uint64_t h)
+void mod_store_t::check_coordinator_assign(HashSpace& hs, uint64_t h)
 {
 	if(hs.empty()) {
 		throw std::runtime_error("server not ready");
@@ -55,7 +55,7 @@ void proto_store::check_coordinator_assign(HashSpace& hs, uint64_t h)
 }
 
 
-RPC_IMPL(proto_store, Get, req, z, response)
+RPC_IMPL(mod_store_t, Get, req, z, response)
 {
 	msgtype::DBKey key(req.param().dbkey);
 	LOG_DEBUG("Get '",
@@ -86,7 +86,7 @@ RPC_IMPL(proto_store, Get, req, z, response)
 }
 
 
-bool proto_store::SetByRhsWhs(weak_responder response, auto_zone& z,
+bool mod_store_t::SetByRhsWhs(weak_responder response, auto_zone& z,
 		msgtype::DBKey& key, msgtype::DBValue& val,
 		bool is_async)
 {
@@ -145,7 +145,7 @@ bool proto_store::SetByRhsWhs(weak_responder response, auto_zone& z,
 					msgtype::DBKey(key.raw_data(), key.raw_size()),
 					msgtype::DBValue(val.raw_data(), val.raw_size()))
 				);
-	rretry->set_callback( BIND_RESPONSE(proto_store, ReplicateSet,
+	rretry->set_callback( BIND_RESPONSE(mod_store_t, ReplicateSet,
 			rretry,
 			pcr,
 			response, ct) );
@@ -158,7 +158,7 @@ bool proto_store::SetByRhsWhs(weak_responder response, auto_zone& z,
 					msgtype::DBKey(key.raw_data(), key.raw_size()),
 					msgtype::DBValue(val.raw_data(), val.raw_size()))
 				);
-	wretry->set_callback( BIND_RESPONSE(proto_store, ReplicateSet,
+	wretry->set_callback( BIND_RESPONSE(mod_store_t, ReplicateSet,
 			wretry,
 			pcr,
 			response, ct) );
@@ -185,7 +185,7 @@ bool proto_store::SetByRhsWhs(weak_responder response, auto_zone& z,
 	return true;
 }
 
-void proto_store::SetByWhs(weak_responder response, auto_zone& z,
+void mod_store_t::SetByWhs(weak_responder response, auto_zone& z,
 		msgtype::DBKey& key, msgtype::DBValue& val,
 		bool is_async)
 {
@@ -220,7 +220,7 @@ void proto_store::SetByWhs(weak_responder response, auto_zone& z,
 					msgtype::DBKey(key.raw_data(), key.raw_size()),
 					msgtype::DBValue(val.raw_data(), val.raw_size()))
 				);
-	retry->set_callback( BIND_RESPONSE(proto_store, ReplicateSet,
+	retry->set_callback( BIND_RESPONSE(mod_store_t, ReplicateSet,
 			retry,
 			pcr,
 			response, ct) );
@@ -240,7 +240,7 @@ void proto_store::SetByWhs(weak_responder response, auto_zone& z,
 	}
 }
 
-RPC_IMPL(proto_store, Set, req, z, response)
+RPC_IMPL(mod_store_t, Set, req, z, response)
 {
 	msgtype::DBKey key(req.param().dbkey);
 	msgtype::DBValue val(req.param().dbval);
@@ -262,7 +262,7 @@ RPC_IMPL(proto_store, Set, req, z, response)
 
 
 
-bool proto_store::DeleteByRhsWhs(weak_responder response, auto_zone& z,
+bool mod_store_t::DeleteByRhsWhs(weak_responder response, auto_zone& z,
 		msgtype::DBKey& key,
 		bool is_async)
 {
@@ -334,7 +334,7 @@ bool proto_store::DeleteByRhsWhs(weak_responder response, auto_zone& z,
 					ct,
 					msgtype::DBKey(key.raw_data(), key.raw_size()))
 				);
-	rretry->set_callback( BIND_RESPONSE(proto_store, ReplicateDelete,
+	rretry->set_callback( BIND_RESPONSE(mod_store_t, ReplicateDelete,
 				rretry,
 				pcr,
 				response, deleted) );
@@ -348,7 +348,7 @@ bool proto_store::DeleteByRhsWhs(weak_responder response, auto_zone& z,
 					ct,
 					msgtype::DBKey(key.raw_data(), key.raw_size()))
 				);
-	wretry->set_callback( BIND_RESPONSE(proto_store, ReplicateDelete,
+	wretry->set_callback( BIND_RESPONSE(mod_store_t, ReplicateDelete,
 			wretry,
 			pcr,
 			response, deleted) );
@@ -366,7 +366,7 @@ bool proto_store::DeleteByRhsWhs(weak_responder response, auto_zone& z,
 	return true;
 }
 
-void proto_store::DeleteByWhs(weak_responder response, auto_zone& z,
+void mod_store_t::DeleteByWhs(weak_responder response, auto_zone& z,
 		msgtype::DBKey& key,
 		bool is_async)
 {
@@ -413,7 +413,7 @@ void proto_store::DeleteByWhs(weak_responder response, auto_zone& z,
 					ct,
 					msgtype::DBKey(key.raw_data(), key.raw_size()))
 				);
-	retry->set_callback( BIND_RESPONSE(proto_store, ReplicateDelete,
+	retry->set_callback( BIND_RESPONSE(mod_store_t, ReplicateDelete,
 			retry,
 			pcr,
 			response, deleted) );
@@ -424,7 +424,7 @@ void proto_store::DeleteByWhs(weak_responder response, auto_zone& z,
 	}
 }
 
-RPC_IMPL(proto_store, Delete, req, z, response)
+RPC_IMPL(mod_store_t, Delete, req, z, response)
 {
 	msgtype::DBKey key(req.param().dbkey);
 	LOG_DEBUG("Delete '",
@@ -444,7 +444,7 @@ RPC_IMPL(proto_store, Delete, req, z, response)
 
 
 
-RPC_REPLY_IMPL(proto_store, ReplicateSet, from, res, err, z,
+RPC_REPLY_IMPL(mod_store_t, ReplicateSet, from, res, err, z,
 		rpc::retry<ReplicateSet>* retry,
 		volatile unsigned int* copy_required,
 		rpc::weak_responder response, ClockTime clocktime)
@@ -487,7 +487,7 @@ RPC_REPLY_IMPL(proto_store, ReplicateSet, from, res, err, z,
 	}
 }
 
-RPC_REPLY_IMPL(proto_store, ReplicateDelete, from, res, err, z,
+RPC_REPLY_IMPL(mod_store_t, ReplicateDelete, from, res, err, z,
 		rpc::retry<ReplicateDelete>* retry,
 		volatile unsigned int* copy_required,
 		rpc::weak_responder response, bool deleted)
@@ -530,7 +530,7 @@ RPC_REPLY_IMPL(proto_store, ReplicateDelete, from, res, err, z,
 }
 
 
-RPC_IMPL(proto_store, ReplicateSet, req, z, response)
+RPC_IMPL(mod_store_t, ReplicateSet, req, z, response)
 {
 	msgtype::DBKey key = req.param().dbkey;
 	msgtype::DBValue val = req.param().dbval;
@@ -554,7 +554,7 @@ RPC_IMPL(proto_store, ReplicateSet, req, z, response)
 }
 
 
-RPC_IMPL(proto_store, ReplicateDelete, req, z, response)
+RPC_IMPL(mod_store_t, ReplicateDelete, req, z, response)
 {
 	msgtype::DBKey key = req.param().dbkey;
 	LOG_TRACE("ReplicateDelete");

@@ -2,8 +2,8 @@
 #define GATEWAY_FRAMEWORK_H__
 
 #include "logic/client_logic.h"
-#include "gateway/proto_network.h"
-#include "gateway/scope_store.h"
+#include "gateway/mod_network.h"
+#include "gateway/mod_store.h"
 
 namespace kumo {
 namespace gateway {
@@ -26,16 +26,12 @@ public:
 	// rpc_server
 	void keep_alive()
 	{
-		scope_proto_network().keep_alive();
+		mod_network.keep_alive();
 	}
 
-private:
-	proto_network m_proto_network;
-	scope_store m_scope_store;
-
 public:
-	proto_network&   scope_proto_network()   { return m_proto_network;   }
-	scope_store&     scope_scope_store()     { return m_scope_store;   }
+	mod_network_t mod_network;
+	mod_store_t   mod_store;
 
 private:
 	framework();
@@ -68,7 +64,7 @@ private:
 	unsigned short m_error_count;
 
 public:
-	// scope_store.cc
+	// mod_store.cc
 	void incr_error_renew_count();
 
 public:
@@ -81,7 +77,7 @@ public:
 		HS_READ,
 	};
 
-	// scope_store.cc
+	// mod_store.cc
 	// Note: hslk is not required
 	template <hash_space_type Hs>
 	shared_session server_for(uint64_t h, unsigned int offset = 0);

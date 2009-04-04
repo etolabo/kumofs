@@ -17,14 +17,14 @@ void fatal_stop()
 
 void req_get::submit()
 {
-	gateway::net->scope_scope_store().Get(
+	gateway::net->mod_store.Get(
 			callback, user, life,
 			key, keylen, hash);
 }
 
 void req_set::submit()
 {
-	gateway::net->scope_scope_store().Set(
+	gateway::net->mod_store.Set(
 			callback, user, life,
 			key, keylen, hash,
 			val, vallen);
@@ -32,7 +32,7 @@ void req_set::submit()
 
 void req_delete::submit()
 {
-	gateway::net->scope_scope_store().Delete(
+	gateway::net->mod_store.Delete(
 			callback, user, life,
 			key, keylen, hash);
 }

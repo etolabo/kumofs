@@ -5,9 +5,9 @@ namespace kumo {
 namespace gateway {
 
 
-scope_store::scope_store() { }
+mod_store_t::mod_store_t() { }
 
-scope_store::~scope_store() { }
+mod_store_t::~mod_store_t() { }
 
 
 template <resource::hash_space_type Hs>
@@ -68,7 +68,7 @@ void resource::incr_error_renew_count()
 	LOG_DEBUG("increment error count ",m_error_count);
 	if(m_error_count >= m_cfg_renew_threshold) {
 		m_error_count = 0;
-		net->scope_proto_network().renew_hash_space();
+		net->mod_network.renew_hash_space();
 	} else {
 		++m_error_count;
 	}
@@ -100,33 +100,33 @@ catch (std::exception& e) { \
 }
 
 
-void scope_store::Get(gate::callback_get callback, void* user,
+void mod_store_t::Get(gate::callback_get callback, void* user,
 		shared_zone life,
 		const char* key, uint32_t keylen, uint64_t hash)
 try {
 	if(!life) { life.reset(new msgpack::zone()); }
-	rpc::retry<server::proto_store::Get>* retry =
-		life->allocate< rpc::retry<server::proto_store::Get> >(
-				server::proto_store::Get(
+	rpc::retry<server::mod_store_t::Get>* retry =
+		life->allocate< rpc::retry<server::mod_store_t::Get> >(
+				server::mod_store_t::Get(
 					msgtype::DBKey(key, keylen, hash)
 					));
 
-	retry->set_callback( BIND_RESPONSE(scope_store, Get, retry, callback, user) );
+	retry->set_callback( BIND_RESPONSE(mod_store_t, Get, retry, callback, user) );
 	retry->call(share->server_for<resource::HS_READ>(hash), life, 10);
 }
 SUBMIT_CATCH(_get);
 
 
-void scope_store::Set(gate::callback_set callback, void* user,
+void mod_store_t::Set(gate::callback_set callback, void* user,
 		shared_zone life,
 		const char* key, uint32_t keylen, uint64_t hash,
 		const char* val, uint32_t vallen)
 try {
 	uint16_t meta = 0;
 	if(!life) { life.reset(new msgpack::zone()); }
-	rpc::retry<server::proto_store::Set>* retry =
-		life->allocate< rpc::retry<server::proto_store::Set> >(
-				server::proto_store::Set(
+	rpc::retry<server::mod_store_t::Set>* retry =
+		life->allocate< rpc::retry<server::mod_store_t::Set> >(
+				server::mod_store_t::Set(
 					( share->cfg_async_replicate_set() ?
 					  static_cast<server::store_flags>(server::store_flags_async()) :
 					  static_cast<server::store_flags>(server::store_flags_none() ) ),
@@ -134,27 +134,27 @@ try {
 					msgtype::DBValue(val, vallen, meta))
 				);
 
-	retry->set_callback( BIND_RESPONSE(scope_store, Set, retry, callback, user) );
+	retry->set_callback( BIND_RESPONSE(mod_store_t, Set, retry, callback, user) );
 	retry->call(share->server_for<resource::HS_WRITE>(hash), life, 10);
 }
 SUBMIT_CATCH(_set);
 
 
-void scope_store::Delete(gate::callback_delete callback, void* user,
+void mod_store_t::Delete(gate::callback_delete callback, void* user,
 		shared_zone life,
 		const char* key, uint32_t keylen, uint64_t hash)
 try {
 	if(!life) { life.reset(new msgpack::zone()); }
-	rpc::retry<server::proto_store::Delete>* retry =
-		life->allocate< rpc::retry<server::proto_store::Delete> >(
-				server::proto_store::Delete(
+	rpc::retry<server::mod_store_t::Delete>* retry =
+		life->allocate< rpc::retry<server::mod_store_t::Delete> >(
+				server::mod_store_t::Delete(
 					(share->cfg_async_replicate_delete() ?
 					 static_cast<server::store_flags>(server::store_flags_async()) :
 					 static_cast<server::store_flags>(server::store_flags_none() ) ),
 					msgtype::DBKey(key, keylen, hash))
 				);
 
-	retry->set_callback( BIND_RESPONSE(scope_store, Delete, retry, callback, user) );
+	retry->set_callback( BIND_RESPONSE(mod_store_t, Delete, retry, callback, user) );
 	retry->call(share->server_for<resource::HS_WRITE>(hash), life, 10);
 }
 SUBMIT_CATCH(_delete);
@@ -214,8 +214,8 @@ void retry_after(unsigned int steps,
 }  // noname namespace
 
 
-RPC_REPLY_IMPL(scope_store, Get, from, res, err, z,
-		rpc::retry<server::proto_store::Get>* retry,
+RPC_REPLY_IMPL(mod_store_t, Get, from, res, err, z,
+		rpc::retry<server::mod_store_t::Get>* retry,
 		gate::callback_get callback, void* user)
 try {
 	msgtype::DBKey key(retry->param().dbkey);
@@ -255,7 +255,7 @@ try {
 	} else {
 		if(err.via.u64 == (uint64_t)rpc::protocol::TRANSPORT_LOST_ERROR ||
 				err.via.u64 == (uint64_t)rpc::protocol::SERVER_ERROR) {
-			net->scope_proto_network().renew_hash_space();   // FIXME
+			net->mod_network.renew_hash_space();   // FIXME
 		}
 		gate::res_get ret;
 		ret.error     = 1;  // ERROR
@@ -275,8 +275,8 @@ try {
 GATEWAY_CATCH(ResGet, gate::res_get)
 
 
-RPC_REPLY_IMPL(scope_store, Set, from, res, err, z,
-		rpc::retry<server::proto_store::Set>* retry,
+RPC_REPLY_IMPL(mod_store_t, Set, from, res, err, z,
+		rpc::retry<server::mod_store_t::Set>* retry,
 		gate::callback_set callback, void* user)
 try {
 	msgtype::DBKey key(retry->param().dbkey);
@@ -306,7 +306,7 @@ try {
 	} else {
 		if(err.via.u64 == (uint64_t)rpc::protocol::TRANSPORT_LOST_ERROR ||
 				err.via.u64 == (uint64_t)rpc::protocol::SERVER_ERROR) {
-			net->scope_proto_network().renew_hash_space();   // FIXME
+			net->mod_network.renew_hash_space();   // FIXME
 		}
 		gate::res_set ret;
 		ret.error     = 1;  // ERROR
@@ -327,8 +327,8 @@ try {
 GATEWAY_CATCH(ResSet, gate::res_set)
 
 
-RPC_REPLY_IMPL(scope_store, Delete, from, res, err, z,
-		rpc::retry<server::proto_store::Delete>* retry,
+RPC_REPLY_IMPL(mod_store_t, Delete, from, res, err, z,
+		rpc::retry<server::mod_store_t::Delete>* retry,
 		gate::callback_delete callback, void* user)
 try {
 	msgtype::DBKey key(retry->param().dbkey);
@@ -355,7 +355,7 @@ try {
 	} else {
 		if(err.via.u64 == (uint64_t)rpc::protocol::TRANSPORT_LOST_ERROR ||
 				err.via.u64 == (uint64_t)rpc::protocol::SERVER_ERROR) {
-			net->scope_proto_network().renew_hash_space();   // FIXME
+			net->mod_network.renew_hash_space();   // FIXME
 		}
 		gate::res_delete ret;
 		ret.error     = 1;  // ERROR

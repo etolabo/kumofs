@@ -3,11 +3,11 @@
 
 #include "logic/cluster_logic.h"
 #include "logic/clock_logic.h"
-#include "server/proto_control.h"
-#include "server/proto_network.h"
-#include "server/proto_replace.h"
-#include "server/proto_replace_stream.h"
-#include "server/proto_store.h"
+#include "server/mod_control.h"
+#include "server/mod_network.h"
+#include "server/mod_replace.h"
+#include "server/mod_replace_stream.h"
+#include "server/mod_store.h"
 
 #define EACH_ASSIGN(HS, HASH, REAL, CODE) \
 { \
@@ -63,7 +63,7 @@ public:
 	// rpc_server
 	void keep_alive()
 	{
-		scope_proto_network().keep_alive();
+		mod_network.keep_alive();
 	}
 
 	// override rpc_server<framework>::timer_handler
@@ -73,21 +73,14 @@ public:
 		rpc_server<framework>::timer_handler();
 	}
 
-private:
-	proto_network m_proto_network;
-	proto_control m_proto_control;
-	proto_replace m_proto_replace;
-	proto_store   m_proto_store;
-	proto_replace_stream m_proto_replace_stream;
-
 public:
-	proto_network&   scope_proto_network()   { return m_proto_network;   }
-	proto_control&   scope_proto_control()   { return m_proto_control;   }
-	proto_replace&   scope_proto_replace()   { return m_proto_replace;   }
-	proto_store&     scope_proto_store()     { return m_proto_store;     }
-	proto_replace_stream& scope_proto_replace_stream() { return m_proto_replace_stream; }
+	mod_network_t mod_network;
+	mod_control_t mod_control;
+	mod_replace_t mod_replace;
+	mod_store_t   mod_store;
+	mod_replace_stream_t mod_replace_stream;
 
-	// FIXME proto_replace_stream::rpc_ReplaceOffer_1
+	// FIXME mod_replace_stream::rpc_ReplaceOffer_1
 	unsigned int connect_timeout_msec() const {
 		return m_connect_timeout_msec;  // rpc::client<>
 	}

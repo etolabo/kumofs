@@ -14,13 +14,13 @@ void framework::cluster_dispatch(
 try {
 	// FIXME try & catch
 	switch(method.get()) {
-	RPC_DISPATCH(proto_network, KeepAlive);
-	RPC_DISPATCH(proto_network, WHashSpaceRequest);
-	RPC_DISPATCH(proto_network, RHashSpaceRequest);
-	RPC_DISPATCH(proto_network, HashSpaceSync);
-	RPC_DISPATCH(proto_replace, ReplaceCopyEnd);
-	RPC_DISPATCH(proto_replace, ReplaceDeleteEnd);
-	RPC_DISPATCH(proto_replace, ReplaceElection);
+	RPC_DISPATCH(mod_network, KeepAlive);
+	RPC_DISPATCH(mod_network, WHashSpaceRequest);
+	RPC_DISPATCH(mod_network, RHashSpaceRequest);
+	RPC_DISPATCH(mod_network, HashSpaceSync);
+	RPC_DISPATCH(mod_replace, ReplaceCopyEnd);
+	RPC_DISPATCH(mod_replace, ReplaceDeleteEnd);
+	RPC_DISPATCH(mod_replace, ReplaceElection);
 	default:
 		throw unknown_method_error();
 	}
@@ -33,13 +33,13 @@ void framework::subsystem_dispatch(
 try {
 	// FIXME try & catch
 	switch(method.get()) {
-	RPC_DISPATCH(proto_network, HashSpaceRequest);
-	RPC_DISPATCH(proto_control, GetNodesInfo);
-	RPC_DISPATCH(proto_control, AttachNewServers);
-	RPC_DISPATCH(proto_control, DetachFaultServers);
-	RPC_DISPATCH(proto_control, CreateBackup);
-	RPC_DISPATCH(proto_control, SetAutoReplace);
-	RPC_DISPATCH(proto_control, StartReplace);
+	RPC_DISPATCH(mod_network, HashSpaceRequest);
+	RPC_DISPATCH(mod_control, GetNodesInfo);
+	RPC_DISPATCH(mod_control, AttachNewServers);
+	RPC_DISPATCH(mod_control, DetachFaultServers);
+	RPC_DISPATCH(mod_control, CreateBackup);
+	RPC_DISPATCH(mod_control, SetAutoReplace);
+	RPC_DISPATCH(mod_control, StartReplace);
 	default:
 		throw unknown_method_error();
 	}
@@ -61,13 +61,13 @@ void framework::new_node(address addr, role_type id, shared_node n)
 		LOG_INFO("partner connected ",addr);
 		{
 			pthread_scoped_lock hslk(share->hs_mutex());
-			scope_proto_network().sync_hash_space_partner(hslk);
+			mod_network.sync_hash_space_partner(hslk);
 		}
 		return;
 
 	} else if(id == ROLE_SERVER) {
 		// FIXME delayed change
-		scope_proto_replace().add_server(addr, n);
+		mod_replace.add_server(addr, n);
 		return;
 
 	} else {
@@ -83,7 +83,7 @@ void framework::lost_node(address addr, role_type id)
 
 	} else if(id == ROLE_SERVER) {
 		// FIXME delayed change
-		scope_proto_replace().remove_server(addr);
+		mod_replace.remove_server(addr);
 		return;
 	}
 }

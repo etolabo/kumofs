@@ -1,11 +1,11 @@
 
 PROTOGEN_AUTOGEN_FILES = \
-		server/proto.h \
-		server/proto_control.h \
-		server/proto_network.h \
-		server/proto_replace.h \
-		server/proto_replace_stream.h \
-		server/proto_store.h
+		proto.h \
+		mod_control.h \
+		mod_network.h \
+		mod_replace.h \
+		mod_replace_stream.h \
+		mod_store.h
 
 proto.generated: ../protogen ../server.proto.h
 	$(RUBY) ../protogen ../server.proto.h

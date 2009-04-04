@@ -9,22 +9,22 @@ namespace kumo {
 namespace server {
 
 
-@message proto_network::KeepAlive           =   0
-@message proto_network::HashSpaceSync       =   2
-@message proto_replace::ReplaceCopyStart    =   8
-@message proto_replace::ReplaceDeleteStart  =   9
-@message proto_replace_stream::ReplaceOffer =  16
-@message proto_store::ReplicateSet          =  32
-@message proto_store::ReplicateDelete       =  33
-@message proto_store::Get                   =  34
-@message proto_store::Set                   =  35
-@message proto_store::Delete                =  36
-@message proto_control::CreateBackup        =  96
-@message proto_control::GetStatus           =  97
-@message proto_control::SetConfig           =  98
+@message mod_network_t::KeepAlive           =   0
+@message mod_network_t::HashSpaceSync       =   2
+@message mod_replace_t::ReplaceCopyStart    =   8
+@message mod_replace_t::ReplaceDeleteStart  =   9
+@message mod_replace_stream_t::ReplaceOffer =  16
+@message mod_store_t::ReplicateSet          =  32
+@message mod_store_t::ReplicateDelete       =  33
+@message mod_store_t::Get                   =  34
+@message mod_store_t::Set                   =  35
+@message mod_store_t::Delete                =  36
+@message mod_control_t::CreateBackup        =  96
+@message mod_control_t::GetStatus           =  97
+@message mod_control_t::SetConfig           =  98
 
 
-@rpc proto_network
+@rpc mod_network_t
 	message KeepAlive +cluster {
 		Clock adjust_clock;
 		// ok: UNDEFINED
@@ -50,7 +50,7 @@ private:
 @end
 
 
-@code proto_store
+@code mod_store_t
 struct store_flags;
 typedef msgtype::flags<store_flags, 0>    store_flags_none;
 typedef msgtype::flags<store_flags, 0x01> store_flags_async;
@@ -67,7 +67,7 @@ struct replicate_flags : msgtype::flags_base {
 @end
 
 
-@rpc proto_store
+@rpc mod_store_t
 	message Get {
 		msgtype::DBKey dbkey;
 		// success: value:DBValue
@@ -139,7 +139,7 @@ private:
 
 
 
-@rpc proto_replace
+@rpc mod_replace_t
 	message ReplaceCopyStart +cluster {
 		msgtype::HSSeed hsseed;
 		Clock adjust_clock;
@@ -195,15 +195,15 @@ public:
 @end
 
 
-@rpc proto_replace_stream
+@rpc mod_replace_stream_t
 	message ReplaceOffer +cluster {
 		uint16_t port;
 		// no response
 	};
 
 public:
-	proto_replace_stream(address stream_addr);
-	~proto_replace_stream();
+	mod_replace_stream_t(address stream_addr);
+	~mod_replace_stream_t();
 
 private:
 	int m_stream_lsock;
@@ -265,7 +265,7 @@ private:
 @end
 
 
-@code proto_control
+@code mod_control_t
 enum status_type {
 	STAT_PID			= 0,
 	STAT_UPTIME			= 1,
@@ -279,7 +279,7 @@ enum status_type {
 };
 @end
 
-@rpc proto_control
+@rpc mod_control_t
 	message CreateBackup {
 		std::string suffix;
 		// success: true

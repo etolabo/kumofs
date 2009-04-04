@@ -20,7 +20,7 @@ void framework::run(const Config& cfg)
 	init_wavy(cfg.rthreads, cfg.wthreads);  // wavy_server
 	start_timeout_step(cfg.clock_interval_usec);  // rpc_server
 	start_keepalive(cfg.keepalive_interval_usec);  // rpc_server
-	scope_proto_network().renew_hash_space();
+	mod_network.renew_hash_space();
 	TLOGPACK("SW",2,
 			"mgr1", share->manager1(),
 			"mgr2", share->manager2());

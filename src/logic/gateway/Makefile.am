@@ -1,7 +1,7 @@
 
 PROTOGEN_AUTOGEN_FILES = \
-		gateway/proto.h \
-		gateway/proto_network.h
+		proto.h \
+		mod_network.h
 
 proto.generated: ../protogen ../gateway.proto.h
 	$(RUBY) ../protogen ../gateway.proto.h

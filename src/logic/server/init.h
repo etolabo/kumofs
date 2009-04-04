@@ -14,7 +14,7 @@ framework::framework(const Config& cfg) :
 			cfg.cluster_addr,
 			cfg.connect_timeout_msec,
 			cfg.connect_retry_limit),
-	m_proto_replace_stream(cfg.stream_addr)
+	mod_replace_stream(cfg.stream_addr)
 { }
 
 template <typename Config>
@@ -24,7 +24,7 @@ void framework::run(const Config& cfg)
 	listen_cluster(cfg.cluster_lsock);  // cluster_logic
 	start_timeout_step(cfg.clock_interval_usec);  // rpc_server
 	start_keepalive(cfg.keepalive_interval_usec);  // rpc_server
-	scope_proto_replace_stream().init_stream(cfg.stream_lsock);
+	mod_replace_stream.init_stream(cfg.stream_lsock);
 	LOG_INFO("start server ",addr());
 	TLOGPACK("SS",2,
 			"addr", cfg.cluster_addr,

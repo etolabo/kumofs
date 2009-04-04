@@ -13,7 +13,7 @@ void framework::dispatch(
 		rpc::method_id method, rpc::msgobj param, auto_zone z)
 try {
 	switch(method.get()) {
-	RPC_DISPATCH(proto_network, HashSpacePush);
+	RPC_DISPATCH(mod_network, HashSpacePush);
 	default:
 		throw unknown_method_error();
 	}
@@ -25,7 +25,7 @@ void framework::session_lost(const address& addr, shared_session& s)
 {
 	LOG_INFO("lost session ",addr);
 	if(addr == share->manager1() || addr == share->manager2()) {
-		m_proto_network.renew_hash_space_for(addr);
+		mod_network.renew_hash_space_for(addr);
 	}
 }
 

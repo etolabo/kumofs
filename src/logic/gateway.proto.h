@@ -9,10 +9,10 @@ namespace kumo {
 namespace gateway {
 
 
-@message proto_network::HashSpacePush       = 3
+@message mod_network_t::HashSpacePush       = 3
 
 
-@rpc proto_network
+@rpc mod_network_t
 	message HashSpacePush {
 		msgtype::HSSeed wseed;
 		msgtype::HSSeed rseed;

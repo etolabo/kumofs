@@ -1,5 +1,5 @@
 #include "server/framework.h"
-#include "server/proto_replace_stream.h"
+#include "server/mod_replace_stream.h"
 #include "server/zmmap_stream.h"
 #include "server/zconnection.h"
 #include <sys/sendfile.h>
@@ -12,29 +12,29 @@ namespace kumo {
 namespace server {
 
 
-proto_replace_stream::proto_replace_stream(address stream_addr) :
+mod_replace_stream_t::mod_replace_stream_t(address stream_addr) :
 	m_stream_addr(stream_addr)
 { }
 
-proto_replace_stream::~proto_replace_stream() { }
+mod_replace_stream_t::~mod_replace_stream_t() { }
 
-void proto_replace_stream::init_stream(int fd)
+void mod_replace_stream_t::init_stream(int fd)
 {
 	m_stream_core.reset(new mp::wavy::core());
 	using namespace mp::placeholders;
 	m_stream_core->listen(fd, mp::bind(
-				&proto_replace_stream::stream_accepted, this,
+				&mod_replace_stream_t::stream_accepted, this,
 				_1, _2));
 	m_stream_core->add_thread(2);  // FIXME 2
 }
 
-void proto_replace_stream::stop_stream()
+void mod_replace_stream_t::stop_stream()
 {
 	m_stream_core->end();
 }
 
 
-class proto_replace_stream::stream_accumulator {
+class mod_replace_stream_t::stream_accumulator {
 public:
 	stream_accumulator(const std::string& basename,
 			const address& addr, ClockTime replace_time);
@@ -71,7 +71,7 @@ private:
 };
 
 
-RPC_IMPL(proto_replace_stream, ReplaceOffer, req, z, response)
+RPC_IMPL(mod_replace_stream_t, ReplaceOffer, req, z, response)
 {
 	address stream_addr = req.node()->addr();
 	stream_addr.set_port(req.param().port);
@@ -83,21 +83,21 @@ RPC_IMPL(proto_replace_stream, ReplaceOffer, req, z, response)
 			PF_INET, SOCK_STREAM, 0,
 			(sockaddr*)addrbuf, sizeof(addrbuf),
 			net->connect_timeout_msec(),
-			mp::bind(&proto_replace_stream::stream_connected, this, _1, _2));
+			mp::bind(&mod_replace_stream_t::stream_connected, this, _1, _2));
 
 	// Note: don't return any result
 	LOG_TRACE("connect replace offer to ",req.node()->addr()," with stream port ",req.param().port);
 }
 
 
-void proto_replace_stream::send_offer(proto_replace_stream::offer_storage& offer, ClockTime replace_time)
+void mod_replace_stream_t::send_offer(mod_replace_stream_t::offer_storage& offer, ClockTime replace_time)
 {
 	offer.flush();  // add nil-terminate
 
 	pthread_scoped_lock oflk(m_accum_set_mutex);
 	offer.commit(&m_accum_set);
 
-	pthread_scoped_lock relk(net->scope_proto_replace().state_mutex());
+	pthread_scoped_lock relk(net->mod_replace.state_mutex());
 
 	for(accum_set_t::iterator it(m_accum_set.begin()),
 			it_end(m_accum_set.end()); it != it_end; ++it) {
@@ -105,18 +105,18 @@ void proto_replace_stream::send_offer(proto_replace_stream::offer_storage& offer
 
 		LOG_DEBUG("send offer to ",(*it)->addr());
 		shared_zone nullz;
-		proto_replace_stream::ReplaceOffer param(m_stream_addr.port());
+		mod_replace_stream_t::ReplaceOffer param(m_stream_addr.port());
 
 		using namespace mp::placeholders;
 		net->get_node(addr)->call(param, nullz,
-				BIND_RESPONSE(proto_replace_stream, ReplaceOffer, addr), 160);  // FIXME 160
+				BIND_RESPONSE(mod_replace_stream_t, ReplaceOffer, addr), 160);  // FIXME 160
 
-		net->scope_proto_replace().replace_offer_push(replace_time, relk);
+		net->mod_replace.replace_offer_push(replace_time, relk);
 	}
 }
 
 
-RPC_REPLY_IMPL(proto_replace_stream, ReplaceOffer, from, res, err, z,
+RPC_REPLY_IMPL(mod_replace_stream_t, ReplaceOffer, from, res, err, z,
 		address addr)
 {
 	LOG_TRACE("ResReplaceOffer from ",addr," res:",res," err:",err);
@@ -134,7 +134,7 @@ RPC_REPLY_IMPL(proto_replace_stream, ReplaceOffer, from, res, err, z,
 
 
 
-struct proto_replace_stream::accum_set_comp {
+struct mod_replace_stream_t::accum_set_comp {
 	bool operator() (const shared_stream_accumulator& x, const address& y) const
 		{ return x->addr() < y; }
 	bool operator() (const address& x, const shared_stream_accumulator& y) const
@@ -144,14 +144,14 @@ struct proto_replace_stream::accum_set_comp {
 };
 
 
-proto_replace_stream::offer_storage::offer_storage(
+mod_replace_stream_t::offer_storage::offer_storage(
 		const std::string& basename, ClockTime replace_time) :
 	m_basename(basename),
 	m_replace_time(replace_time) { }
 
-proto_replace_stream::offer_storage::~offer_storage() { }
+mod_replace_stream_t::offer_storage::~offer_storage() { }
 
-void proto_replace_stream::offer_storage::add(
+void mod_replace_stream_t::offer_storage::add(
 		const address& addr,
 		const char* key, size_t keylen,
 		const char* val, size_t vallen)
@@ -168,7 +168,7 @@ void proto_replace_stream::offer_storage::add(
 	}
 }
 
-void proto_replace_stream::offer_storage::flush()
+void mod_replace_stream_t::offer_storage::flush()
 {
 	for(accum_set_t::iterator it(m_set.begin()),
 			it_end(m_set.end()); it != it_end; ++it) {
@@ -176,13 +176,13 @@ void proto_replace_stream::offer_storage::flush()
 	}
 }
 
-void proto_replace_stream::offer_storage::commit(accum_set_t* dst)
+void mod_replace_stream_t::offer_storage::commit(accum_set_t* dst)
 {
 	*dst = m_set;
 }
 
 
-proto_replace_stream::accum_set_t::iterator proto_replace_stream::accum_set_find(
+mod_replace_stream_t::accum_set_t::iterator mod_replace_stream_t::accum_set_find(
 		accum_set_t& accum_set, const address& addr)
 {
 	accum_set_t::iterator it =
@@ -196,7 +196,7 @@ proto_replace_stream::accum_set_t::iterator proto_replace_stream::accum_set_find
 }
 
 
-int proto_replace_stream::stream_accumulator::openfd(const std::string& basename)
+int mod_replace_stream_t::stream_accumulator::openfd(const std::string& basename)
 {
 	char* path = (char*)::malloc(basename.size()+8);
 	if(!path) { throw std::bad_alloc(); }
@@ -215,7 +215,7 @@ int proto_replace_stream::stream_accumulator::openfd(const std::string& basename
 	return fd;
 }
 
-proto_replace_stream::stream_accumulator::stream_accumulator(const std::string& basename,
+mod_replace_stream_t::stream_accumulator::stream_accumulator(const std::string& basename,
 		const address& addr, ClockTime replace_time):
 	m_addr(addr),
 	m_replace_time(replace_time),
@@ -225,10 +225,10 @@ proto_replace_stream::stream_accumulator::stream_accumulator(const std::string& 
 	LOG_TRACE("create stream_accumulator for ",addr);
 }
 
-proto_replace_stream::stream_accumulator::~stream_accumulator() { }
+mod_replace_stream_t::stream_accumulator::~stream_accumulator() { }
 
 
-void proto_replace_stream::stream_accumulator::add(
+void mod_replace_stream_t::stream_accumulator::add(
 		const char* key, size_t keylen,
 		const char* val, size_t vallen)
 {
@@ -240,13 +240,13 @@ void proto_replace_stream::stream_accumulator::add(
 	pk.pack_raw_body(val, vallen);
 }
 
-void proto_replace_stream::stream_accumulator::flush()
+void mod_replace_stream_t::stream_accumulator::flush()
 {
 	msgpack::packer<zmmap_stream> pk(*m_mmap_stream);
 	pk.pack_nil();
 }
 
-void proto_replace_stream::stream_accumulator::send(int sock)
+void mod_replace_stream_t::stream_accumulator::send(int sock)
 {
 	m_mmap_stream->flush();
 	size_t size = m_mmap_stream->size();
@@ -271,7 +271,7 @@ private:
 };
 
 
-void proto_replace_stream::stream_accepted(int fd, int err)
+void mod_replace_stream_t::stream_accepted(int fd, int err)
 try {
 	LOG_TRACE("stream accepted fd(",fd,") err:",err);
 
@@ -342,8 +342,8 @@ try {
 
 	LOG_DEBUG("finish to send offer storage to ",iaddr);
 
-	pthread_scoped_lock relk(net->scope_proto_replace().state_mutex());
-	net->scope_proto_replace().replace_offer_pop(accum->replace_time(), relk);
+	pthread_scoped_lock relk(net->mod_replace.state_mutex());
+	net->mod_replace.replace_offer_pop(accum->replace_time(), relk);
 
 } catch (std::exception& e) {
 	LOG_WARN("failed to send offer storage: ",e.what());
@@ -354,7 +354,7 @@ try {
 }
 
 
-void proto_replace_stream::stream_connected(int fd, int err)
+void mod_replace_stream_t::stream_connected(int fd, int err)
 try {
 	LOG_TRACE("stream connected fd(",fd,") err: ",err);
 	if(fd < 0) {
@@ -403,7 +403,7 @@ try {
 }
 
 
-class proto_replace_stream::stream_handler : public zconnection<stream_handler> {
+class mod_replace_stream_t::stream_handler : public zconnection<stream_handler> {
 public:
 	stream_handler(int fd) :
 		zconnection<stream_handler>(fd) { }
@@ -413,7 +413,7 @@ public:
 	void submit_message(rpc::msgobj msg, rpc::auto_zone& z);
 };
 
-void proto_replace_stream::stream_handler::submit_message(rpc::msgobj msg, rpc::auto_zone& z)
+void mod_replace_stream_t::stream_handler::submit_message(rpc::msgobj msg, rpc::auto_zone& z)
 {
 	if(msg.is_nil()) {
 		msgpack::sbuffer buf(8);
