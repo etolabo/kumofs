@@ -1,0 +1,62 @@
+#!/usr/bin/env ruby
+$LOAD_PATH << File.dirname(__FILE__)
+require 'common'
+include Chukan::Test
+
+LOOP_RESTART = (ARGV[0] ||  30).to_i
+SLEEP        = (ARGV[1] ||   5).to_i
+NUM_STORE    = (ARGV[2] || 100).to_i
+NUM_THREAD   = (ARGV[3] ||   1).to_i
+
+mgr1, mgr2, gw, srv1, srv2, srv3, srv4, srv5, srv6 = init_cluster(true, 6)
+
+mgrs = [ref(mgr1), ref(mgr2)]
+srvs = [ref(srv1), ref(srv2), ref(srv3), ref(srv4), ref(srv5), ref(srv6)]
+
+test "run normally" do
+
+	tester = RandomTester.start_threads(gw, NUM_THREAD, NUM_STORE)
+
+	LOOP_RESTART.times {
+		sleep SLEEP
+
+		k1, k2 = srvs.shuffle[0, 2]
+		mgr = mgrs.choice.get
+
+		mgr.stdout_join("lost node") do
+			k1.get.kill.join
+		end
+		mgr.stdout_join("server connected") do
+			k1.set Server.new(k1.get.index, mgr1, mgr2)
+		end
+		sleep 2
+
+		ctl = nil
+		mgr.stdout_join("start replace copy") do
+			ctl = mgr.attach
+		end
+
+		# don't join
+
+		mgr.stdout_join("lost node") do
+			k2.get.kill.join
+		end
+		mgr.stdout_join("server connected") do
+			k2.set Server.new(k2.get.index, mgr1, mgr2)
+		end
+		sleep 2
+
+		ctl.join
+		mgr.stdout_join("replace finished") do
+			mgr.attach.join
+		end
+	}
+
+	tester.each {|ra| ra.stop }
+	tester.each {|ra| ra.join }
+
+	true
+end
+term_daemons *(mgrs + srvs).map {|r| r.get }
+
+
