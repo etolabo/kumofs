@@ -11,7 +11,7 @@ KUMO_GATEWAY = LOGIC_BASE + "/kumo-gateway"
 MANAGER_PORT   = (ENV["MANAGER_PORT"]  || 49700).to_i
 SERVER_PORT    = (ENV["SERVER_PORT"]   || 49800).to_i
 MEMCACHE_PORT  = (ENV["MEMCACHE_PORT"] || 49900).to_i
-STORAGE_FORMAT = (ENV["STORAGE_DIR"]   || Dir.pwd) + "/test-%s.tch"
+STORAGE_FORMAT = (ENV["STORAGE_DIR"]   || File.dirname(__FILE__)) + "/test-%s.tch"
 
 begin
 	require 'rubygems'
