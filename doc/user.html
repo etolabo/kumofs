@@ -20,8 +20,9 @@
     <ul class="ul1">
       <li>Linux &gt;= 2.6.18</li>
       <li>Tokyo Cabinet &gt;= 1.4.10</li>
-      <li>ruby &gt;= 1.8</li>
-      <li>MessagePack &gt;= 0.3.1</li>
+      <li>MessagePack for C++ &gt;= 0.3.1</li>
+      <li>MessagePack for Ruby &gt;= 0.3.1</li>
+      <li>ruby &gt;= 1.8.7</li>
       <li>libcrypto (openssl)</li>
       <li>zlib</li>
       <li>g++ &gt;= 4.1 （コンパイルのみ）</li>
@@ -32,6 +33,17 @@
 $ make
 $ sudo make install
 </pre>
+    <h3>configureフラグ</h3>
+    <dl>
+      <dt>--with-tokyocabinet=DIR</dt>
+      <dd>Tokyo Cabinetがインストールされているディレクトリを指定する</dd>
+      <dt>--with-msgpack=DIR</dt>
+      <dd>MessagePackがインストールされているディレクトリを指定する</dd>
+      <dt>--with-tcmalloc[=DIR]</dt>
+      <dd>tcmallocとリンクする</dd>
+      <dt>--enable-trace</dt>
+      <dd>画面を埋め尽くすほど冗長なデバッグ用のメッセージを出力するようにする</dd>
+    </dl>
     <h2>チュートリアル</h2>
     <p>kumofsは、実際にデータを保存する<strong>Server</strong>ノード、Serverノード群を管理する<strong>Manager</strong>ノード、アプリケーションからのリクエストを中継する<strong>Gateway</strong>の３種類のプロセスから構成されます。それぞれ<strong>kumo-server</strong>、<strong>kumo-manager</strong>、<strong>kumo-gateway</strong>というコマンドが対応します。</p>
     <p>kumo-gatewayはmemcachedプロトコルをサポートしています。kumofsを利用したいホストでkumo-gatewayを動作させておくことで、アプリケーションはlocalhostのkumo-gatewayにmemcachedクライアントライブラリを使って接続することでkumofsを利用できます。</p>
@@ -171,17 +183,6 @@ not attached node:
     </dl>
     <p>テキストログは常に出力されます。<strong>-v</strong>オプションを付けると冗長なログも出力されるようになります。テキストログはファイルに書き出すこともできるが、ログローテーションはサポートしていません。デフォルトでは優先度によってログに色が付きますが、<strong>-d &lt;path.pid&gt;</strong>オプションを指定してデーモンとして起動するか、<strong>-o &quot;-&quot;</strong>オプションを指定すると、ログに色が付かなくなります。</p>
     <p>バイナリログは<strong>-g &lt;path.mpac&gt;</strong>オプションを付けたときだけ出力されます。バイナリログはSIGHUPシグナルを受け取るとログファイルを開き直すため、logrotateなどを使ってログローテーションができます。</p>
-    <h3>configureフラグ</h3>
-    <dl>
-      <dt>--with-msgpack=DIR</dt>
-      <dd>MessagePackがインストールされているディレクトリを指定する</dd>
-      <dt>--with-tokyocabinet=DIR</dt>
-      <dd>Tokyo Cabinetがインストールされているディレクトリを指定する</dd>
-      <dt>--with-tcmalloc[=DIR]</dt>
-      <dd>tcmallocとリンクする</dd>
-      <dt>--enable-trace</dt>
-      <dd>画面を埋め尽くすほど冗長なデバッグ用のメッセージを出力するようにする</dd>
-    </dl>
     <h3>共通のコマンドライン引数</h3>
     <dl>
       <dt>-o &lt;path.log&gt;</dt>

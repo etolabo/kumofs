@@ -16,8 +16,9 @@ memcached互換のプロトコルをサポートしており、テキスト・�
 kumofsをコンパイルして実行するには以下の環境が必要です：
 -Linux >= 2.6.18
 -Tokyo Cabinet >= 1.4.10
--ruby >= 1.8
--MessagePack >= 0.3.1
+-MessagePack for C++ >= 0.3.1
+-MessagePack for Ruby >= 0.3.1
+-ruby >= 1.8.7
 -libcrypto (openssl)
 -zlib
 -g++ >= 4.1 （コンパイルのみ）
@@ -29,6 +30,12 @@ $ ./configure
 $ make
 $ sudo make install
 ||<
+
+**configureフラグ
+:--with-tokyocabinet=DIR:Tokyo Cabinetがインストールされているディレクトリを指定する
+:--with-msgpack=DIR:MessagePackがインストールされているディレクトリを指定する
+:--with-tcmalloc[=DIR]:tcmallocとリンクする
+:--enable-trace:画面を埋め尽くすほど冗長なデバッグ用のメッセージを出力するようにする
 
 *チュートリアル
 kumofsは、実際にデータを保存する''Server''ノード、Serverノード群を管理する''Manager''ノード、アプリケーションからのリクエストを中継する''Gateway''の３種類のプロセスから構成されます。それぞれ''kumo-server''、''kumo-manager''、''kumo-gateway''というコマンドが対応します。
@@ -198,12 +205,6 @@ kumo-manager, kumo-server, kumo-gatewayは、それぞれ2種類のログを出�
 
 バイナリログは''-g <path.mpac>''オプションを付けたときだけ出力されます。バイナリログはSIGHUPシグナルを受け取るとログファイルを開き直すため、logrotateなどを使ってログローテーションができます。
 // FIXME logrotateの設定例
-
-**configureフラグ
-:--with-msgpack=DIR:MessagePackがインストールされているディレクトリを指定する
-:--with-tokyocabinet=DIR:Tokyo Cabinetがインストールされているディレクトリを指定する
-:--with-tcmalloc[=DIR]:tcmallocとリンクする
-:--enable-trace:画面を埋め尽くすほど冗長なデバッグ用のメッセージを出力するようにする
 
 **共通のコマンドライン引数
 :-o <path.log>:ログを標準出力ではなく指定されたファイルに出力する。''-''を指定すると標準出力に出力する。省略するとログに色を付けて標準出力に出力する
