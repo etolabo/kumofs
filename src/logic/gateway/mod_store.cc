@@ -90,72 +90,74 @@ catch (std::exception& e) { \
 	gate::res##NAME res; \
 	res.error = 1; \
 	wavy::submit(submit_callback_trampoline<gate::callback##NAME, gate::res##NAME>, \
-			callback, user, res, life); \
+			req.callback, req.user, res, req.life); \
 } catch (...) { \
 	LOG_WARN("req" #NAME " FAILED: unknown error"); \
 	gate::res##NAME res; \
 	res.error = 1; \
 	wavy::submit(submit_callback_trampoline<gate::callback##NAME, gate::res##NAME>, \
-			callback, user, res, life); \
+			req.callback, req.user, res, req.life); \
 }
 
 
-void mod_store_t::Get(gate::callback_get callback, void* user,
-		shared_zone life,
-		const char* key, uint32_t keylen, uint64_t hash)
+void mod_store_t::Get(gate::req_get& req)
 try {
+	shared_zone life(req.life);
 	if(!life) { life.reset(new msgpack::zone()); }
+
 	rpc::retry<server::mod_store_t::Get>* retry =
 		life->allocate< rpc::retry<server::mod_store_t::Get> >(
 				server::mod_store_t::Get(
-					msgtype::DBKey(key, keylen, hash)
+					msgtype::DBKey(req.key, req.keylen, req.hash)
 					));
 
-	retry->set_callback( BIND_RESPONSE(mod_store_t, Get, retry, callback, user) );
-	retry->call(share->server_for<resource::HS_READ>(hash), life, 10);
+	retry->set_callback(
+			BIND_RESPONSE(mod_store_t, Get, retry, req.callback, req.user) );
+	retry->call(share->server_for<resource::HS_READ>(req.hash), life, 10);
 }
 SUBMIT_CATCH(_get);
 
 
-void mod_store_t::Set(gate::callback_set callback, void* user,
-		shared_zone life,
-		const char* key, uint32_t keylen, uint64_t hash,
-		const char* val, uint32_t vallen)
+void mod_store_t::Set(gate::req_set& req)
 try {
-	uint16_t meta = 0;
+	shared_zone life(req.life);
 	if(!life) { life.reset(new msgpack::zone()); }
+
+	uint16_t meta = 0;
 	rpc::retry<server::mod_store_t::Set>* retry =
 		life->allocate< rpc::retry<server::mod_store_t::Set> >(
 				server::mod_store_t::Set(
-					( share->cfg_async_replicate_set() ?
+					(share->cfg_async_replicate_set() || req.async) ?
 					  static_cast<server::store_flags>(server::store_flags_async()) :
-					  static_cast<server::store_flags>(server::store_flags_none() ) ),
-					msgtype::DBKey(key, keylen, hash),
-					msgtype::DBValue(val, vallen, meta))
+					  static_cast<server::store_flags>(server::store_flags_none()),
+					msgtype::DBKey(req.key, req.keylen, req.hash),
+					msgtype::DBValue(req.val, req.vallen, meta))
 				);
 
-	retry->set_callback( BIND_RESPONSE(mod_store_t, Set, retry, callback, user) );
-	retry->call(share->server_for<resource::HS_WRITE>(hash), life, 10);
+	retry->set_callback(
+			BIND_RESPONSE(mod_store_t, Set, retry, req.callback, req.user) );
+	retry->call(share->server_for<resource::HS_WRITE>(req.hash), life, 10);
 }
 SUBMIT_CATCH(_set);
 
 
-void mod_store_t::Delete(gate::callback_delete callback, void* user,
-		shared_zone life,
-		const char* key, uint32_t keylen, uint64_t hash)
+void mod_store_t::Delete(gate::req_delete& req)
 try {
+	shared_zone life(req.life);
 	if(!life) { life.reset(new msgpack::zone()); }
+
 	rpc::retry<server::mod_store_t::Delete>* retry =
 		life->allocate< rpc::retry<server::mod_store_t::Delete> >(
 				server::mod_store_t::Delete(
-					(share->cfg_async_replicate_delete() ?
+					(share->cfg_async_replicate_delete() || req.async) ?
 					 static_cast<server::store_flags>(server::store_flags_async()) :
-					 static_cast<server::store_flags>(server::store_flags_none() ) ),
-					msgtype::DBKey(key, keylen, hash))
+					 static_cast<server::store_flags>(server::store_flags_none()),
+					msgtype::DBKey(req.key, req.keylen, req.hash))
 				);
 
-	retry->set_callback( BIND_RESPONSE(mod_store_t, Delete, retry, callback, user) );
-	retry->call(share->server_for<resource::HS_WRITE>(hash), life, 10);
+	retry->set_callback(
+			BIND_RESPONSE(mod_store_t, Delete, retry, req.callback, req.user) );
+	retry->call(share->server_for<resource::HS_WRITE>(req.hash), life, 10);
 }
 SUBMIT_CATCH(_delete);
 

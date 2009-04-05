@@ -397,6 +397,7 @@ int request_set(void* user,
 	req.hash     = gate::stdhash(req.key, req.keylen);
 	req.user     = reinterpret_cast<void*>(e);
 	if(r->noreply) {
+		req.async    = true;
 		req.callback = &response_noreply_set;
 	} else {
 		req.callback = &response_set;
@@ -429,6 +430,7 @@ int request_delete(void* user,
 	req.hash     = gate::stdhash(req.key, req.keylen);
 	req.user     = reinterpret_cast<void*>(e);
 	if(r->noreply) {
+		req.async    = true;
 		req.callback = &response_noreply_delete;
 	} else {
 		req.callback = &response_delete;

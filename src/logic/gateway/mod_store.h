@@ -14,18 +14,11 @@ public:
 	~mod_store_t();
 
 public:
-	void Get(gate::callback_get callback, void* user,
-			shared_zone life,
-			const char* key, uint32_t keylen, uint64_t hash);
+	void Get(gate::req_get& req);
 
-	void Set(gate::callback_set callback, void* user,
-			shared_zone life,
-			const char* key, uint32_t keylen, uint64_t hash,
-			const char* val, uint32_t vallen);
+	void Set(gate::req_set& req);
 
-	void Delete(gate::callback_delete callback, void* user,
-			shared_zone life,
-			const char* key, uint32_t keylen, uint64_t hash);
+	void Delete(gate::req_delete& req);
 
 private:
 	RPC_REPLY_DECL(Get, from, res, err, z,

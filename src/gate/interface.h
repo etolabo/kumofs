@@ -42,6 +42,8 @@ struct res_get {
 typedef void (*callback_get)(void* user, res_get& res, auto_zone z);
 
 struct req_get {
+	req_get() { }
+
 	const char* key;
 	uint32_t keylen;
 	uint64_t hash;
@@ -69,12 +71,16 @@ struct res_set {
 typedef void (*callback_set)(void* user, res_set& res, auto_zone z);
 
 struct req_set {
+	req_set() : async(false) { }
+
 	const char* key;
 	uint32_t keylen;
 	uint64_t hash;
 
 	const char* val;
 	uint32_t vallen;
+
+	bool async;
 
 	shared_zone life;
 	callback_set callback;
@@ -97,9 +103,13 @@ struct res_delete {
 typedef void (*callback_delete)(void* user, res_delete& res, auto_zone z);
 
 struct req_delete {
+	req_delete() : async(false) { }
+
 	const char* key;
 	uint32_t keylen;
 	uint64_t hash;
+
+	bool async;
 
 	shared_zone life;
 	callback_delete callback;
