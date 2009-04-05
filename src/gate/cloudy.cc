@@ -37,18 +37,22 @@ public:
 	void read_event();
 
 public:
+	typedef mp::shared_ptr<bool> shared_valid;
+
 	class context {
 	public:
-		context(int fd, mp::stream_buffer* buf);
+		context(int fd, mp::stream_buffer* buf, const shared_valid& valid);
 		~context();
 
 	public:
 		int fd() const { return m_fd; }
 		msgpack::zone* release_reference();
+		const shared_valid& valid() { return m_valid; }
 
 	private:
 		int m_fd;
 		mp::stream_buffer* m_buffer;
+		shared_valid m_valid;
 
 	private:
 		context();
@@ -58,6 +62,7 @@ public:
 private:
 	mp::stream_buffer m_buffer;
 	memproto_parser m_memproto;
+	shared_valid m_valid;
 
 	context m_context;
 
@@ -69,6 +74,7 @@ private:
 
 struct entry {
 	int fd;
+	handler::shared_valid valid;
 	memproto_header header;
 };
 
@@ -112,6 +118,8 @@ void send_response_nodata(
 	pack_header(header, status, e->header.opcode,
 			0, 0, 0,
 			e->header.opaque, cas);
+
+	if(!*e->valid) { return; }
 	wavy::request req(&::free, header);
 	wavy::write(e->fd, header, MEMPROTO_HEADER_SIZE, req);
 }
@@ -153,14 +161,15 @@ void send_response(
 		++cnt;
 	}
 
+	if(!*e->valid) { return; }
 	wavy::request req(&mp::object_delete<msgpack::zone>, z.release());
 	wavy::writev(e->fd, vb, cnt, req);
 }
 
 
 #define RELEASE_REFERENCE(user, fd, life) \
-	int fd = static_cast<handler::context*>(user)->fd(); \
-	shared_zone life( static_cast<handler::context*>(user)->release_reference() );
+	handler::context* ctx = static_cast<handler::context*>(user); \
+	shared_zone life(ctx->release_reference());
 
 
 static const uint32_t ZERO_FLAG = 0;
@@ -233,11 +242,12 @@ void response_delete(void* user,
 void request_getx(void* user,
 		memproto_header* h, const char* key, uint16_t keylen)
 {
-	RELEASE_REFERENCE(user, fd, life);
+	RELEASE_REFERENCE(user, ctx, life);
 	LOG_TRACE("getx");
 
 	get_entry* e = life->allocate<get_entry>();
-	e->fd         = fd;
+	e->fd         = ctx->fd();
+	e->valid      = ctx->valid();
 	e->header     = *h;
 	e->flag_key   = (h->opcode == MEMPROTO_CMD_GETK || h->opcode == MEMPROTO_CMD_GETKQ);
 	e->flag_quiet = (h->opcode == MEMPROTO_CMD_GETQ || h->opcode == MEMPROTO_CMD_GETKQ);
@@ -258,7 +268,7 @@ void request_set(void* user,
 		const char* val, uint32_t vallen,
 		uint32_t flags, uint32_t expiration)
 {
-	RELEASE_REFERENCE(user, fd, life);
+	RELEASE_REFERENCE(user, ctx, life);
 	LOG_TRACE("set");
 
 	if(h->cas || flags || expiration) {
@@ -267,7 +277,8 @@ void request_set(void* user,
 	}
 
 	set_entry* e = life->allocate<set_entry>();
-	e->fd         = fd;
+	e->fd         = ctx->fd();
+	e->valid      = ctx->valid();
 	e->header     = *h;
 
 	gate::req_set req;
@@ -287,7 +298,7 @@ void request_delete(void* user,
 		memproto_header* h, const char* key, uint16_t keylen,
 		uint32_t expiration)
 {
-	RELEASE_REFERENCE(user, fd, life);
+	RELEASE_REFERENCE(user, ctx, life);
 	LOG_TRACE("delete");
 
 	if(expiration) {
@@ -296,7 +307,8 @@ void request_delete(void* user,
 	}
 
 	delete_entry* e = life->allocate<delete_entry>();
-	e->fd         = fd;
+	e->fd         = ctx->fd();
+	e->valid      = ctx->valid();
 	e->header     = *h;
 
 	gate::req_delete req;
@@ -311,8 +323,8 @@ void request_delete(void* user,
 }
 
 
-handler::context::context(int fd, mp::stream_buffer* buf) :
-	m_fd(fd), m_buffer(buf) { }
+handler::context::context(int fd, mp::stream_buffer* buf, const shared_valid& valid) :
+	m_fd(fd), m_buffer(buf), m_valid(valid) { }
 
 handler::context::~context() { }
 
@@ -331,7 +343,8 @@ msgpack::zone* handler::context::release_reference()
 handler::handler(int fd) :
 	wavy::handler(fd),
 	m_buffer(CLOUDY_INITIAL_ALLOCATION_SIZE),
-	m_context(fd, &m_buffer)
+	m_valid(new bool(true)),
+	m_context(fd, &m_buffer, m_valid)
 {
 	memproto_callback cb = {
 		request_getx,    // get
@@ -356,7 +369,10 @@ handler::handler(int fd) :
 			static_cast<void*>(&m_context));
 }
 
-handler::~handler() { }
+handler::~handler()
+{
+	*m_valid = false;
+}
 
 
 void handler::read_event()

@@ -38,17 +38,21 @@ public:
 	void read_event();
 
 public:
+	typedef mp::shared_ptr<bool> shared_valid;
+
 	class context {
 	public:
-		context(int fd, mp::stream_buffer* buf);
+		context(int fd, mp::stream_buffer* buf, const shared_valid& valid);
 		~context();
 
 	public:
 		int fd() const { return m_fd; }
 		msgpack::zone* release_reference();
+		const shared_valid& valid() { return m_valid; }
 
 	private:
 		int m_fd;
+		shared_valid m_valid;
 		mp::stream_buffer* m_buffer;
 
 	private:
@@ -60,6 +64,7 @@ private:
 	mp::stream_buffer m_buffer;
 	memtext_parser m_memproto;
 	size_t m_off;
+	shared_valid m_valid;
 
 	context m_context;
 
@@ -71,6 +76,7 @@ private:
 
 struct entry {
 	int fd;
+	handler::shared_valid valid;
 };
 
 struct get_entry : entry {
@@ -96,12 +102,14 @@ struct delete_entry : entry {
 inline void send_data(entry* e,
 		const char* buf, size_t buflen)
 {
+	if(!*e->valid) { return; }
 	wavy::write(e->fd, buf, buflen);
 }
 
 inline void send_datav(entry* e,
 		struct iovec* vb, size_t count, auto_zone z)
 {
+	if(!*e->valid) { return; }
 	wavy::request req(&mp::object_delete<msgpack::zone>, z.release());
 	wavy::writev(e->fd, vb, count, req);
 }
@@ -109,6 +117,7 @@ inline void send_datav(entry* e,
 inline void send_datav(entry* e,
 		struct iovec* vb, wavy::request* vr, size_t count)
 {
+	if(!*e->valid) { return; }
 	wavy::writev(e->fd, vb, vr, count);
 }
 
@@ -254,9 +263,9 @@ void response_noreply_delete(void* user,
 { }
 
 
-#define RELEASE_REFERENCE(user, fd, life) \
-	int fd = static_cast<handler::context*>(user)->fd(); \
-	shared_zone life( static_cast<handler::context*>(user)->release_reference() );
+#define RELEASE_REFERENCE(user, ctx, life) \
+	handler::context* ctx = static_cast<handler::context*>(user); \
+	shared_zone life(ctx->release_reference());
 
 
 int request_get_single(void* user,
@@ -265,13 +274,14 @@ int request_get_single(void* user,
 		bool require_cas)
 {
 	LOG_TRACE("get");
-	RELEASE_REFERENCE(user, fd, life);
+	RELEASE_REFERENCE(user, ctx, life);
 
 	const char* const key = r->key[0];
 	size_t const key_len  = r->key_len[0];
 
 	get_entry* e = life->allocate<get_entry>();
-	e->fd          = fd;
+	e->fd          = ctx->fd();
+	e->valid       = ctx->valid();
 	e->require_cas = require_cas;
 
 	gate::req_get req;
@@ -292,7 +302,7 @@ int request_get_multi(void* user,
 		bool require_cas)
 {
 	LOG_TRACE("get multi");
-	RELEASE_REFERENCE(user, fd, life);
+	RELEASE_REFERENCE(user, ctx, life);
 
 	size_t const veclen = r->key_num * 2 + 1;  // +1: \r\nEND\r\n
 
@@ -316,7 +326,8 @@ int request_get_multi(void* user,
 	get_multi_entry* me[r->key_num];
 	for(unsigned i=0; i < r->key_num; ++i) {
 		me[i] = life->allocate<get_multi_entry>();
-		me[i]->fd          = fd;
+		me[i]->fd          = ctx->fd();
+		me[i]->valid       = ctx->valid();
 		me[i]->require_cas = require_cas;
 		me[i]->offset      = i*2;
 		me[i]->count       = share_count;
@@ -367,15 +378,16 @@ int request_set(void* user,
 		memtext_request_storage* r)
 {
 	LOG_TRACE("set");
-	RELEASE_REFERENCE(user, fd, life);
+	RELEASE_REFERENCE(user, ctx, life);
 
 	if(r->flags || r->exptime) {
-		wavy::write(fd, NOT_SUPPORTED_REPLY, strlen(NOT_SUPPORTED_REPLY));
+		wavy::write(ctx->fd(), NOT_SUPPORTED_REPLY, strlen(NOT_SUPPORTED_REPLY));
 		return 0;
 	}
 
 	set_entry* e = life->allocate<set_entry>();
-	e->fd = fd;
+	e->fd    = ctx->fd();
+	e->valid = ctx->valid();
 
 	gate::req_set req;
 	req.keylen   = r->key_len;
@@ -400,15 +412,16 @@ int request_delete(void* user,
 		memtext_request_delete* r)
 {
 	LOG_TRACE("delete");
-	RELEASE_REFERENCE(user, fd, life);
+	RELEASE_REFERENCE(user, ctx, life);
 
 	if(r->exptime) {
-		wavy::write(fd, NOT_SUPPORTED_REPLY, strlen(NOT_SUPPORTED_REPLY));
+		wavy::write(ctx->fd(), NOT_SUPPORTED_REPLY, strlen(NOT_SUPPORTED_REPLY));
 		return 0;
 	}
 
 	delete_entry* e = life->allocate<delete_entry>();
-	e->fd = fd;
+	e->fd    = ctx->fd();
+	e->valid = ctx->valid();
 
 	gate::req_delete req;
 	req.key      = r->key;
@@ -427,8 +440,8 @@ int request_delete(void* user,
 }
 
 
-handler::context::context(int fd, mp::stream_buffer* buf) :
-	m_fd(fd), m_buffer(buf) { }
+handler::context::context(int fd, mp::stream_buffer* buf, const shared_valid& valid) :
+	m_fd(fd), m_buffer(buf), m_valid(valid) { }
 
 handler::context::~context() { }
 
@@ -448,7 +461,8 @@ handler::handler(int fd) :
 	wavy::handler(fd),
 	m_buffer(MEMTEXT_INITIAL_ALLOCATION_SIZE),
 	m_off(0),
-	m_context(fd, &m_buffer)
+	m_valid(new bool(true)),
+	m_context(fd, &m_buffer, m_valid)
 {
 	memtext_callback cb = {
 		request_get,    // get
@@ -467,7 +481,10 @@ handler::handler(int fd) :
 	memtext_init(&m_memproto, &cb, &m_context);
 }
 
-handler::~handler() { }
+handler::~handler()
+{
+	*m_valid = false;
+}
 
 
 void handler::read_event()
