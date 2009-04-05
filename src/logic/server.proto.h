@@ -109,27 +109,17 @@ struct replicate_flags : msgtype::flags_base {
 	};
 
 private:
-	void check_replicator_assign(HashSpace& hs, uint64_t h);
-	void check_coordinator_assign(HashSpace& hs, uint64_t h);
+	static void check_replicator_assign(HashSpace& hs, uint64_t h);
+	static void check_coordinator_assign(HashSpace& hs, uint64_t h);
 
-	bool SetByRhsWhs(weak_responder response, auto_zone& z,
-			msgtype::DBKey& key, msgtype::DBValue& val,
-			bool is_async);
-	void SetByWhs(weak_responder response, auto_zone& z,
-			msgtype::DBKey& key, msgtype::DBValue& val,
-			bool is_async);
+	static void calc_replicators(uint64_t h,
+			shared_node* rrepto, unsigned int* rrep_num,
+			shared_node* wrepto, unsigned int* wrep_num);
 
 	RPC_REPLY_DECL(ReplicateSet, from, res, err, z,
 			rpc::retry<ReplicateSet>* retry,
 			volatile unsigned int* copy_required,
 			rpc::weak_responder response, ClockTime clocktime);
-
-	bool DeleteByRhsWhs(weak_responder response, auto_zone& z,
-			msgtype::DBKey& key,
-			bool is_async);
-	void DeleteByWhs(weak_responder response, auto_zone& z,
-			msgtype::DBKey& key,
-			bool is_async);
 
 	RPC_REPLY_DECL(ReplicateDelete, from, res, err, z,
 			rpc::retry<ReplicateDelete>* retry,
