@@ -69,7 +69,8 @@ public:
 		}
 
 		if(::connect(fd, m->addr, m->addrlen) >= 0) {
-			goto errno_error;
+			// connect success
+			goto out;
 		}
 
 		if(errno != EINPROGRESS) {
