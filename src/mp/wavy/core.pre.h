@@ -22,9 +22,10 @@
 #include "mp/functional.h"
 #include "mp/memory.h"
 #include "mp/pthread.h"
-#include "mp/functional.h"
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/uio.h>
+#include <unistd.h>
 #include <time.h>
 #include <fcntl.h>
 #include <errno.h>

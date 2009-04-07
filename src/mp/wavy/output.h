@@ -20,8 +20,9 @@
 #define MP_WAVY_OUTPUT_H__
 
 #include <memory>
-#include <unistd.h>
+#include <sys/types.h>
 #include <sys/uio.h>
+#include <unistd.h>
 
 namespace mp {
 namespace wavy {
