@@ -52,8 +52,8 @@ public:
 
 	private:
 		int m_fd;
-		shared_valid m_valid;
 		mp::stream_buffer* m_buffer;
+		shared_valid m_valid;
 
 	private:
 		context();

@@ -2,11 +2,14 @@
 #include "server/mod_replace_stream.h"
 #include "server/zmmap_stream.h"
 #include "server/zconnection.h"
-#include <sys/sendfile.h>
 #include <mp/exception.h>
 #include <mp/utility.h>
 #include <fcntl.h>
 #include <algorithm>
+
+#ifdef __linux__
+#include <sys/sendfile.h>
+#endif
 
 namespace kumo {
 namespace server {
@@ -251,12 +254,20 @@ void mod_replace_stream_t::stream_accumulator::send(int sock)
 	m_mmap_stream->flush();
 	size_t size = m_mmap_stream->size();
 	//m_mmap_stream.reset(NULL);  // FIXME needed?
+#ifdef __linux__
 	while(size > 0) {
-		// FIXME linux
 		ssize_t rl = ::sendfile(sock, m_fd.get(), NULL, size);
 		if(rl <= 0) { throw mp::system_error(errno, "offer send error"); }
 		size -= rl;
 	}
+#else
+	off_t len = 0;
+	while(len < size) {
+		if(::sendfile(m_fd.get(), sock, size-len, &len, NULL, 0) < 0) {
+			throw mp::system_error(errno, "offer send error");
+		}
+	}
+#endif
 }
 
 
