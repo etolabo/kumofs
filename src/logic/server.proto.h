@@ -267,6 +267,10 @@ enum status_type {
 	STAT_DB_ITEMS		= 7,
 	STAT_CLOCKTIME		= 8,
 };
+
+enum config_type {
+	CONF_TCP_NODELAY    = 0,  // FIXME experimental
+};
 @end
 
 @rpc mod_control_t
@@ -277,6 +281,11 @@ enum status_type {
 
 	message GetStatus {
 		uint32_t command;
+	};
+
+	message SetConfig {
+		uint32_t command;
+		msgpack::object arg;
 	};
 @end
 

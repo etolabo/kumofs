@@ -1,6 +1,13 @@
 #include "server/framework.h"
 #include "server/mod_control.h"
 
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <netinet/tcp.h>
+#include <sys/time.h>
+#include <sys/resource.h>
+
 namespace kumo {
 namespace server {
 
@@ -65,6 +72,35 @@ RPC_IMPL(mod_control_t, GetStatus, req, z, response)
 	default:
 		response.result(msgpack::type::nil());
 		break;
+	}
+}
+
+
+RPC_IMPL(mod_control_t, SetConfig, req, z, response)
+{
+	LOG_DEBUG("SetConfig");
+
+	switch((config_type)req.param().command) {
+	case CONF_TCP_NODELAY:
+		{
+			bool enable = req.param().arg.as<bool>();
+
+			struct rlimit rbuf;
+			if(::getrlimit(RLIMIT_NOFILE, &rbuf) < 0) {
+				throw mp::system_error(errno, "getrlimit() failed");
+			}
+			int maxfd = rbuf.rlim_cur;
+
+			int on = (enable) ? 1 : 0;
+			unsigned int s = 0;
+			for(int i=0; i < maxfd; ++i) {
+				if(::setsockopt(i, IPPROTO_TCP, TCP_NODELAY, &on, sizeof(on)) == 0) {
+					++s;
+				}
+			}
+
+			response.result(s);
+		}
 	}
 }
 

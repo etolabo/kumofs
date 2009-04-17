@@ -251,9 +251,12 @@ void basic_session::call_real(msgid_t msgid, std::auto_ptr<vrefbuffer> buffer,
 		// FIXME XXX forget the error for robustness and wait timeout.
 
 	} else {
-		// XXX ad-hoc load balancing
-		m_binds[m_msgid_rr % m_binds.size()]->send_datav(buffer.get(),
-				&mp::object_delete<vrefbuffer>, buffer.get());
+#ifndef NO_AD_HOC_CONNECTION_LOAD_BALANCE
+		m_binds[m_msgid_rr % m_binds.size()]
+#else
+		m_binds[0]
+#endif
+			->send_datav(buffer.get(), &mp::object_delete<vrefbuffer>, buffer.get());
 		buffer.release();
 	}
 }
@@ -283,9 +286,12 @@ void session::call_real(msgid_t msgid, std::auto_ptr<vrefbuffer> buffer,
 		// FIXME or throw exception
 
 	} else {
-		// ad-hoc load balancing
-		m_binds[m_msgid_rr % m_binds.size()]->send_datav(buffer.get(),
-				&mp::object_delete<vrefbuffer>, buffer.get());
+#ifndef NO_AD_HOC_CONNECTION_LOAD_BALANCE
+		m_binds[m_msgid_rr % m_binds.size()]
+#else
+		m_binds[0]
+#endif
+			->send_datav(buffer.get(), &mp::object_delete<vrefbuffer>, buffer.get());
 		buffer.release();
 	}
 }
@@ -313,9 +319,12 @@ void basic_session::send_data(const char* buf, size_t buflen,
 	if(m_binds.empty()) {
 		throw std::runtime_error("session not bound");
 	}
-	// ad-hoc load balancing
-	m_binds[m_msgid_rr % m_binds.size()]->send_data(
-			buf, buflen, finalize, data);
+#ifndef NO_AD_HOC_CONNECTION_LOAD_BALANCE
+	m_binds[m_msgid_rr % m_binds.size()]
+#else
+	m_binds[0]
+#endif
+		->send_data(buf, buflen, finalize, data);
 }
 
 void basic_session::send_datav(vrefbuffer* buf,
@@ -325,9 +334,12 @@ void basic_session::send_datav(vrefbuffer* buf,
 	if(m_binds.empty()) {
 		throw std::runtime_error("session not bound");
 	}
-	// ad-hoc load balancing
-	m_binds[m_msgid_rr % m_binds.size()]->send_datav(
-			buf, finalize, data);
+#ifndef NO_AD_HOC_CONNECTION_LOAD_BALANCE
+	m_binds[m_msgid_rr % m_binds.size()]
+#else
+	m_binds[0]
+#endif
+		->send_datav(buf, finalize, data);
 }
 
 

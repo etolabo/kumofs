@@ -12,8 +12,8 @@ class KumoServer < KumoRPC
 		send_request_sync_ex(Protocol::GetStatus, [key])
 	end
 
-	def SetConfig(*args)
-		send_request_sync_ex(Protocol::ControlDetachFaultServers, args)
+	def SetConfig(key, arg)
+		send_request_sync_ex(Protocol::SetConfig, [key, arg])
 	end
 
 	STAT_PID         = 0
@@ -25,6 +25,8 @@ class KumoServer < KumoRPC
 	STAT_CMD_DELETE  = 6
 	STAT_DB_ITEMS    = 7
 	STAT_CLOCKTIME   = 8
+
+	CONF_TCP_NODELAY = 0
 end
 
 if $0 == __FILE__
@@ -41,6 +43,8 @@ def usage
 	puts "   cmd_set                    get number of set requests"
 	puts "   cmd_delete                 get number of delete requests"
 	puts "   items                      get number of stored items"
+	puts "   set_delay                  maximize throughput at the expense of latency"
+	puts "   unset_delay                minimize latency at the expense of throughput"
 	exit 1
 end
 
@@ -86,6 +90,14 @@ when "cmd_delete"
 when "items"
 	usage if ARGV.length != 0
 	p KumoServer.new(host, port).GetStatus(KumoServer::STAT_DB_ITEMS)
+
+when "set_delay"
+	usage if ARGV.length != 0
+	p KumoServer.new(host, port).SetConfig(KumoServer::CONF_TCP_NODELAY, false)
+
+when "unset_delay"
+	usage if ARGV.length != 0
+	p KumoServer.new(host, port).SetConfig(KumoServer::CONF_TCP_NODELAY, true)
 
 else
 	usage
