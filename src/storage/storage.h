@@ -103,7 +103,7 @@ public:
 
 	bool is_newer(
 			const char* raw_key, uint32_t raw_keylen,
-			ClockTime is_time);
+			ClockTime than_time);
 
 	void set(
 			const char* raw_key, uint32_t raw_keylen,
@@ -215,7 +215,7 @@ inline const char* Storage::get(
 
 inline bool Storage::is_newer(
 		const char* raw_key, uint32_t raw_keylen,
-		ClockTime is_time)
+		ClockTime than_time)
 {
 	char meta_buf[KEY_META_SIZE];
 
@@ -225,7 +225,7 @@ inline bool Storage::is_newer(
 		return false;
 	}
 
-	return is_time < clocktime_of(meta_buf);
+	return than_time < clocktime_of(meta_buf);
 }
 
 

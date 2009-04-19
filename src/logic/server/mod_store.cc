@@ -114,7 +114,43 @@ RPC_IMPL(mod_store_t, Get, req, z, response)
 
 	uint32_t raw_vallen;
 	const char* raw_val = share->db().get(
-			key.raw_data(), key.raw_size( ),
+			key.raw_data(), key.raw_size(),
+			&raw_vallen, z.get());
+
+	if(raw_val) {
+		LOG_DEBUG("key found");
+		msgtype::raw_ref res(raw_val, raw_vallen);
+		response.result(res, z);
+
+	} else {
+		LOG_DEBUG("key not found");
+		response.null();
+	}
+
+	++share->stat_num_get();
+}
+
+
+RPC_IMPL(mod_store_t, GetIfModified, req, z, response)
+{
+	msgtype::DBKey key(req.param().dbkey);
+	LOG_DEBUG("GetIfModified '",
+			/*std::string(key.data(),key.size()),*/"' with hash ",
+			key.hash());
+
+	{
+		pthread_scoped_rdlock rhlk(share->rhs_mutex());
+		check_replicator_assign(share->rhs(), key.hash());
+	}
+
+	if(!share->db().is_newer(key.raw_data(), key.raw_size(),
+				req.param().if_time)) {
+		response.result(true);
+	}
+
+	uint32_t raw_vallen;
+	const char* raw_val = share->db().get(
+			key.raw_data(), key.raw_size(),
 			&raw_vallen, z.get());
 
 	if(raw_val) {

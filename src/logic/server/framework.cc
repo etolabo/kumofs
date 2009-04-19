@@ -35,6 +35,7 @@ try {
 	RPC_DISPATCH(mod_store,   Get);
 	RPC_DISPATCH(mod_store,   Set);
 	RPC_DISPATCH(mod_store,   Delete);
+	RPC_DISPATCH(mod_store,   GetIfModified);
 	RPC_DISPATCH(mod_control, GetStatus);
 	RPC_DISPATCH(mod_control, SetConfig);
 	default:
