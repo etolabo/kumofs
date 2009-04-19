@@ -12,7 +12,11 @@ framework::framework(const Config& cfg) :
 	client_logic<framework>(
 			cfg.connect_timeout_msec,
 			cfg.connect_retry_limit)
-{ }
+{
+	if(!cfg.local_cache.empty()) {
+		mod_cache.init(cfg.local_cache.c_str());
+	}
+}
 
 template <typename Config>
 void framework::run(const Config& cfg)

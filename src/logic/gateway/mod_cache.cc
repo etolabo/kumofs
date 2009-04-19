@@ -29,19 +29,23 @@ void mod_cache_t::init(const char* name)
 	}
 }
 
-char* mod_cache_t::get(const char* raw_key, uint32_t raw_keylen,
-		uint32_t* result_raw_vallen, msgpack::zone* z)
+bool mod_cache_t::get_real(const msgtype::DBKey& key, msgtype::DBValue* result_val,
+		msgpack::zone* z)
 {
 	int len;
-	char* val = (char*)tcadbget(m_db, raw_key, raw_keylen, &len);
+	char* val = (char*)tcadbget(m_db, key.data(), key.size(), &len);  // FIXME key.raw_data() is invalid
 	if(!val) {
-		return NULL;
+		return false;
 	}
-	*result_raw_vallen = len;
+	if(len < static_cast<int>(Storage::VALUE_META_SIZE)) {
+		::free(val);
+		return false;
+	}
 
 	z->push_finalizer(&::free, (void*)val);
+	*result_val = msgtype::DBValue(val, len);
 
-	return val;
+	return true;
 }
 
 namespace {
@@ -68,11 +72,10 @@ static void* cache_update_proc(const void* vbuf, int vsiz, int *sp, void* op)
 }
 }  // noname namespace
 
-void mod_cache_t::update(const char* raw_key, uint32_t raw_keylen,
-		const msgtype::DBValue& val)
+void mod_cache_t::update_real(const msgtype::DBKey& key, const msgtype::DBValue& val)
 {
 	tcadbputproc(m_db,
-			raw_key, raw_keylen,
+			key.data(), key.size(),    // FIXME key.raw_data()?
 			val.raw_data(), val.raw_size(),
 			&cache_update_proc,
 			const_cast<void*>(reinterpret_cast<const void*>(&val)));

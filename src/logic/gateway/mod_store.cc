@@ -105,15 +105,35 @@ try {
 	shared_zone life(req.life);
 	if(!life) { life.reset(new msgpack::zone()); }
 
-	rpc::retry<server::mod_store_t::Get>* retry =
-		life->allocate< rpc::retry<server::mod_store_t::Get> >(
-				server::mod_store_t::Get(
-					msgtype::DBKey(req.key, req.keylen, req.hash)
-					));
+	msgtype::DBKey key(req.key, req.keylen, req.hash);
+	msgtype::DBValue cached_val_buf;
 
-	retry->set_callback(
-			BIND_RESPONSE(mod_store_t, Get, retry, req.callback, req.user) );
-	retry->call(share->server_for<resource::HS_READ>(req.hash), life, 10);
+	if(net->mod_cache.get(key, &cached_val_buf, life.get())) {
+		msgtype::DBValue* cached_val = life->allocate<msgtype::DBValue>(cached_val_buf);
+
+		rpc::retry<server::mod_store_t::GetIfModified>* retry =
+			life->allocate< rpc::retry<server::mod_store_t::GetIfModified> >(
+					server::mod_store_t::GetIfModified(key, cached_val_buf.clocktime())
+					);
+
+		retry->set_callback(
+				BIND_RESPONSE(mod_store_t, GetIfModified, retry,
+				req.callback, req.user, cached_val) );
+
+		retry->call(share->server_for<resource::HS_READ>(req.hash), life, 10);
+
+	} else {
+		rpc::retry<server::mod_store_t::Get>* retry =
+			life->allocate< rpc::retry<server::mod_store_t::Get> >(
+					server::mod_store_t::Get(key)
+					);
+
+		retry->set_callback(
+				BIND_RESPONSE(mod_store_t, Get, retry,
+					req.callback, req.user) );
+
+		retry->call(share->server_for<resource::HS_READ>(req.hash), life, 10);
+	}
 }
 SUBMIT_CATCH(_get);
 
@@ -238,6 +258,77 @@ try {
 			ret.val       = (char*)st.data();
 			ret.vallen    = st.size();
 			ret.clocktime = st.clocktime().get();
+			net->mod_cache.update(key, st);
+		}
+		try { (*callback)(user, ret, z); } catch (...) { }
+
+	} else if( retry->retry_incr((NUM_REPLICATION+1) * share->cfg_get_retry_num() - 1) ) {
+		share->incr_error_renew_count();
+		unsigned short offset = retry->num_retried() % (NUM_REPLICATION+1);
+		SHARED_ZONE(life, z);
+		if(offset == 0) {
+			// FIXME configurable steps
+			retry_after<resource::HS_READ>(1*framework::DO_AFTER_BY_SECONDS,
+					retry, life, key.hash(), offset);
+		} else {
+			retry->call(share->server_for<resource::HS_READ>(key.hash(), offset), life, 10);
+		}
+		LOG_INFO("Get error: ",err,", fallback to offset +",offset," node");
+
+	} else {
+		if(err.via.u64 == (uint64_t)rpc::protocol::TRANSPORT_LOST_ERROR ||
+				err.via.u64 == (uint64_t)rpc::protocol::SERVER_ERROR) {
+			net->mod_network.renew_hash_space();   // FIXME
+		}
+		gate::res_get ret;
+		ret.error     = 1;  // ERROR
+		ret.key       = key.data();
+		ret.keylen    = key.size();
+		ret.hash      = key.hash();
+		ret.val       = NULL;
+		ret.vallen    = 0;
+		ret.clocktime = 0;
+		try { (*callback)(user, ret, z); } catch (...) { }
+		TLOGPACK("eg",3,
+				"key",msgtype::raw_ref(key.data(),key.size()),
+				"err",err.via.u64);
+		LOG_ERROR("Get error: ", err);
+	}
+}
+GATEWAY_CATCH(ResGet, gate::res_get)
+
+
+RPC_REPLY_IMPL(mod_store_t, GetIfModified, from, res, err, z,
+		rpc::retry<server::mod_store_t::GetIfModified>* retry,
+		gate::callback_get callback, void* user,
+		msgtype::DBValue* cached_val)
+try {
+	// FIXME copied code
+	msgtype::DBKey key(retry->param().dbkey);
+	LOG_TRACE("ResGetIfModified ",err);
+
+	if(err.is_nil()) {
+		gate::res_get ret;
+		ret.error     = 0;
+		ret.key       = key.data();
+		ret.keylen    = key.size();
+		ret.hash      = key.hash();
+		if(res.is_nil()) {
+			ret.val       = NULL;
+			ret.vallen    = 0;
+			ret.clocktime = 0;
+		} else if(res.type == msgpack::type::BOOLEAN &&
+				res.via.boolean == true) {
+			// cached
+			ret.val       = (char*)cached_val->data();
+			ret.vallen    = cached_val->size();
+			ret.clocktime = cached_val->clocktime().get();
+		} else {
+			msgtype::DBValue st = res.as<msgtype::DBValue>();
+			ret.val       = (char*)st.data();
+			ret.vallen    = st.size();
+			ret.clocktime = st.clocktime().get();
+			net->mod_cache.update(key, st);
 		}
 		try { (*callback)(user, ret, z); } catch (...) { }
 
@@ -295,6 +386,7 @@ try {
 		ret.val       = val.data();
 		ret.vallen    = val.size();
 		ret.clocktime = st.get();
+		net->mod_cache.update(key, val);
 		try { (*callback)(user, ret, z); } catch (...) { }
 
 	} else if( retry->retry_incr(share->cfg_set_retry_num()) ) {

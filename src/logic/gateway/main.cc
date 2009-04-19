@@ -28,6 +28,8 @@ struct arg_t : rpc_args {
 	bool async_replicate_set;
 	bool async_replicate_delete;
 
+	std::string local_cache;
+
 	bool mctext_set;
 	sockaddr_in mctext_addr_in;
 	int mctext_lsock;  // convert
@@ -73,6 +75,8 @@ struct arg_t : rpc_args {
 				type::connectable(&manager1_in, MANAGER_DEFAULT_PORT));
 		on("-p", "--manager2", &manager2_set,
 				type::connectable(&manager2_in, MANAGER_DEFAULT_PORT));
+		on("-lc","--local-cache",
+				type::string(&local_cache, ""));
 		on("-t", "--memproto-text", &mctext_set,
 				type::listenable(&mctext_addr_in, MEMTEXT_DEFAULT_PORT));
 		on("-b", "--memproto-binary", &mcbin_set,
@@ -106,6 +110,8 @@ struct arg_t : rpc_args {
 			"--manager1        address of manager 1\n"
 		"  -p  <addr[:port="<<MANAGER_DEFAULT_PORT<<"]>   "
 			"--manager2        address of manager 2\n"
+		"  -lc                       "
+			"--local-cache     local cache (Tokyo Cabinet abstract database)\n"
 		"  -t  <[addr:]port="<<MEMTEXT_DEFAULT_PORT<<">   "
 			"--memproto-text   memcached text protocol listen port\n"
 		"  -b  <[addr:]port="<<MEMPROTO_DEFAULT_PORT<<">   "

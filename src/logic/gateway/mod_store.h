@@ -25,6 +25,11 @@ private:
 			rpc::retry<server::mod_store_t::Get>* retry,
 			gate::callback_get callback, void* user);
 
+	RPC_REPLY_DECL(GetIfModified, from, res, err, z,
+			rpc::retry<server::mod_store_t::GetIfModified>* retry,
+			gate::callback_get callback, void* user,
+			msgtype::DBValue* cached_val);
+
 	RPC_REPLY_DECL(Set, from, res, err, z,
 			rpc::retry<server::mod_store_t::Set>* retry,
 			gate::callback_set callback, void* user);

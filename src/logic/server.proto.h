@@ -19,6 +19,7 @@ namespace server {
 @message mod_store_t::Get                   =  34
 @message mod_store_t::Set                   =  35
 @message mod_store_t::Delete                =  36
+@message mod_store_t::GetIfModified         =  37
 @message mod_control_t::CreateBackup        =  96
 @message mod_control_t::GetStatus           =  97
 @message mod_control_t::SetConfig           =  98
@@ -71,6 +72,14 @@ struct replicate_flags : msgtype::flags_base {
 	message Get {
 		msgtype::DBKey dbkey;
 		// success: value:DBValue
+		// not found: nil
+	};
+
+	message GetIfModified {
+		msgtype::DBKey dbkey;
+		ClockTime if_time;
+		// success: value:DBValue
+		// not-modified: true  // FIXME ClockTime?
 		// not found: nil
 	};
 

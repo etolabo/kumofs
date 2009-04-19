@@ -18,11 +18,24 @@ public:
 	void init(const char* name);
 
 public:
-	char* get(const char* raw_key, uint32_t raw_keylen,
-			uint32_t* result_raw_vallen, msgpack::zone* z);
+	bool get(const msgtype::DBKey& key, msgtype::DBValue* result_val,
+			msgpack::zone* z)
+	{
+		if(!m_db) { return false; }
+		return get_real(key, result_val, z);
+	}
 
-	void update(const char* raw_key, uint32_t raw_keylen,
-			const msgtype::DBValue& val);
+	void update(const msgtype::DBKey& key, const msgtype::DBValue& val)
+	{
+		if(!m_db) { return; }
+		return update_real(key, val);
+	}
+
+private:
+	bool get_real(const msgtype::DBKey& key, msgtype::DBValue* result_val,
+			msgpack::zone* z);
+
+	void update_real(const msgtype::DBKey& key, const msgtype::DBValue& val);
 
 public:
 	TCADB* m_db;
