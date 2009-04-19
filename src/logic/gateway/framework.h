@@ -3,6 +3,7 @@
 
 #include "logic/client_logic.h"
 #include "gateway/mod_network.h"
+#include "gateway/mod_cache.h"
 #include "gateway/mod_store.h"
 
 namespace kumo {
@@ -31,6 +32,7 @@ public:
 
 public:
 	mod_network_t mod_network;
+	mod_cache_t   mod_cache;
 	mod_store_t   mod_store;
 
 private:

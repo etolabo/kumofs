@@ -57,6 +57,7 @@ kumo_gateway_SOURCES = \
 		gateway/gate.cc \
 		gateway/main.cc \
 		gateway/mod_network.cc \
+		gateway/mod_cache.cc \
 		gateway/mod_store.cc
 
 kumo_gateway_LDADD  = \

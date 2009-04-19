@@ -132,6 +132,11 @@ AC_CHECK_LIB(crypto,SHA1,,
 AC_CHECK_LIB(msgpack,main,,
 	AC_MSG_ERROR([Can't find msgpack library]))
 
+AC_CHECK_HEADERS(tchdb.h,,
+	AC_MSG_ERROR([Can't find tokyo cabinet header]))
+AC_CHECK_LIB(tokyocabinet,tchdbget,,
+	AC_MSG_ERROR([Can't find tokyocabinet library]))
+
 
 AC_MSG_CHECKING([storage type])
 AC_MSG_RESULT($storage_type)
@@ -142,10 +147,6 @@ AM_CONDITIONAL(STORAGE_TCADB, test "$storage_type" = "tcadb")
 AM_CONDITIONAL(STORAGE_LUXIO, test "$storage_type" = "luxio")
 
 if test "$storage_type" = "tchdb" -o "$storage_type" = "tcbdb" -o "$storage_type" = "tcadb"; then
-	AC_CHECK_HEADERS(tchdb.h,,
-		AC_MSG_ERROR([Can't find tokyo cabinet header]))
-	AC_CHECK_LIB(tokyocabinet,tchdbget,,
-		AC_MSG_ERROR([Can't find tokyocabinet library]))
 	CXXFLAGS="$CXXFLAGS -DUSE_TOKYOCABINET"
 	CFLAGS="$CFLAGS -DUSE_TOKYOCABINET"
 fi
