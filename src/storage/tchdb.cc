@@ -145,6 +145,15 @@ static const char* kumo_tchdb_get(void* data,
 	return val;
 }
 
+static int32_t kumo_tchdb_get_header(void* data,
+		const char* key, uint32_t keylen,
+		char* result_val, uint32_t vallen)
+{
+	kumo_tchdb* ctx = reinterpret_cast<kumo_tchdb*>(data);
+
+	return tchdbget3(ctx->db, key, keylen, result_val, vallen);
+}
+
 static bool kumo_tchdb_set(void* data,
 		const char* key, uint32_t keylen,
 		const char* val, uint32_t vallen)
@@ -456,6 +465,7 @@ static kumo_storage_op kumo_tchdb_op =
 	kumo_tchdb_open,
 	kumo_tchdb_close,
 	kumo_tchdb_get,
+	kumo_tchdb_get_header,
 	kumo_tchdb_set,
 	kumo_tchdb_del,
 	kumo_tchdb_update,

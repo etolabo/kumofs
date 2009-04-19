@@ -33,6 +33,10 @@ typedef struct {
 			uint32_t* result_vallen,
 			msgpack_zone* zone);
 
+	int32_t (*get_header)(void* data,
+			const char* key, uint32_t keylen,
+			char* result_val, uint32_t vallen);
+
 	// success: true;  failed: false
 	bool (*set)(void* data,
 			const char* key, uint32_t keylen,

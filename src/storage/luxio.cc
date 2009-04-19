@@ -96,6 +96,29 @@ try {
 	return NULL;
 }
 
+static int32_t kumo_luxio_get_header(void* data,
+		const char* key, uint32_t keylen,
+		char* result_val, uint32_t vallen)
+try {
+	Lux::IO::Btree* db = reinterpret_cast<Lux::IO::Btree*>(data);
+
+	// FIXME
+	Lux::IO::data_t k = {key, keylen};
+	Lux::IO::data_t* v = NULL;
+	if(!db->get(&k, &v, Lux::IO::SYSTEM) || v == NULL) {
+		return NULL;
+	}
+
+	uint32_t len = std::min(v->size, vallen);
+	memcpy(result_val, v->data, len);
+	db->clean_data(v);
+
+	return len;
+
+} catch (std::exception& e) {
+	set_error(e.what());
+	return -1;
+}
 
 static bool kumo_luxio_set(void* data,
 		const char* key, uint32_t keylen,
@@ -368,6 +391,7 @@ static kumo_storage_op kumo_luxio_op =
 	kumo_luxio_open,
 	kumo_luxio_close,
 	kumo_luxio_get,
+	kumo_luxio_get_header,
 	kumo_luxio_set,
 	kumo_luxio_update,
 	NULL,

@@ -87,6 +87,15 @@ static const char* kumo_tcadb_get(void* data,
 	return val;
 }
 
+static int32_t kumo_tcadb_get_header(void* data,
+		const char* key, uint32_t keylen,
+		char* result_val, uint32_t vallen)
+{
+	kumo_tcadb* ctx = reinterpret_cast<kumo_tcadb*>(data);
+
+	return tcadbget3(ctx->db, key, keylen, result_val, vallen);
+}
+
 static bool kumo_tcadb_set(void* data,
 		const char* key, uint32_t keylen,
 		const char* val, uint32_t vallen)
@@ -382,6 +391,7 @@ static kumo_storage_op kumo_tcadb_op =
 	kumo_tcadb_open,
 	kumo_tcadb_close,
 	kumo_tcadb_get,
+	kumo_tcadb_get_header,
 	kumo_tcadb_set,
 	kumo_tcadb_del,
 	kumo_tcadb_update,
