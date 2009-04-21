@@ -92,7 +92,22 @@ static int32_t kumo_tcadb_get_header(void* data,
 		char* result_val, uint32_t vallen)
 {
 	kumo_tcadb* ctx = reinterpret_cast<kumo_tcadb*>(data);
-	return tcadbget3(ctx->db, key, keylen, result_val, vallen);
+
+	// FIXME malloc
+	int len;
+	char* val = (char*)tcadbget(ctx->db, key, keylen, &len);
+	if(!val) {
+		return NULL;
+	}
+
+	if((uint32_t)len < vallen) {
+		memcpy(result_val, val, len);
+		free(val);
+		return len;
+	}
+	memcpy(result_val, val, vallen);
+	free(val);
+	return vallen;
 }
 
 static bool kumo_tcadb_set(void* data,

@@ -155,7 +155,20 @@ static int32_t kumo_tcbdb_get_header(void* data,
 		char* result_val, uint32_t vallen)
 {
 	kumo_tcbdb* ctx = reinterpret_cast<kumo_tcbdb*>(data);
-	return tcbdbget3(ctx->db, key, keylen, result_val, vallen);
+
+	// FIXME thread safety
+	int len;
+	char* val = (char*)tcbdbget(ctx->db, key, keylen, &len);
+	if(!val) {
+		return NULL;
+	}
+
+	if((uint32_t)len < vallen) {
+		memcpy(result_val, val, len);
+		return len;
+	}
+	memcpy(result_val, val, vallen);
+	return vallen;
 }
 
 static bool kumo_tcbdb_set(void* data,
