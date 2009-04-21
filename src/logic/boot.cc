@@ -129,7 +129,7 @@ void rpc_args::convert()
 {
 	keepalive_interval_usec = keepalive_interval *1000 *1000;
 	clock_interval_usec = clock_interval * 1000 * 1000;
-	connect_timeout_sec = connect_timeout_msec * 1000;
+	connect_timeout_msec = connect_timeout_sec * 1000;
 }
 
 void cluster_args::convert()
