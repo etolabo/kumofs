@@ -118,7 +118,7 @@ try {
 
 		retry->set_callback(
 				BIND_RESPONSE(mod_store_t, GetIfModified, retry,
-				req.callback, req.user, cached_val) );
+					req.callback, req.user, cached_val) );
 
 		retry->call(share->server_for<resource::HS_READ>(req.hash), life, 10);
 
@@ -386,7 +386,7 @@ try {
 		ret.val       = val.data();
 		ret.vallen    = val.size();
 		ret.clocktime = st.get();
-		net->mod_cache.update(key, val);
+		//net->mod_cache.update(key, val);  // FIXME raw_data() is invalid
 		try { (*callback)(user, ret, z); } catch (...) { }
 
 	} else if( retry->retry_incr(share->cfg_set_retry_num()) ) {

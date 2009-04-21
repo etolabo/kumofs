@@ -101,9 +101,9 @@ public:
 			const char* raw_key, uint32_t raw_keylen,
 			uint32_t* result_raw_vallen, msgpack::zone* z);
 
-	bool is_newer(
+	bool cache_is_valid(
 			const char* raw_key, uint32_t raw_keylen,
-			ClockTime than_time);
+			ClockTime cache_clocktime);
 
 	void set(
 			const char* raw_key, uint32_t raw_keylen,
@@ -213,19 +213,19 @@ inline const char* Storage::get(
 	return raw_val;
 }
 
-inline bool Storage::is_newer(
+inline bool Storage::cache_is_valid(
 		const char* raw_key, uint32_t raw_keylen,
-		ClockTime than_time)
+		ClockTime cache_clocktime)
 {
 	char meta_buf[KEY_META_SIZE];
 
 	if( m_op.get_header(m_data, raw_key, raw_keylen,
-				meta_buf, sizeof(meta_buf)) >=
+				meta_buf, sizeof(meta_buf)) <
 			static_cast<int32_t>(sizeof(meta_buf)) ) {
 		return false;
 	}
 
-	return than_time < clocktime_of(meta_buf);
+	return clocktime_of(meta_buf) <= cache_clocktime;
 }
 
 

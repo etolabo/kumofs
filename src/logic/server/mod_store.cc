@@ -143,9 +143,11 @@ RPC_IMPL(mod_store_t, GetIfModified, req, z, response)
 		check_replicator_assign(share->rhs(), key.hash());
 	}
 
-	if(!share->db().is_newer(key.raw_data(), key.raw_size(),
+	if(share->db().cache_is_valid(
+				key.raw_data(), key.raw_size(),
 				req.param().if_time)) {
 		response.result(true);
+		return;
 	}
 
 	uint32_t raw_vallen;

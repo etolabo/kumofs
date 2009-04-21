@@ -92,7 +92,6 @@ static int32_t kumo_tcadb_get_header(void* data,
 		char* result_val, uint32_t vallen)
 {
 	kumo_tcadb* ctx = reinterpret_cast<kumo_tcadb*>(data);
-
 	return tcadbget3(ctx->db, key, keylen, result_val, vallen);
 }
 

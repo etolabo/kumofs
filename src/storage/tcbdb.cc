@@ -155,7 +155,6 @@ static int32_t kumo_tcbdb_get_header(void* data,
 		char* result_val, uint32_t vallen)
 {
 	kumo_tcbdb* ctx = reinterpret_cast<kumo_tcbdb*>(data);
-
 	return tcbdbget3(ctx->db, key, keylen, result_val, vallen);
 }
 
