@@ -106,9 +106,19 @@ public:
 		return clocktime_less(m, o.m);
 	}
 
+	bool operator> (const ClockTime& o) const
+	{
+		return clocktime_less(o.m, m);
+	}
+
 	bool operator<= (const ClockTime& o) const
 	{
-		return (*this == o) || (*this < o);
+		return !(*this > o);
+	}
+
+	bool operator>= (const ClockTime& o) const
+	{
+		return !(*this < o);
 	}
 
 private:
