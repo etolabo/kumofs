@@ -482,10 +482,13 @@ void output::impl::writev(int fd, const iovec* bufvec, const request* reqvec, si
 	context& ctx(m_fdctx[fd]);
 	pthread_scoped_lock lk(ctx.mutex());
 	if(ctx.push(bufvec, reqvec, veclen)) {
-		//worker_for(fd)->watch(fd);
+#ifndef MP_WAVY_NO_TRY_WRITE_INITIAL
 		if(!worker_for(fd)->try_write_initial(fd)) {
 			worker_for(fd)->watch(fd);
 		}
+#else
+		worker_for(fd)->watch(fd);
+#endif
 	} else {
 #ifdef MP_WAVY_WRITE_QUEUE_LIMIT
 		// FIXME sender or receiver must not wait to flush to avoid deadlock.
