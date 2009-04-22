@@ -25,7 +25,11 @@ inline void weak_responder::result(Result res, auto_zone& z)
 {
 	LOG_TRACE("send response data with Success id=",m_msgid);
 	msgpack::type::nil err;
+#ifndef NO_RESPONSE_ZERO_COPY
 	call(res, err, z);
+#else
+	call(res, err);
+#endif
 }
 
 template <typename Result>
@@ -33,7 +37,11 @@ inline void weak_responder::result(Result res, shared_zone& life)
 {
 	LOG_TRACE("send response data with Success id=",m_msgid);
 	msgpack::type::nil err;
+#ifndef NO_RESPONSE_ZERO_COPY
 	call(res, err, life);
+#else
+	call(res, err);
+#endif
 }
 
 template <typename Error>
@@ -57,7 +65,11 @@ inline void weak_responder::error(Error err, shared_zone& life)
 {
 	LOG_TRACE("send response data with Error id=",m_msgid);
 	msgpack::type::nil res;
+#ifndef NO_RESPONSE_ZERO_COPY
 	call(res, err, life);
+#else
+	call(res, err);
+#endif
 }
 
 inline void weak_responder::null()
@@ -85,7 +97,7 @@ namespace detail {
 template <typename Result, typename Error>
 void weak_responder::call(Result& res, Error& err)
 {
-	msgpack::sbuffer buf;  // FIXME use vrefbuffer?
+	msgpack::sbuffer buf;
 	rpc_response<Result, Error> msgres(res, err, m_msgid);
 	msgpack::pack(buf, msgres);
 
