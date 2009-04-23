@@ -76,8 +76,7 @@ private:
 
 RPC_IMPL(mod_replace_stream_t, ReplaceOffer, req, z, response)
 {
-	address stream_addr = req.node()->addr();
-	stream_addr.set_port(req.param().port);
+	const address& stream_addr( req.param().addr );
 	char addrbuf[stream_addr.addrlen()];
 	stream_addr.getaddr((sockaddr*)addrbuf);
 
@@ -108,7 +107,7 @@ void mod_replace_stream_t::send_offer(mod_replace_stream_t::offer_storage& offer
 
 		LOG_DEBUG("send offer to ",(*it)->addr());
 		shared_zone nullz;
-		mod_replace_stream_t::ReplaceOffer param(m_stream_addr.port());
+		mod_replace_stream_t::ReplaceOffer param(m_stream_addr);
 
 		using namespace mp::placeholders;
 		net->get_node(addr)->call(param, nullz,

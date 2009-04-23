@@ -196,7 +196,7 @@ public:
 
 @rpc mod_replace_stream_t
 	message ReplaceOffer +cluster {
-		uint16_t port;
+		address addr;
 		// no response
 	};
 
