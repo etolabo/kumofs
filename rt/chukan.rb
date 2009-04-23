@@ -118,7 +118,7 @@ module Chukan
 
 	class LocalProcess
 		def initialize(*cmdline)
-			@cmdline = cmdline
+			@cmdline = cmdline.map {|x| x.to_s }
 			@status = nil
 			@shortname = File.basename(cmdline.first.split(/\s/,2).first)[0, 12]
 			start
@@ -334,7 +334,7 @@ module Chukan
 		attr_reader :rpid
 
 		def signal(sig)
-			system(*@remote.command("kill", "-#{sig}", @rpid))
+			system(*@remote.command("kill -#{sig} #{@rpid}"))
 			self
 		end
 	end
@@ -366,7 +366,7 @@ module Chukan
 			if @dir
 				cmd += ["cd", @dir, "&&"]
 			end
-			cmd + cmdline
+			cmd + cmdline.map {|x| x.to_s }
 		end
 
 		def spawn(*cmdline, &block)
