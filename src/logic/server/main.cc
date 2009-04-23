@@ -32,6 +32,8 @@ struct arg_t : cluster_args {
 
 	virtual void convert()
 	{
+		cluster_args::convert();
+
 		stream_addr = cluster_addr;
 		stream_addr.set_port(stream_port);
 		stream_lsock = scoped_listen_tcp::listen(stream_addr);
@@ -45,7 +47,6 @@ struct arg_t : cluster_args {
 		}
 
 		db_backup_basename = dbpath + "-";
-		cluster_args::convert();
 	}
 
 	arg_t(int argc, char** argv) :

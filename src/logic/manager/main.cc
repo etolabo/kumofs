@@ -15,8 +15,8 @@ struct arg_t : cluster_args {
 
 	virtual void convert()
 	{
-		partner = rpc::address(partner_in);
 		cluster_args::convert();
+		partner = rpc::address(partner_in);
 	}
 
 	arg_t(int argc, char** argv) :

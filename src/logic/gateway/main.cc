@@ -44,6 +44,8 @@ struct arg_t : rpc_args {
 
 	virtual void convert()
 	{
+		rpc_args::convert();
+
 		manager1 = rpc::address(manager1_in);
 		manager2 = rpc::address(manager2_in);
 
@@ -59,8 +61,6 @@ struct arg_t : rpc_args {
 		if(cloudy_set) {
 			cloudy_lsock = scoped_listen_tcp::listen(cloudy_addr_in);
 		}
-
-		rpc_args::convert();
 	}
 
 	arg_t(int& argc, char* argv[]) :
