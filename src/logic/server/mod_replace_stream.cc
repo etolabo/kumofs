@@ -87,8 +87,8 @@ RPC_IMPL(mod_replace_stream_t, ReplaceOffer, req, z, response)
 			net->connect_timeout_msec(),
 			mp::bind(&mod_replace_stream_t::stream_connected, this, _1, _2));
 
-	// Note: don't return any result
-	LOG_TRACE("connect replace offer to ",req.node()->addr()," with stream port ",req.param().port);
+	// Note: response: don't return any result
+	LOG_INFO("send replace offer to ",stream_addr);
 }
 
 
