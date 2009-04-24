@@ -157,8 +157,11 @@ private:
 	typedef std::vector<address> addrvec_t;
 	typedef addrvec_t::iterator addrvec_iterator;
 
-	void replace_copy(const address& manager_addr, HashSpace& hs);
 	struct for_each_replace_copy;
+	struct for_each_full_replace_copy;
+	void replace_copy(const address& manager_addr, HashSpace& hs);
+	void full_replace_copy(const address& manager_addr, HashSpace& hs);
+
 	void finish_replace_copy(ClockTime clocktime, REQUIRE_STLK);
 	RPC_REPLY_DECL(ReplaceCopyEnd, from, res, err, z);
 

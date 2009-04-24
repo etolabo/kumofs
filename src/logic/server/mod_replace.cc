@@ -270,6 +270,80 @@ void mod_replace_t::for_each_replace_copy::operator() (Storage::iterator& kv)
 }
 
 
+struct mod_replace_t::for_each_full_replace_copy {
+	for_each_full_replace_copy(
+			const address& addr, const HashSpace& hs,
+			mod_replace_stream_t::offer_storage& offer_storage) :
+		self(addr),
+		dsths(hs),
+		offer(offer_storage) { }
+
+	inline void operator() (Storage::iterator& kv);
+
+private:
+	addrvec_t Da;
+
+	const address& self;
+
+	const HashSpace& dsths;
+
+	mod_replace_stream_t::offer_storage& offer;
+
+private:
+	for_each_full_replace_copy();
+};
+
+void mod_replace_t::full_replace_copy(const address& manager_addr, HashSpace& hs)
+{
+	ClockTime replace_time = hs.clocktime();
+
+	{
+		pthread_scoped_lock stlk(m_state_mutex);
+		m_state.reset(manager_addr, replace_time);
+		replace_offer_push(replace_time, stlk);  // replace_copy;
+	}
+
+	LOG_INFO("start full replace copy for time(",replace_time.get(),")");
+
+	{
+		mod_replace_stream_t::offer_storage offer(
+				share->cfg_offer_tmpdir(), replace_time);
+	
+		share->db().for_each(
+				for_each_full_replace_copy(net->addr(), hs, offer),
+				net->clocktime_now());
+	
+		net->mod_replace_stream.send_offer(offer, replace_time);
+	}
+
+	pthread_scoped_lock stlk(m_state_mutex);
+	replace_offer_pop(replace_time, stlk);  // replace_copy
+}
+
+void mod_replace_t::for_each_full_replace_copy::operator() (Storage::iterator& kv)
+{
+	const char* raw_key = kv.key();
+	size_t raw_keylen = kv.keylen();
+	const char* raw_val = kv.val();
+	size_t raw_vallen = kv.vallen();
+
+	// Note: it is done in storage wrapper.
+	//if(raw_vallen < Storage::VALUE_META_SIZE) { return; }
+	//if(raw_keylen < Storage::KEY_META_SIZE) { return; }
+
+	uint64_t h = Storage::hash_of(kv.key());
+
+	Da.clear();
+	EACH_ASSIGN(dsths, h, r, {
+		if(r.is_active()) Da.push_back(r.addr()); });
+
+	for(addrvec_iterator it(Da.begin()); it != Da.end(); ++it) {
+		offer.add(*it,
+				raw_key, raw_keylen,
+				raw_val, raw_vallen);
+	}
+}
+
 
 void mod_replace_t::finish_replace_copy(ClockTime replace_time, REQUIRE_STLK)
 {
