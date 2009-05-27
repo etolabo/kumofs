@@ -196,8 +196,12 @@ class KumoManager < KumoRPC
 		send_request_sync_ex(Protocol::SetAutoReplace, [enable])
 	end
 
-	def StartReplace()
-		send_request_sync_ex(Protocol::StartReplace, [])
+	def StartReplace(full = false)
+		if full
+			send_request_sync_ex(Protocol::StartReplace, [true])
+		else
+			send_request_sync_ex(Protocol::StartReplace, [])
+		end
 	end
 end
 
@@ -216,6 +220,7 @@ def usage
 	puts "   detach                     detach all fault servers and start replace"
 	puts "   detach-noreplace           detach all fault servers"
 	puts "   replace                    start replace without attach/detach"
+	puts "   full-replace               start full-replace (repair consistency)"
 	puts "   backup  [suffix=#{$now }]  create backup with specified suffix"
 	puts "   enable-auto-replace        enable auto replace"
 	puts "   disable-auto-replace       disable auto replace"
@@ -286,6 +291,10 @@ when "backup"
 when "replace"
 	usage if ARGV.length != 0
 	p KumoManager.new(host, port).StartReplace()
+
+when "full-replace"
+	usage if ARGV.length != 0
+	p KumoManager.new(host, port).StartReplace(true)
 
 else
 	puts "unknown command #{cmd}"

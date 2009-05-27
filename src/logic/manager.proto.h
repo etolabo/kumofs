@@ -23,7 +23,6 @@ namespace manager {
 @message mod_control_t::CreateBackup        = 102
 @message mod_control_t::SetAutoReplace      = 103
 @message mod_control_t::StartReplace        = 104
-@message mod_control_t::StartFullReplace    = 105
 
 
 @rpc mod_network_t
