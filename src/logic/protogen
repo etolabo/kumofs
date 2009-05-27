@@ -68,6 +68,7 @@ class RPCMessage
 		@versions.to_a.sort_by do |ver, members|
 			ver ? ver : 0
 		end.each do |ver, members|
+			defaults = members.select {|type, var, default| default }
 			def members.xjoin(between, after, join)
 				map {|a, b| "#{a}#{between}#{b}#{after}" }.join(join)
 			end
@@ -78,24 +79,58 @@ class RPCMessage
 			end
 			f.puts %[	struct #{struct} : rpc::message<#{@id}, #{ver ? ver : 0}, rpc::#{@mode_cluster ? "node" : "basic_session"}> {]
 			f.puts %[		#{members.xjoin(" ",";","\n\t\t")}]
-			f.puts %[
-		void msgpack_unpack(const msgpack::type::tuple<
+			if defaults.empty?
+				f.puts %[		void msgpack_unpack(const msgpack::type::tuple<
 				#{members.map {|type, var|type}.join(", ")} >& args)
 		{
 			#{i=-1; members.map {|type, var| "this->#{var} = args.get<#{i+=1}>();" }.join("\n\t\t\t")}
-		}
+		}]
+			else
+				f.puts %[		void msgpack_unpack(msgpack::object o)
+		{]
+				if members.length > defaults.length
+					f.puts %[			const msgpack::type::tuple<#{members.map {|type, var|type}.join(", ")} >& args(o.convert());]
+				else
+					f.puts %[			if(o.type != msgpack::type::ARRAY) { throw msgpack::type_error(); }]
+				end
+				f.puts %[			#{i=-1; members.map {|type, var, default|
+				unless default
+					"this->#{var} = args.get<#{i+=1}>();"
+				else
+					"if(o.via.array.size > #{i+=1}) { o.via.array.ptr[#{i}].convert(&this->#{var}); }"
+				end
+			}.join("\n\t\t\t")}
+		}]
+			end
+
+			f.puts %[
 		template <typename Packer>
 		void msgpack_pack(Packer& pk) const
 		{
 			pk.pack_array(#{members.size});
 			#{members.map {|type, var| "pk.pack(#{var});" }.join("\n\t\t\t")}
 		}]
+
 		f.puts %[		typedef rpc::retry<#{struct}> retry;]
+
 		unless members.empty?
-			f.puts %[		#{struct}(#{members.map {|type, var| "\n\t\t\t\tconst #{type}& #{var}_" }.join(",")}) :]
-			f.puts %[				#{members.map {|type, var| "#{var}(#{var}_)" }.join(", ")} { }]
+			f.puts %[		#{struct}(#{members.map {|type, var, default|
+				unless default
+					"\n\t\t\t\tconst #{type}& #{var}_"
+				else
+					"\n\t\t\t\t#{type} #{var}_ = #{default}"
+				end
+			}.join(",")}) :]
+			f.puts %[				#{members.map {|type, var, default| "#{var}(#{var}_)" }.join(", ")} { }]
 		end
-		f.puts %[		#{struct}() { }]
+
+		if defaults.empty?
+			f.puts %[		#{struct}() { }]
+		elsif members.length > defaults.length
+			f.puts %[		#{struct}() :]
+			f.puts %[				#{defaults.map {|type, var, default| "#{var}(#{default})"}.join(", ")} { }]
+		end
+
 		f.puts %[
 		#{@code}
 	};]
@@ -336,10 +371,18 @@ while body_len = s.exist?(/@(rpc|c?message|dispatch|code)\b/)
 	
 			decl = $~[5]
 			members = []
-			decl.gsub!(/\b(\S+)\s+(\w+)\s*\;/) {|match|
-				type = $~[1]
-				var  = $~[2]
-				members.push [type, var]
+			decl.gsub!(/\b(\S+)\s+(\w+)(?:\s+\=\s+(\w+))?\s*\;/) {|match|
+				type    = $~[1]
+				var     = $~[2]
+				default = $~[3]
+				unless default
+					members.each {|t, v, d|
+						if d
+							raise "unexpected non-default parameter"
+						end
+					}
+				end
+				members.push [type, var, default]
 				""
 			}
 			decl.strip!
