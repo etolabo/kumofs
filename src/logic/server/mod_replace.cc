@@ -79,7 +79,11 @@ RPC_IMPL(mod_replace_t, ReplaceCopyStart, req, z, response)
 	response.result(true);
 
 	try {
-		replace_copy(req.node()->addr(), hs);
+		if(req.param().full) {
+			full_replace_copy(req.node()->addr(), hs);
+		} else {
+			replace_copy(req.node()->addr(), hs);
+		}
 	} catch (std::runtime_error& e) {
 		LOG_ERROR("replace copy failed: ",e.what());
 	} catch (...) {

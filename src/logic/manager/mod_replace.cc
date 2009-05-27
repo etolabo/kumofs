@@ -232,9 +232,9 @@ namespace {
 	};
 }  // noname namespace
 
-void mod_replace_t::start_replace(REQUIRE_HSLK)
+void mod_replace_t::start_replace(REQUIRE_HSLK, bool full)
 {
-	LOG_INFO("start replace copy");
+	LOG_INFO("start replace copy; full=",full);
 	pthread_scoped_lock relk(m_replace_mutex);
 
 	shared_zone life(new msgpack::zone());
@@ -242,36 +242,7 @@ void mod_replace_t::start_replace(REQUIRE_HSLK)
 	HashSpace::Seed* seed = life->allocate<HashSpace::Seed>(share->whs());
 	ClockTime replace_time(share->whs().clocktime());
 
-	server::mod_replace_t::ReplaceCopyStart param(*seed, net->clock_incr());
-
-	using namespace mp::placeholders;
-	rpc::callback_t callback( BIND_RESPONSE(mod_replace_t, ReplaceCopyStart) );
-
-	progress::nodes_t target_nodes;
-	net->for_each_node(ROLE_SERVER,
-			for_each_call_do(param, life, callback, 10,
-			gather_address<progress::nodes_t>(target_nodes)));
-
-	LOG_INFO("active node: ",target_nodes.size());
-	m_copying.reset(replace_time, target_nodes);
-	m_deleting.invalidate();
-	relk.unlock();
-
-	// push hashspace to the clients
-	net->mod_network.push_hash_space_clients(hslk);
-}
-
-void mod_replace_t::start_full_replace(REQUIRE_HSLK)
-{
-	LOG_INFO("start full replace copy");
-	pthread_scoped_lock relk(m_replace_mutex);
-
-	shared_zone life(new msgpack::zone());
-
-	HashSpace::Seed* seed = life->allocate<HashSpace::Seed>(share->whs());
-	ClockTime replace_time(share->whs().clocktime());
-
-	server::mod_replace_t::ReplaceCopyFullStart param(*seed, net->clock_incr());
+	server::mod_replace_t::ReplaceCopyStart param(*seed, net->clock_incr(), full);
 
 	using namespace mp::placeholders;
 	rpc::callback_t callback( BIND_RESPONSE(mod_replace_t, ReplaceCopyStart) );

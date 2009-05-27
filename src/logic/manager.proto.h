@@ -98,9 +98,7 @@ public:
 	void attach_new_servers(REQUIRE_HSLK);
 	void detach_fault_servers(REQUIRE_HSLK);
 
-	void start_replace(REQUIRE_HSLK);
-	void start_full_replace(REQUIRE_HSLK);
-
+	void start_replace(REQUIRE_HSLK, bool full = false);
 	void add_server(const address& addr, shared_node& s);
 	void remove_server(const address& addr);
 
@@ -162,9 +160,7 @@ private:
 	};
 
 	message StartReplace {
-	};
-
-	message StartFullReplace {
+		bool full = false;
 	};
 
 
