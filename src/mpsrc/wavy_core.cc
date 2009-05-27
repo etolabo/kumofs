@@ -1,7 +1,7 @@
 //
 // mp::wavy::core
 //
-// Copyright (C) 2008 FURUHASHI Sadayuki
+// Copyright (C) 2008-2009 FURUHASHI Sadayuki
 //
 //    Licensed under the Apache License, Version 2.0 (the "License");
 //    you may not use this file except in compliance with the License.
@@ -114,18 +114,15 @@ void core::impl::add_thread(size_t num)
 }
 
 
-void core::submit_impl(task_t f)
-	{ m_impl->submit_impl(f); }
-
 void core::impl::submit_impl(task_t& f)
 {
 	pthread_scoped_lock lk(m_mutex);
 	m_task_queue.push(f);
 	m_cond.signal();
 }
+void core::submit_impl(task_t f)
+	{ m_impl->submit_impl(f); }
 
-void core::add_impl(int fd, handler* newh)
-	{ m_impl->add_impl(fd, newh); }
 
 void core::impl::add_impl(int fd, handler* newh)
 {
@@ -139,6 +136,9 @@ void core::impl::add_impl(int fd, handler* newh)
 	newh->m_shared_self = &m_state[fd];
 	m_edge.add_notify(fd, EVEDGE_READ);
 }
+void core::add_impl(int fd, handler* newh)
+	{ m_impl->add_impl(fd, newh); }
+
 
 void core::impl::operator() ()
 {

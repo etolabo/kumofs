@@ -69,10 +69,10 @@ struct singleton {
 
 
 	template <typename Handler>
-	static void add(int fd);
+	static Handler* add(int fd);
 MP_ARGS_BEGIN
 	template <typename Handler, MP_ARGS_TEMPLATE>
-	static void add(int fd, MP_ARGS_PARAMS);
+	static Handler* add(int fd, MP_ARGS_PARAMS);
 MP_ARGS_END
 
 	template <typename F>
@@ -186,12 +186,12 @@ inline void singleton<Instance>::timer(
 
 template <typename Instance>
 template <typename Handler>
-inline void singleton<Instance>::add(int fd)
+inline Handler* singleton<Instance>::add(int fd)
 	{ return s_core->add<Handler>(fd); }
 MP_ARGS_BEGIN
 template <typename Instance>
 template <typename Handler, MP_ARGS_TEMPLATE>
-inline void singleton<Instance>::add(int fd, MP_ARGS_PARAMS)
+inline Handler* singleton<Instance>::add(int fd, MP_ARGS_PARAMS)
 	{ return s_core->add<Handler, MP_ARGS_TYPES>(fd, MP_ARGS_FUNC); }
 MP_ARGS_END
 

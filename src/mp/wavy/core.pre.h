@@ -84,10 +84,10 @@ public:
 
 
 	template <typename Handler>
-	void add(int fd);
+	Handler* add(int fd);
 MP_ARGS_BEGIN
 	template <typename Handler, MP_ARGS_TEMPLATE>
-	void add(int fd, MP_ARGS_PARAMS);
+	Handler* add(int fd, MP_ARGS_PARAMS);
 MP_ARGS_END
 
 	template <typename F>
@@ -114,12 +114,12 @@ typedef core::handler handler;
 
 
 template <typename Handler>
-void core::add(int fd)
-	{ add_impl(fd, new Handler(fd)); }
+Handler* core::add(int fd)
+	{ Handler* h = new Handler(fd); add_impl(fd, h); return h; }
 MP_ARGS_BEGIN
 template <typename Handler, MP_ARGS_TEMPLATE>
-void core::add(int fd, MP_ARGS_PARAMS)
-	{ add_impl(fd, new Handler(fd, MP_ARGS_FUNC)); }
+Handler* core::add(int fd, MP_ARGS_PARAMS)
+	{ Handler* h = new Handler(fd, MP_ARGS_FUNC); add_impl(fd, h); return h; }
 MP_ARGS_END
 
 template <typename F>

@@ -1,7 +1,7 @@
 //
 // mp::wavy::core::connect
 //
-// Copyright (C) 2008 FURUHASHI Sadayuki
+// Copyright (C) 2008-2009 FURUHASHI Sadayuki
 //
 //    Licensed under the Apache License, Version 2.0 (the "License");
 //    you may not use this file except in compliance with the License.
@@ -26,7 +26,7 @@ namespace mp {
 namespace wavy {
 
 
-class core::impl::connext_thread {
+class core::impl::connect_thread {
 public:
 	struct pack {
 		int        socket_family;
@@ -38,7 +38,7 @@ public:
 		sockaddr   addr[0];
 	};
 
-	connext_thread(core* c,
+	connect_thread(core* c,
 			int socket_family, int socket_type, int protocol,
 			const sockaddr* addr, socklen_t addrlen,
 			int timeout_msec, connect_callback_t& callback) :
@@ -134,7 +134,7 @@ void core::connect(int socket_family, int socket_type, int protocol,
 		const sockaddr* addr, socklen_t addrlen,
 		int timeout_msec, connect_callback_t callback)
 {
-	impl::connext_thread t(this,
+	impl::connect_thread t(this,
 			socket_family, socket_type, protocol,
 			addr, addrlen, timeout_msec, callback);
 	submit(t);

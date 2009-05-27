@@ -1,7 +1,7 @@
 //
 // mp::wavy::core
 //
-// Copyright (C) 2008 FURUHASHI Sadayuki
+// Copyright (C) 2008-2009 FURUHASHI Sadayuki
 //
 //    Licensed under the Apache License, Version 2.0 (the "License");
 //    you may not use this file except in compliance with the License.
@@ -41,7 +41,7 @@ public:
 	void join();
 	void detach();
 
-	class connext_thread;
+	class connect_thread;
 
 	class listen_handler;
 	void listen(int lsock, listen_callback_t callback);

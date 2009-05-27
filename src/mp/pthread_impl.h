@@ -179,7 +179,7 @@ inline pthread_rwlock::~pthread_rwlock()
 	pthread_rwlock_destroy(&m_mutex);
 }
 
-inline void pthread_rwlock::pthread_rwlock::rdlock()
+inline void pthread_rwlock::rdlock()
 {
 	int err = pthread_rwlock_rdlock(&m_mutex);
 	if(err != 0) { throw pthread_error(-err, "failed to read lock pthread rwlock"); }
@@ -195,7 +195,7 @@ inline bool pthread_rwlock::tryrdlock()
 	return true;
 }
 
-inline void pthread_rwlock::pthread_rwlock::wrlock()
+inline void pthread_rwlock::wrlock()
 {
 	int err = pthread_rwlock_wrlock(&m_mutex);
 	if(err != 0) { throw pthread_error(-err, "failed to write lock pthread rwlock"); }
@@ -211,7 +211,7 @@ inline bool pthread_rwlock::trywrlock()
 	return true;
 }
 
-inline void pthread_rwlock::pthread_rwlock::unlock()
+inline void pthread_rwlock::unlock()
 {
 	int err = pthread_rwlock_unlock(&m_mutex);
 	if(err != 0) { throw pthread_error(-err, "failed to unlock pthread rwlock"); }
