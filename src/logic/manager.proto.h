@@ -23,6 +23,7 @@ namespace manager {
 @message mod_control_t::CreateBackup        = 102
 @message mod_control_t::SetAutoReplace      = 103
 @message mod_control_t::StartReplace        = 104
+@message mod_control_t::StartFullReplace    = 105
 
 
 @rpc mod_network_t
@@ -98,6 +99,7 @@ public:
 	void detach_fault_servers(REQUIRE_HSLK);
 
 	void start_replace(REQUIRE_HSLK);
+	void start_full_replace(REQUIRE_HSLK);
 
 	void add_server(const address& addr, shared_node& s);
 	void remove_server(const address& addr);
@@ -160,6 +162,9 @@ private:
 	};
 
 	message StartReplace {
+	};
+
+	message StartFullReplace {
 	};
 
 

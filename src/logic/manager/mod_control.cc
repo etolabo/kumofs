@@ -100,6 +100,16 @@ RPC_IMPL(mod_control_t, StartReplace, req, z, response)
 	response.null();
 }
 
+RPC_IMPL(mod_control_t, StartFullReplace, req, z, response)
+{
+	{
+		pthread_scoped_lock hslk(share->hs_mutex());
+		net->mod_replace.start_full_replace(hslk);
+	}
+
+	response.null();
+}
+
 
 }  // namespace manager
 }  // namespace kumo

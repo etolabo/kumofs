@@ -13,6 +13,7 @@ namespace server {
 @message mod_network_t::HashSpaceSync       =   2
 @message mod_replace_t::ReplaceCopyStart    =   8
 @message mod_replace_t::ReplaceDeleteStart  =   9
+@message mod_replace_t::ReplaceCopyFullStart =   10
 @message mod_replace_stream_t::ReplaceOffer =  16
 @message mod_store_t::ReplicateSet          =  32
 @message mod_store_t::ReplicateDelete       =  33
@@ -146,6 +147,12 @@ private:
 	};
 
 	message ReplaceDeleteStart +cluster {
+		msgtype::HSSeed hsseed;
+		Clock adjust_clock;
+		// accepted: true
+	};
+
+	message ReplaceCopyFullStart +cluster {
 		msgtype::HSSeed hsseed;
 		Clock adjust_clock;
 		// accepted: true
