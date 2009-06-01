@@ -3,21 +3,6 @@
 load File.dirname(__FILE__) + "/kumostat"
 
 
-class Top
-	def initialize
-		@win = Curses.stdscr.subwin(5,30,2,2)
-		@str = ""
-	end
-
-	def refresh
-		@str << "a"
-		@win.box(?|,?-,?*)
-		@win.setpos(2,2)
-		@win.addstr(@str)
-		@win.refresh
-	end
-end
-
 def usage
 	puts "Usage: #{File.basename($0)} address[:port=#{KumoRPC::SERVER_DEFAULT_PORT}] ..."
 	exit 1

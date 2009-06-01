@@ -17,4 +17,8 @@ Get status from Server node.
 :cmd_set                    :get number of set requests
 :cmd_delete                 :get number of delete requests
 :items                      :get number of stored items
+:rhs                        :get rhs (routing table for Get)
+:whs                        :get whs (routing table for Set/Delete)
+:set_delay                  :maximize throughput at the expense of latency
+:unset_delay                :maximize throughput at the expense of latency
 

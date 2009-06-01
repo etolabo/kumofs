@@ -168,9 +168,9 @@ not attached node:
     <p>Delete操作は実際には「deleteフラグ」をSetする操作です。しかしdeleteフラグは時間が経過すると回収され、本当に削除されます。deleteフラグが回収されると一貫性は保証されません。deleteフラグは以下の条件で回収されます：</p>
     <dl>
       <dt>Deleteしてから一定の時間が経過した</dt>
-      <dd>この時間はkumo-serverの<strong>-gX</strong>オプションで指定できます</dd>
+      <dd>この時間はkumo-serverの<strong>-gX</strong>オプションで指定できます。</dd>
       <dt>Deleteフラグを記憶するメモリ使用量の上限に達し、かつDeleteしてから一定の時間が経過した</dt>
-      <dd>この時間はkumo-serverの<strong>-gN</strong>オプションで指定できます。メモリ使用量の上限は<strong>-gS</strong>オプションで指定できます</dd>
+      <dd>この時間はkumo-serverの<strong>-gN</strong>オプションで指定できます。メモリ使用量の上限は<strong>-gS</strong>オプションで指定できます。</dd>
     </dl>
     <p>deleteフラグを記憶するメモリ使用量の上限に達したが、Deleteしてから一定の時間が経過していない場合は、deleteフラグはデータベースファイルの中に放置されます。放置されたdeleteフラグは、次に再配置操作が行われたときに回収されます。</p>
     <h3>ログ</h3>
@@ -270,6 +270,7 @@ command:
    detach                     detach all fault servers and start replace
    detach-noreplace           detach all fault servers
    replace                    start replace without attach/detach
+   full-replace               start full-replace (repair consistency)
    backup  [suffix=????????]  create backup with specified suffix
    enable-auto-replace        enable auto replace
    disable-auto-replace       disable auto replace
@@ -338,6 +339,10 @@ command:
    cmd_set                    get number of set requests
    cmd_delete                 get number of delete requests
    items                      get number of stored items
+   rhs                        get rhs (routing table for Get)&quot;
+   whs                        get whs (routing table for Set/Delete)&quot;
+   set_delay                  maximize throughput at the expense of latency&quot;
+   unset_delay                minimize latency at the expense of throughput&quot;
 </pre>
     <dl>
       <dt>pid</dt>
@@ -356,7 +361,16 @@ command:
       <dd>GatewayノードからのDelete操作を処理した回数</dd>
       <dt>items</dt>
       <dd>データベースに入っているエントリの数</dd>
+      <dt>rhs</dt>
+      <dd>Getに使われるルーティング表を取得します</dd>
+      <dt>whs</dt>
+      <dd>Set/Deleteに使われるルーティング表を取得します</dd>
+      <dt>set_delay</dt>
+      <dd>遅延を犠牲にして最大スループットを最大化します</dd>
+      <dt>unset_delay</dt>
+      <dd>最大スループットを犠牲にして遅延を最小化します</dd>
     </dl>
+    <p>rhsとwhsが食い違っている場合は、再配置を実行中か、前回の再配置が失敗している可能性があります。</p>
     <h3>kumotop</h3>
     <p>kumotopコマンドを使うとServerノードの状態を定期的に更新しながら表示することができます。</p>
     <p>引数に監視したいServerノードのアドレスを指定します。Serverノードのアドレスは複数指定できます：</p>

@@ -191,8 +191,8 @@ Set操作を実行中に同じkeyをGetした場合は、新旧どちらの値�
 Delete操作はkey-valueペアを削除します。
 Delete操作は一貫性を保証しませんが、できる限り一貫性が保たれるように努力します。
 Delete操作は実際には「deleteフラグ」をSetする操作です。しかしdeleteフラグは時間が経過すると回収され、本当に削除されます。deleteフラグが回収されると一貫性は保証されません。deleteフラグは以下の条件で回収されます：
-:Deleteしてから一定の時間が経過した:この時間はkumo-serverの''-gX''オプションで指定できます
-:Deleteフラグを記憶するメモリ使用量の上限に達し、かつDeleteしてから一定の時間が経過した:この時間はkumo-serverの''-gN''オプションで指定できます。メモリ使用量の上限は''-gS''オプションで指定できます
+:Deleteしてから一定の時間が経過した:この時間はkumo-serverの''-gX''オプションで指定できます。
+:Deleteフラグを記憶するメモリ使用量の上限に達し、かつDeleteしてから一定の時間が経過した:この時間はkumo-serverの''-gN''オプションで指定できます。メモリ使用量の上限は''-gS''オプションで指定できます。
 
 deleteフラグを記憶するメモリ使用量の上限に達したが、Deleteしてから一定の時間が経過していない場合は、deleteフラグはデータベースファイルの中に放置されます。放置されたdeleteフラグは、次に再配置操作が行われたときに回収されます。
 
@@ -258,6 +258,7 @@ command:
    detach                     detach all fault servers and start replace
    detach-noreplace           detach all fault servers
    replace                    start replace without attach/detach
+   full-replace               start full-replace (repair consistency)
    backup  [suffix=????????]  create backup with specified suffix
    enable-auto-replace        enable auto replace
    disable-auto-replace       disable auto replace
@@ -323,6 +324,10 @@ command:
    cmd_set                    get number of set requests
    cmd_delete                 get number of delete requests
    items                      get number of stored items
+   rhs                        get rhs (routing table for Get)"
+   whs                        get whs (routing table for Set/Delete)"
+   set_delay                  maximize throughput at the expense of latency"
+   unset_delay                minimize latency at the expense of throughput"
 ||<
 
 :pid:kumo-serverプロセスのpid
@@ -333,6 +338,12 @@ command:
 :cmd_set:GatewayノードからのSet操作を処理した回数
 :cmd_delete:GatewayノードからのDelete操作を処理した回数
 :items:データベースに入っているエントリの数
+:rhs:Getに使われるルーティング表を取得します
+:whs:Set/Deleteに使われるルーティング表を取得します
+:set_delay:遅延を犠牲にして最大スループットを最大化します
+:unset_delay:最大スループットを犠牲にして遅延を最小化します
+
+rhsとwhsが食い違っている場合は、再配置を実行中か、前回の再配置が失敗している可能性があります。
 
 **kumotop
 kumotopコマンドを使うとServerノードの状態を定期的に更新しながら表示することができます。

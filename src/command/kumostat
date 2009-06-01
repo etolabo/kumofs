@@ -45,6 +45,8 @@ def usage
 	puts "   cmd_set                    get number of set requests"
 	puts "   cmd_delete                 get number of delete requests"
 	puts "   items                      get number of stored items"
+	puts "   rhs                        get rhs (routing table for Get)"
+	puts "   whs                        get whs (routing table for Set/Delete)"
 	puts "   set_delay                  maximize throughput at the expense of latency"
 	puts "   unset_delay                minimize latency at the expense of throughput"
 	exit 1

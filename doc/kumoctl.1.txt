@@ -15,6 +15,7 @@ Send control command to Manager node.
 :detach                     :detach all fault servers and start replace
 :detach-noreplace           :detach all fault servers
 :replace                    :start replace without attach/detach
+:full-replace               :start full-replace (repair consistency)
 :backup  [suffix=20090304]  :create backup with specified suffix
 :enable-auto-replace        :enable auto replace
 :disable-auto-replace       :disable auto replace
