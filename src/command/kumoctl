@@ -22,6 +22,7 @@ class KumoRPC
 		@sock.close
 	end
 
+
 	private
 	module MessageType
 		Request     = 0
@@ -101,42 +102,54 @@ class KumoRPC
 		res
 	end
 
+	class HSSeed
+		def initialize(seed)
+			@clocktime = seed[1]
+			@date = Time.at(@clocktime >> 32)
+			@clock = @clocktime & ((1<<32)-1)
 
-	def rpc_addr(raw)
-		if raw.length == 6
-			addr = Socket.pack_sockaddr_in(0, '0.0.0.0')
-			addr[2,6] = raw[0,6]
-		else
-			addr = Socket.pack_sockaddr_in(0, '::')
-			addr[2,2]  = raw[0,2]
-			addr[8,20] = raw[2,20]
+			@nodes = seed[0].map {|raw|
+				active = (raw.slice!(0) == "\1"[0])
+				HSSeed.rpc_addr(raw) + [active]
+			}
 		end
-		Socket.unpack_sockaddr_in(addr).reverse
+		attr_reader :clocktime, :date, :clock, :nodes
+
+		def inspect
+			%[hash space timestamp:\n] +
+				%[  #{@date} clock #{@clock}\n] +
+				%[node:\n] +
+				@nodes.map {|addr, port, active|
+					"  #{addr}:#{port}  (#{active ? "active":"fault"})"
+				}.join("\n")
+		end
+
+		def self.parse(raw)
+			self.new(raw)
+		end
+
+		def self.rpc_addr(raw)
+			if raw.length == 6
+				addr = Socket.pack_sockaddr_in(0, '0.0.0.0')
+				addr[2,6] = raw[0,6]
+			else
+				addr = Socket.pack_sockaddr_in(0, '::')
+				addr[2,2]  = raw[0,2]
+				addr[8,20] = raw[2,20]
+			end
+			Socket.unpack_sockaddr_in(addr).reverse
+		end
 	end
 
 	public
 	def GetStatus
 		res = send_request_sync_ex(Protocol::GetNodesInfo, [])
 		form = {}
-		nodes = res[0]
 
-		clocktime = nodes.slice!(-1)
-		date = Time.at(clocktime >> 32)
-		clock = clocktime & ((1<<32)-1)
+		seed = HSSeed.new(res[0])
+		newcomers = res[1].map {|raw| HSSeed.rpc_addr(raw) }
 
-		nodes.each {|nodes|
-			nodes.map! {|raw|
-				active = (raw.slice!(0) == "\1"[0])
-				rpc_addr(raw) << active
-			}
-		}
-
-		newcomers = res[1]
-		res[1].map! {|raw|
-			rpc_addr(raw)
-		}
-
-		return [nodes, newcomers, date, clock]
+		return [seed.nodes, newcomers, seed.date, seed.clock]
 	end
 
 	def AttachNewServers(replace)

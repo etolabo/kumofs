@@ -69,6 +69,28 @@ RPC_IMPL(mod_control_t, GetStatus, req, z, response)
 		response.result( net->clocktime_now() );
 		break;
 
+	case STAT_RHS:
+		{
+			HashSpace::Seed sd;
+			{
+				pthread_scoped_rdlock rhlk(share->rhs_mutex());
+				sd = share->rhs();
+			}
+			response.result(sd);
+		}
+		break;
+
+	case STAT_WHS:
+		{
+			HashSpace::Seed sd;
+			{
+				pthread_scoped_rdlock whlk(share->whs_mutex());
+				sd = share->whs();
+			}
+			response.result(sd);
+		}
+		break;
+
 	default:
 		response.result(msgpack::type::nil());
 		break;

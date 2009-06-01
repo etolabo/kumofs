@@ -25,6 +25,8 @@ class KumoServer < KumoRPC
 	STAT_CMD_DELETE  = 6
 	STAT_DB_ITEMS    = 7
 	STAT_CLOCKTIME   = 8
+	STAT_RHS         = 9
+	STAT_WHS         = 10
 
 	CONF_TCP_NODELAY = 0
 end
@@ -90,6 +92,16 @@ when "cmd_delete"
 when "items"
 	usage if ARGV.length != 0
 	p KumoServer.new(host, port).GetStatus(KumoServer::STAT_DB_ITEMS)
+
+when "rhs"
+	usage if ARGV.length != 0
+	raw = KumoServer.new(host, port).GetStatus(KumoServer::STAT_RHS)
+	p KumoRPC::HSSeed.parse(raw)
+
+when "whs"
+	usage if ARGV.length != 0
+	raw = KumoServer.new(host, port).GetStatus(KumoServer::STAT_WHS)
+	p KumoRPC::HSSeed.parse(raw)
 
 when "set_delay"
 	usage if ARGV.length != 0

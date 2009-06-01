@@ -279,6 +279,8 @@ enum status_type {
 	STAT_CMD_DELETE		= 6,
 	STAT_DB_ITEMS		= 7,
 	STAT_CLOCKTIME		= 8,
+	STAT_RHS			= 9,
+	STAT_WHS			= 10,
 };
 
 enum config_type {
