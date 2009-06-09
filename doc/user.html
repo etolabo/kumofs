@@ -329,7 +329,8 @@ not attached node:
     <h3>kumostat</h3>
     <p>kumostatコマンドを使うとServerノードの状態を取得することができます。</p>
     <p>第一引数にServerノードのホスト名とポート番号を指定し、第二引数にコマンドを指定します：</p>
-    <pre>Usage: kumostat address[:port=19800] command [options]
+    <pre>Usage: kumostat server-address[:port=19800] command
+       kumostat -m manager-address[:port=19700] command
 command:
    pid                        get pid of server process
    uptime                     get uptime
@@ -344,6 +345,8 @@ command:
    set_delay                  maximize throughput at the expense of latency&quot;
    unset_delay                minimize latency at the expense of throughput&quot;
 </pre>
+    <p>
+      <strong>-m</strong>に続いてManagerノードのアドレスを指定すると、ManagerノードからServer一覧を取得し、attachされていてactiveなすべてのServerノードの状態を表示します。</p>
     <dl>
       <dt>pid</dt>
       <dd>kumo-serverプロセスのpid</dd>
@@ -374,8 +377,12 @@ command:
     <h3>kumotop</h3>
     <p>kumotopコマンドを使うとServerノードの状態を定期的に更新しながら表示することができます。</p>
     <p>引数に監視したいServerノードのアドレスを指定します。Serverノードのアドレスは複数指定できます：</p>
-    <pre>Usage: kumotop address[:port=19800] ...
+    <pre>Usage: kumotop server-address[:port=19800] ...
+       kumotop -m manager-address[:port=19700]
 </pre>
+    <p>
+      <strong>-m</strong>に続いてManagerノードのアドレスを指定すると、ManagerノードからServer一覧を取得し、attachされているすべてのServerノードの状態を表示します。</p>
+    <br />
     <h1>kumofs internals</h1>
     <h2>分散アルゴリズム</h2>
     <p>kumofsはどのServerノードにデータを保存するかを決定するために、Consistent Hashingを利用しています。ハッシュ関数はSHA-1で、下位の64ビットのみを使います。1台の物理ノードは128台の仮想ノードを持ちます。</p>

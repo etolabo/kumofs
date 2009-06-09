@@ -314,7 +314,8 @@ kumolog [options] <logfile.mpac>
 kumostatコマンドを使うとServerノードの状態を取得することができます。
 第一引数にServerノードのホスト名とポート番号を指定し、第二引数にコマンドを指定します：
 >||
-Usage: kumostat address[:port=19800] command [options]
+Usage: kumostat server-address[:port=19800] command
+       kumostat -m manager-address[:port=19700] command
 command:
    pid                        get pid of server process
    uptime                     get uptime
@@ -329,6 +330,8 @@ command:
    set_delay                  maximize throughput at the expense of latency"
    unset_delay                minimize latency at the expense of throughput"
 ||<
+
+''-m''に続いてManagerノードのアドレスを指定すると、ManagerノードからServer一覧を取得し、attachされていてactiveなすべてのServerノードの状態を表示します。
 
 :pid:kumo-serverプロセスのpid
 :uptime:kumo-serverプロセスの起動時間（単位は秒）
@@ -349,8 +352,11 @@ rhsとwhsが食い違っている場合は、再配置を実行中か、前回�
 kumotopコマンドを使うとServerノードの状態を定期的に更新しながら表示することができます。
 引数に監視したいServerノードのアドレスを指定します。Serverノードのアドレスは複数指定できます：
 >||
-Usage: kumotop address[:port=19800] ...
+Usage: kumotop server-address[:port=19800] ...
+       kumotop -m manager-address[:port=19700]
 ||<
+
+''-m''に続いてManagerノードのアドレスを指定すると、ManagerノードからServer一覧を取得し、attachされているすべてのServerノードの状態を表示します。
 
 
 *?kumofs internals

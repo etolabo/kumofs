@@ -294,7 +294,8 @@ not attached node:
     <p>kumostatコマンドを使うとServerの状態を取得することができる。</p>
     <p>Rubyで書かれたスクリプト。実行するにはgemでmsgpackパッケージをインストールする。</p>
     <p>第1引数にServerのホスト名とポート番号を指定し、第2引数にコマンドを指定する。</p>
-    <pre>Usage: kumostat address[:port=19800] command [options]
+    <pre>Usage: kumostat server-address[:port=19800] command
+       kumostat -m manager-address[:port=19700] command
 command:
    pid                        get pid of server process
    uptime                     get uptime
@@ -323,6 +324,8 @@ command:
       <dt>items</dt>
       <dd>データベースに入っているエントリの数を取得する</dd>
     </dl>
+    <p>
+      <strong>-m</strong>オプションを指定すると、ManagerからServer一覧を取得してすべてのServerの状態を表示する。</p>
     <br />
     <h3>kumolog</h3>
     <p>kumologコマンドを使うとバイナリログをテキストに変換することができる。</p>

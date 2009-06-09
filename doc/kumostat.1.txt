@@ -3,7 +3,9 @@
 kumostat
 
 *SYNOPSIS
-kumostat address[:port=19800] command [options]
+kumostat server-address[:port=19800] command
+&br;
+kumostat -m manager-address[:port=19700] command
 
 *DESCRIPTION
 Get status from Server node.

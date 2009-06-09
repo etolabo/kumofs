@@ -3,7 +3,9 @@
 kumotop
 
 *SYNOPSIS
-kumotop address[:port=19800] ...
+kumotop server-address[:port=19800] ...
+&br;
+kumotop -m manager-address[:port=19700]
 
 *DESCRIPTION
 Get status from Server nodes and renew it continuously.

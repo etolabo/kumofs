@@ -254,7 +254,8 @@ kumostatコマンドを使うとServerの状態を取得することができる
 Rubyで書かれたスクリプト。実行するにはgemでmsgpackパッケージをインストールする。
 第1引数にServerのホスト名とポート番号を指定し、第2引数にコマンドを指定する。
 >||
-Usage: kumostat address[:port=19800] command [options]
+Usage: kumostat server-address[:port=19800] command
+       kumostat -m manager-address[:port=19700] command
 command:
    pid                        get pid of server process
    uptime                     get uptime
@@ -274,6 +275,8 @@ command:
 :cmd_set:GatewayからのSetリクエストを処理した回数を取得する
 :cmd_delete:GatewayからのDeleteリクエストを処理した回数を取得する
 :items:データベースに入っているエントリの数を取得する
+
+''-m''オプションを指定すると、ManagerからServer一覧を取得してすべてのServerの状態を表示する。
 
 
 **kumolog
