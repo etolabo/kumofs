@@ -3,16 +3,6 @@
 load File.dirname(__FILE__) + "/kumostat"
 
 
-def usage
-	puts "Usage: #{File.basename($0)} address[:port=#{KumoRPC::SERVER_DEFAULT_PORT}] ..."
-	exit 1
-end
-
-if ARGV.empty?
-	usage
-end
-
-
 INDEX  = %w[address #Get #Set #Del Get/s Set/s Del/s QPS items time clock]
 FORMAT =  %[%23s %9s %9s %9s %8s %8s %8s %8s %10s %20s %8s]
 TIME_FORMAT = "%Y-%m-%d %H:%M:%S"
@@ -98,11 +88,42 @@ class Node
 	end
 end
 
-@nodes = ARGV.map {|addr|
-	host, port = addr.split(':', 2)
-	port ||= KumoRPC::SERVER_DEFAULT_PORT
-	Node.new(host, port)
-}
+
+def usage
+	puts "Usage: #{File.basename($0)} server-address[:port=#{KumoRPC::SERVER_DEFAULT_PORT}] ..."
+	puts "       #{File.basename($0)} -m manager-address[:port=#{KumoRPC::MANAGER_DEFAULT_PORT}]"
+	exit 1
+end
+
+if ARGV.empty?
+	usage
+end
+
+if ARGV[0] == "-m"
+	ARGV.shift
+	if ARGV.length != 1
+		usage
+	end
+
+	host, port = ARGV.shift.split(':', 2)
+	port ||= KumoRPC::MANAGER_DEFAULT_PORT
+
+	mgr = KumoManager.new(host, port)
+	attached, not_attached, date, clock = mgr.GetStatus
+	mgr.close
+
+	@nodes = attached.map {|addr, port, active|
+		Node.new(addr, port)
+	}
+
+else
+	@nodes = ARGV.map {|addr|
+		host, port = addr.split(':', 2)
+		port ||= KumoRPC::SERVER_DEFAULT_PORT
+		Node.new(host, port)
+	}
+end
+
 
 require "curses"
 Curses.init_screen

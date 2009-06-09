@@ -35,7 +35,8 @@ if $0 == __FILE__
 
 
 def usage
-	puts "Usage: #{File.basename($0)} address[:port=#{KumoRPC::SERVER_DEFAULT_PORT}] command [options]"
+	puts "Usage: #{File.basename($0)} server-address[:port=#{KumoRPC::SERVER_DEFAULT_PORT}] command"
+	puts "       #{File.basename($0)} -m manager-address[:port=#{KumoRPC::SERVER_DEFAULT_PORT}] command"
 	puts "command:"
 	puts "   pid                        get pid of server process"
 	puts "   uptime                     get uptime"
@@ -47,74 +48,87 @@ def usage
 	puts "   items                      get number of stored items"
 	puts "   rhs                        get rhs (routing table for Get)"
 	puts "   whs                        get whs (routing table for Set/Delete)"
+	puts "   hscheck                    check if rhs == whs"
 	puts "   set_delay                  maximize throughput at the expense of latency"
 	puts "   unset_delay                minimize latency at the expense of throughput"
 	exit 1
 end
 
-if ARGV.length < 2
+@commands = {
+	"pid"         => [KumoServer::STAT_PID],
+	"uptime"      => [KumoServer::STAT_UPTIME],
+	"time"        => [KumoServer::STAT_TIME],
+	"version"     => [KumoServer::STAT_VERSION],
+	"cmd_get"     => [KumoServer::STAT_CMD_GET],
+	"cmd_set"     => [KumoServer::STAT_CMD_SET],
+	"cmd_delete"  => [KumoServer::STAT_CMD_DELETE],
+	"items"       => [KumoServer::STAT_DB_ITEMS],
+	"rhs"         => Proc.new{|s| KumoRPC::HSSeed.parse s.GetStatus(KumoServer::STAT_RHS) },
+	"whs"         => Proc.new{|s| KumoRPC::HSSeed.parse s.GetStatus(KumoServer::STAT_WHS) },
+	"set_delay"   => [KumoServer::CONF_TCP_NODELAY, false],
+	"unset_delay" => [KumoServer::CONF_TCP_NODELAY, true],
+}
+
+
+def run_command(cmd, host, port)
+	s = KumoServer.new(host, port)
+	begin
+		result = case cmd
+						 when Array
+							 s.GetStatus(*cmd)
+
+						 else Proc
+							 cmd.call(s)
+
+						 end
+
+	rescue
+		puts $!.to_s
+	ensure
+		s.close
+	end
+	result
+end
+
+if ARGV[0] == "-m"
+	manager = true
+	ARGV.shift
+end
+
+if ARGV.length != 2
 	usage
 end
 
 addr = ARGV.shift
-host, port = addr.split(':', 2)
-port ||= KumoRPC::SERVER_DEFAULT_PORT
+cmd  = ARGV.shift
+cmd = @commands[cmd]
 
-cmd = ARGV.shift
+unless cmd
+	usage
+end
 
-case cmd
-when "pid"
-	usage if ARGV.length != 0
-	p KumoServer.new(host, port).GetStatus(KumoServer::STAT_PID)
 
-when "uptime"
-	usage if ARGV.length != 0
-	p KumoServer.new(host, port).GetStatus(KumoServer::STAT_UPTIME)
+if manager
+	host, port = addr.split(':', 2)
+	port ||= KumoRPC::MANAGER_DEFAULT_PORT
 
-when "time"
-	usage if ARGV.length != 0
-	p KumoServer.new(host, port).GetStatus(KumoServer::STAT_TIME)
+	mgr = KumoManager.new(host, port)
+	attached, not_attached, date, clock = mgr.GetStatus
+	mgr.close
 
-when "version"
-	usage if ARGV.length != 0
-	p KumoServer.new(host, port).GetStatus(KumoServer::STAT_VERSION)
-
-when "cmd_get"
-	usage if ARGV.length != 0
-	p KumoServer.new(host, port).GetStatus(KumoServer::STAT_CMD_GET)
-
-when "cmd_set"
-	usage if ARGV.length != 0
-	p KumoServer.new(host, port).GetStatus(KumoServer::STAT_CMD_SET)
-
-when "cmd_delete"
-	usage if ARGV.length != 0
-	p KumoServer.new(host, port).GetStatus(KumoServer::STAT_CMD_DELETE)
-
-when "items"
-	usage if ARGV.length != 0
-	p KumoServer.new(host, port).GetStatus(KumoServer::STAT_DB_ITEMS)
-
-when "rhs"
-	usage if ARGV.length != 0
-	raw = KumoServer.new(host, port).GetStatus(KumoServer::STAT_RHS)
-	p KumoRPC::HSSeed.parse(raw)
-
-when "whs"
-	usage if ARGV.length != 0
-	raw = KumoServer.new(host, port).GetStatus(KumoServer::STAT_WHS)
-	p KumoRPC::HSSeed.parse(raw)
-
-when "set_delay"
-	usage if ARGV.length != 0
-	p KumoServer.new(host, port).SetConfig(KumoServer::CONF_TCP_NODELAY, false)
-
-when "unset_delay"
-	usage if ARGV.length != 0
-	p KumoServer.new(host, port).SetConfig(KumoServer::CONF_TCP_NODELAY, true)
+	attached.each {|host, port, active|
+		if active
+			print "#{host}:#{port}:  "
+			$stdout.flush
+			p run_command(cmd, host, port)
+		end
+	}
 
 else
-	usage
+	host, port = addr.split(':', 2)
+	port ||= KumoRPC::SERVER_DEFAULT_PORT
+
+	p run_command(cmd, host, port)
 
 end
 
