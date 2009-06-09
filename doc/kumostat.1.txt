@@ -21,6 +21,7 @@ Get status from Server node.
 :items                      :get number of stored items
 :rhs                        :get rhs (routing table for Get)
 :whs                        :get whs (routing table for Set/Delete)
+:hscheck                    :check if rhs == whs
 :set_delay                  :maximize throughput at the expense of latency
 :unset_delay                :maximize throughput at the expense of latency
 

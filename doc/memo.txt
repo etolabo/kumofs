@@ -265,6 +265,11 @@ command:
    cmd_set                    get number of set requests
    cmd_delete                 get number of delete requests
    items                      get number of stored items
+   rhs                        get rhs (routing table for Get)"
+   whs                        get whs (routing table for Set/Delete)"
+   hscheck                    check if rhs == whs
+   set_delay                  maximize throughput at the expense of latency"
+   unset_delay                minimize latency at the expense of throughput"
 ||<
 
 :pid:kumo-serverプロセスのpidを取得する
@@ -275,6 +280,11 @@ command:
 :cmd_set:GatewayからのSetリクエストを処理した回数を取得する
 :cmd_delete:GatewayからのDeleteリクエストを処理した回数を取得する
 :items:データベースに入っているエントリの数を取得する
+:rhs:Getに使われるルーティング表を取得する
+:whs:Set/Deleteに使われるルーティング表を取得する
+:hscheck:rhsとwhsが同じかどうかチェックする
+:set_delay:遅延を犠牲にして最大スループットを最大化する
+:unset_delay:最大スループットを犠牲にして遅延を最小化する
 
 ''-m''オプションを指定すると、ManagerからServer一覧を取得してすべてのServerの状態を表示する。
 

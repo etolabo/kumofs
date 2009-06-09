@@ -342,6 +342,7 @@ command:
    items                      get number of stored items
    rhs                        get rhs (routing table for Get)&quot;
    whs                        get whs (routing table for Set/Delete)&quot;
+   hscheck                    check if rhs == whs
    set_delay                  maximize throughput at the expense of latency&quot;
    unset_delay                minimize latency at the expense of throughput&quot;
 </pre>
@@ -365,13 +366,15 @@ command:
       <dt>items</dt>
       <dd>データベースに入っているエントリの数</dd>
       <dt>rhs</dt>
-      <dd>Getに使われるルーティング表を取得します</dd>
+      <dd>Getに使われるルーティング表</dd>
       <dt>whs</dt>
-      <dd>Set/Deleteに使われるルーティング表を取得します</dd>
+      <dd>Set/Deleteに使われるルーティング表</dd>
+      <dt>hscheck</dt>
+      <dd>rhsとwhsが同じかどうかチェックします</dd>
       <dt>set_delay</dt>
-      <dd>遅延を犠牲にして最大スループットを最大化します</dd>
+      <dd>遅延を犠牲にして最大スループットを最大化する</dd>
       <dt>unset_delay</dt>
-      <dd>最大スループットを犠牲にして遅延を最小化します</dd>
+      <dd>最大スループットを犠牲にして遅延を最小化する</dd>
     </dl>
     <p>rhsとwhsが食い違っている場合は、再配置を実行中か、前回の再配置が失敗している可能性があります。</p>
     <h3>kumotop</h3>

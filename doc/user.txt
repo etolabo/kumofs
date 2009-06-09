@@ -327,6 +327,7 @@ command:
    items                      get number of stored items
    rhs                        get rhs (routing table for Get)"
    whs                        get whs (routing table for Set/Delete)"
+   hscheck                    check if rhs == whs
    set_delay                  maximize throughput at the expense of latency"
    unset_delay                minimize latency at the expense of throughput"
 ||<
@@ -341,10 +342,11 @@ command:
 :cmd_set:GatewayノードからのSet操作を処理した回数
 :cmd_delete:GatewayノードからのDelete操作を処理した回数
 :items:データベースに入っているエントリの数
-:rhs:Getに使われるルーティング表を取得します
-:whs:Set/Deleteに使われるルーティング表を取得します
-:set_delay:遅延を犠牲にして最大スループットを最大化します
-:unset_delay:最大スループットを犠牲にして遅延を最小化します
+:rhs:Getに使われるルーティング表
+:whs:Set/Deleteに使われるルーティング表
+:hscheck:rhsとwhsが同じかどうかチェックします
+:set_delay:遅延を犠牲にして最大スループットを最大化する
+:unset_delay:最大スループットを犠牲にして遅延を最小化する
 
 rhsとwhsが食い違っている場合は、再配置を実行中か、前回の再配置が失敗している可能性があります。
 

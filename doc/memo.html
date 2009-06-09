@@ -305,6 +305,11 @@ command:
    cmd_set                    get number of set requests
    cmd_delete                 get number of delete requests
    items                      get number of stored items
+   rhs                        get rhs (routing table for Get)&quot;
+   whs                        get whs (routing table for Set/Delete)&quot;
+   hscheck                    check if rhs == whs
+   set_delay                  maximize throughput at the expense of latency&quot;
+   unset_delay                minimize latency at the expense of throughput&quot;
 </pre>
     <dl>
       <dt>pid</dt>
@@ -323,6 +328,16 @@ command:
       <dd>GatewayからのDeleteリクエストを処理した回数を取得する</dd>
       <dt>items</dt>
       <dd>データベースに入っているエントリの数を取得する</dd>
+      <dt>rhs</dt>
+      <dd>Getに使われるルーティング表を取得する</dd>
+      <dt>whs</dt>
+      <dd>Set/Deleteに使われるルーティング表を取得する</dd>
+      <dt>hscheck</dt>
+      <dd>rhsとwhsが同じかどうかチェックする</dd>
+      <dt>set_delay</dt>
+      <dd>遅延を犠牲にして最大スループットを最大化する</dd>
+      <dt>unset_delay</dt>
+      <dd>最大スループットを犠牲にして遅延を最小化する</dd>
     </dl>
     <p>
       <strong>-m</strong>オプションを指定すると、ManagerからServer一覧を取得してすべてのServerの状態を表示する。</p>
