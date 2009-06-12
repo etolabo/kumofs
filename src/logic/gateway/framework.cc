@@ -23,7 +23,7 @@ DISPATCH_CATCH(method, response)
 
 void framework::session_lost(const address& addr, shared_session& s)
 {
-	LOG_INFO("lost session ",addr);
+	LOG_WARN("lost session ",addr);
 	if(addr == share->manager1() || addr == share->manager2()) {
 		mod_network.renew_hash_space_for(addr);
 	}

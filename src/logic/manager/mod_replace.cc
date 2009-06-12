@@ -40,7 +40,7 @@ void mod_replace_t::add_server(const address& addr, shared_node& s)
 
 void mod_replace_t::remove_server(const address& addr)
 {
-	LOG_INFO("server lost ",addr);
+	LOG_WARN("server lost ",addr);
 	TLOGPACK("lS",3,
 			"addr", addr);
 
@@ -127,7 +127,7 @@ void mod_replace_t::replace_election()
 RPC_REPLY_IMPL(mod_replace_t, ReplaceElection, from, res, err, z)
 {
 	if(!err.is_nil() || res.is_nil()) {
-		LOG_INFO("replace delegate failed, elected");
+		LOG_WARN("replace delegate failed, elected");
 		pthread_scoped_lock hslk(share->hs_mutex());
 		start_replace(hslk);
 	} else {
