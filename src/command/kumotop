@@ -156,7 +156,14 @@ begin
 		end
 	}
 
-	Curses.getch
+	while true
+		ch = Curses.getch
+		if ch == 'q'.unpack('C').first
+			break
+		else
+			refresh
+		end
+	end
 
 ensure
 	Curses.close_screen
