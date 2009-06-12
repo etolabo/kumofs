@@ -24,6 +24,21 @@
 namespace rpc {
 
 
+struct connection_error : public std::exception {
+	connection_error() { }
+};
+
+struct connection_closed_error : public connection_error {
+	connection_closed_error() { }
+	const char* what() const throw() { return "connection closed"; }
+};
+
+struct connection_broken_error : public connection_error {
+	connection_broken_error() { }
+	const char* what() const throw() { return "connection broken"; }
+};
+
+
 template <typename IMPL>
 class connection : public mp::wavy::handler {
 public:
@@ -68,14 +83,10 @@ try {
 	m_pac.reserve_buffer(RPC_BUFFER_RESERVATION_SIZE);
 
 	ssize_t rl = ::read(fd(), m_pac.buffer(), m_pac.buffer_capacity());
-	if(rl < 0) {
-		if(errno == EAGAIN || errno == EINTR) {
-			return;
-		} else {
-			throw std::runtime_error("read error");
-		}
-	} else if(rl == 0) {
-		throw std::runtime_error("connection closed");
+	if(rl <= 0) {
+		if(rl == 0) { throw connection_closed_error(); }
+		if(errno == EAGAIN || errno == EINTR) { return; }
+		else { throw connection_broken_error(); }
 	}
 
 	m_pac.buffer_consumed(rl);
@@ -87,6 +98,9 @@ try {
 		static_cast<IMPL*>(this)->submit_message(msg, z);
 	}
 
+} catch(connection_error& e) {
+	LOG_DEBUG(e.what());
+	throw;
 } catch(msgpack::type_error& e) {
 	LOG_ERROR("rpc packet: type error");
 	throw;

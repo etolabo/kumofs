@@ -1,6 +1,7 @@
 #include "gate/cloudy.h"
 #include "gate/memproto/memproto.h"
 #include "log/mlogger.h"
+#include "rpc/exception.h"
 #include <mp/object_callback.h>
 #include <mp/stream_buffer.h>
 #include <stdexcept>
@@ -380,15 +381,10 @@ try {
 	m_buffer.reserve_buffer(CLOUDY_RESERVE_SIZE);
 
 	size_t rl = ::read(fd(), m_buffer.buffer(), m_buffer.buffer_capacity());
-	if(rl < 0) {
-		if(errno == EAGAIN || errno == EINTR) {
-			return;
-		} else {
-			throw std::runtime_error("read error");
-		}
-	} else if(rl == 0) {
-		LOG_DEBUG("connection closed: ",strerror(errno));
-		throw std::runtime_error("connection closed");
+	if(rl <= 0) {
+		if(rl == 0) { throw rpc::connection_closed_error(); }
+		if(errno == EAGAIN || errno == EINTR) { return; }
+		else { throw rpc::connection_broken_error(); }
 	}
 
 	m_buffer.buffer_consumed(rl);
@@ -417,6 +413,9 @@ try {
 
 	} while(m_buffer.data_size() > 0);
 
+} catch(rpc::connection_error& e) {
+	LOG_DEBUG(e.what());
+	throw;
 } catch (std::exception& e) {
 	LOG_DEBUG("memcached binary protocol error: ",e.what());
 	throw;
