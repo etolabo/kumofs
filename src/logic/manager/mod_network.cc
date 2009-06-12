@@ -109,7 +109,7 @@ namespace {
 
 		void operator() (rpc::shared_peer p)
 		{
-			LOG_WARN("push hash space to ",(void*)p.get());
+			LOG_DEBUG("push hash space to ",(void*)p.get());
 			p->call(param, life, callback, 10);
 		}
 
@@ -122,7 +122,7 @@ namespace {
 
 void mod_network_t::push_hash_space_clients(REQUIRE_HSLK)
 try {
-	LOG_WARN("push hash space ...");
+	LOG_DEBUG("push hash space ...");
 
 	shared_zone life(new msgpack::zone());
 	HashSpace::Seed* wseed = life->allocate<HashSpace::Seed>(share->whs());
