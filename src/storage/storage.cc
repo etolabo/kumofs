@@ -173,19 +173,21 @@ bool Storage::remove(
 			// over usage over, pop garbage
 			if(garbage_key.clocktime() <
 					update_clocktime.before_sec(m_garbage_min_time)) {  // min check
+				ClockTime ct = garbage_key.clocktime();
 				m_op.del(m_data,
 						garbage_key.key(), garbage_key.keylen(),
 						&storage_casproc,
-						reinterpret_cast<void*>(&update_clocktime));
+						reinterpret_cast<void*>(&ct));
 			}
 			m_garbage.pop();
 
 		} else if(garbage_key.clocktime() <
 				update_clocktime.before_sec(m_garbage_max_time)) {  // max check
+			ClockTime ct = garbage_key.clocktime();
 			m_op.del(m_data,
 					garbage_key.key(), garbage_key.keylen(),
 					&storage_casproc,
-					reinterpret_cast<void*>(&update_clocktime));
+					reinterpret_cast<void*>(&ct));
 			m_garbage.pop();
 
 		} else {
