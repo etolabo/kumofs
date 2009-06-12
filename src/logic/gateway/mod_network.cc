@@ -70,7 +70,7 @@ void mod_network_t::keep_alive()
 RPC_REPLY_IMPL(mod_network_t, HashSpaceRequest, from, res, err, z)
 {
 	if(!err.is_nil()) {
-		LOG_DEBUG("HashSpaceRequest failed ",err);
+		LOG_ERROR("HashSpaceRequest failed ",err);
 		if(SESSION_IS_ACTIVE(from)) {
 			shared_zone nullz;
 			manager::mod_network_t::HashSpaceRequest param;

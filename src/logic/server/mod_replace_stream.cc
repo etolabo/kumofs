@@ -322,7 +322,7 @@ try {
 		pthread_scoped_lock oflk(m_accum_set_mutex);
 		accum_set_t::iterator it = accum_set_find(m_accum_set, iaddr);
 		if(it == m_accum_set.end()) {
-			LOG_DEBUG("storage offer to ",iaddr," is already timed out");
+			LOG_ERROR("storage offer to ",iaddr," is already timed out");
 			return;
 		}
 		accum = *it;
