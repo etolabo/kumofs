@@ -5,8 +5,8 @@ load File.dirname(__FILE__) + "/kumostat"
 
           #       1    2    3    4     5     6     7   8     9   10    11
 INDEX  = %w[address #Get #Set #Del Get/s Set/s Del/s QPS items time clock]
-FORMAT_SMALL =  %[%1$22s %2$8s %3$8s %4$8s %9$9s %11$19s\n                       %5$8s %6$8s %7$8s %8$9s %10$19s]
-FORMAT_LARGE =  %[%23s %9s %9s %9s %8s %8s %8s %8s %10s %20s %8s]
+FORMAT_SMALL = %[%1$22s%2$9s%3$9s%4$9s%9$10s %10$19s\n                      %5$9s%6$9s%7$9s%8$10s %11$19s]
+FORMAT_LARGE = %[%23s %9s %9s %9s %8s %8s %8s %8s %10s %20s %8s]
 TIME_FORMAT = "%Y-%m-%d %H:%M:%S"
 
 class Node
