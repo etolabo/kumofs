@@ -1,6 +1,10 @@
 export ERB
 export RUBY
 export RAGEL
+
+REVISION=$(shell cut -d ' ' -f 2 revision)
+export REVISION
+
 SUBDIRS = src
 
 DOC_WFDOC = \

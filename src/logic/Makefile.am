@@ -8,8 +8,8 @@ SUBDIRS = manager server gateway
 noinst_LIBRARIES = libkumo_logic.a
 bin_PROGRAMS = kumo-manager kumo-server kumo-gateway
 
-AM_CPPFLAGS   = -I..
-AM_C_CPPFLAGS = -I..
+AM_CPPFLAGS   = -I.. -DREVISION=$(REVISION)
+AM_C_CPPFLAGS = -I.. -DREVISION=$(REVISION)
 
 
 libkumo_logic_a_SOURCES = \

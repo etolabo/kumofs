@@ -188,6 +188,13 @@ void rpc_args::show_usage()
 			"--verbose\n"
 		"  -d  <path.pid>    "
 			"--daemon\n"
+#ifdef VERSION
+#ifdef REVISION
+	"\n  " "v" << VERSION << "-r" << REVISION << "\n"
+#else
+	"\n  " "v" << VERSION << "\n"
+#endif
+#endif
 	<< std::endl;
 }
 
