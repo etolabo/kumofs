@@ -5,6 +5,7 @@
 #include "rpc/types.h"
 #include "rpc/protocol.h"
 #include "rpc/wavy.h"
+#include "rpc/exception.h"
 #include <msgpack.hpp>
 #include <stdexcept>
 #include <memory>
@@ -22,21 +23,6 @@
 #endif
 
 namespace rpc {
-
-
-struct connection_error : public std::exception {
-	connection_error() { }
-};
-
-struct connection_closed_error : public connection_error {
-	connection_closed_error() { }
-	const char* what() const throw() { return "connection closed"; }
-};
-
-struct connection_broken_error : public connection_error {
-	connection_broken_error() { }
-	const char* what() const throw() { return "connection broken"; }
-};
 
 
 template <typename IMPL>
