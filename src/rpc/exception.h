@@ -21,8 +21,7 @@ struct connection_broken_error : public connection_error {
 };
 
 
-
 }  // namespace rpc
 
-#endif /* rpc/connection.h */
+#endif /* rpc/exception.h */
 

@@ -1,0 +1,144 @@
+#!/usr/bin/env ruby
+
+load File.dirname(__FILE__) + "/kumoctl"
+
+if $0 == __FILE__
+
+def usage
+	puts "Usage: #{File.basename($0)} server-address[:port=#{KumoRPC::SERVER_DEFAULT_PORT}] ... -- command [options]"
+	puts "       #{File.basename($0)} -m manager-address[:port=#{KumoRPC::MANAGER_DEFAULT_PORT}] command [options]"
+	puts "command:"
+	puts "   hash                       calculate hash"
+	puts "   dump                       dump hash space"
+	puts "   assign                     calculate assign node"
+	exit 1
+end
+
+
+if ARGV.empty?
+	usage
+end
+
+if ARGV[0] == "-m"
+	ARGV.shift
+	usage if ARGV.empty?
+	@manager = ARGV.shift
+else
+	i = ARGV.index("--") || ARGV.length
+	@servers = ARGV.slice!(0, i)
+	ARGV.shift  # skip "--"
+end
+
+
+def create_hs
+	hs = KumoRPC::HashSpace.new
+	if @manager
+		host, port = @manager.split(':', 2)
+		port ||= KumoRPC::MANAGER_DEFAULT_PORT
+
+		mgr = KumoManager.new(host, port)
+		attached, not_attached, date, clock = mgr.GetStatus
+		mgr.close
+
+		attached.each {|host, port, active|
+			hs.add_server(host, port, active)
+		}
+	else
+		@servers.each {|addr|
+			host, port = addr.split(':', 2)
+			port ||= KumoRPC::MANAGER_DEFAULT_PORT
+
+			hs.add_server(host, port, true)
+		}
+	end
+	hs
+end
+
+
+usage if ARGV.empty?
+cmd = ARGV.shift
+
+case cmd
+when "hash"
+	usage if ARGV.empty?
+	ARGV.each {|key|
+		puts "%016x  %s" % [KumoRPC::HashSpace::hash(key), key]
+	}
+
+when "dump"
+	usage unless ARGV.empty?
+	hs = create_hs
+	hs.space.each {|v|
+		puts "%016x  %s:%s" % [v.hash, v.real.addr, v.real.port]
+	}
+
+when "assign"
+	usage if ARGV.empty?
+	hs = create_hs
+
+	ARGV.each {|key|
+		assign = []
+		hs.find_each(key) {|real|
+			if assign.include?(real)
+				true
+			else
+				assign << real
+				assign.length < 3
+			end
+		}
+	
+		puts "%016x  %s" % [KumoRPC::HashSpace::hash(key), key]
+		assign.each_with_index {|real,i|
+			puts "  #{i}: #{real.addr}:#{real.port}"
+		}
+	}
+
+else
+	puts "unknown command #{cmd}"
+	puts ""
+	usage
+end
+
+
+
+=begin
+hs = KumoRPC::HashSpace.new
+
+ARGV[0].split(',').each {|addr|
+	host, port = addr.split(':', 2)
+	port ||= KumoRPC::SERVER_DEFAULT_PORT
+	port = port.to_i
+
+	hs.add_server(host, port)
+}
+
+hs.instance_eval {
+	@space.each {|v|
+		puts "%016x:%s:%s" % [v.hash, v.real.addr, v.real.port]
+	}
+}
+
+k = ARGV[1]
+h = KumoRPC::HashSpace.hash(k)
+key = [h].pack('Q') + k
+
+use = []
+hs.find_each(h) {|real|
+	if use.include?(real)
+		true
+	else
+		use << real
+		use.length < 3
+	end
+}
+
+use.each_with_index {|real,i|
+	if i == 0
+		puts "primary: #{real.addr}:#{real.port}"
+	else
+		puts "  backup: #{real.addr}:#{real.port}"
+	end
+}
+=end
+
+end   # if $0 == __FILE__

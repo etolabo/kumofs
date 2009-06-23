@@ -3,7 +3,7 @@ AM_CPPFLAGS   = -I.. -I../logic
 AM_C_CPPFLAGS = -I.. -I../logic
 
 bin_PROGRAMS = kumomergedb
-bin_SCRIPTS = kumoctl kumostat kumotop kumolog
+bin_SCRIPTS = kumoctl kumostat kumotop kumolog kumohash
 
 EXTRA_DIST = $(bin_SCRIPTS)
 

@@ -1,6 +1,7 @@
 #include "logic/hash.h"
 #include "log/mlogger.h"
 #include <openssl/sha.h>
+#include <iomanip>
 
 namespace kumo {
 
@@ -128,7 +129,7 @@ void HashSpace::rehash()
 
 	for(hashspace_t::const_iterator x(m_hashspace.begin()), x_end(m_hashspace.end());
 			x != x_end; ++x) {
-		LOG_TRACE("virtual node dump: ",x->hash(),":",x->real());
+		LOG_TRACE("virtual node dump: ",std::hex,std::setw(16),std::setfill('0'),x->hash(),std::dec,":",x->real());
 	}
 }
 

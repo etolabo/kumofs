@@ -185,6 +185,90 @@ class KumoRPC
 
 	MANAGER_DEFAULT_PORT = 19700
 	SERVER_DEFAULT_PORT  = 19800
+
+	class HashSpace
+		VIRTUAL_NODE_NUMBER = 128
+
+		class Node
+			def initialize(addr, port, is_active)
+				@addr = addr
+				@port = port.to_i
+				@is_active = is_active
+			end
+			attr_reader :addr, :port, :is_active
+			def active?
+				@active
+			end
+			def dump_addr
+				Socket.pack_sockaddr_in(@port, @addr)[2, 6]
+			end
+		end
+
+		class VirtualNode
+			def initialize(hash, real)
+				@hash = hash
+				@real = real
+			end
+			attr_reader :hash, :real
+			def <=>(o)
+				@hash <=> o.hash
+			end
+		end
+
+		def self.hash(str)
+			require 'digest/sha1'
+			Digest::SHA1.digest(str)[0,8].unpack('Q')[0]
+		end
+
+		def initialize
+			@nodes = []
+			@space = []
+		end
+		attr_reader :nodes, :space
+
+		def add_server(addr, port, is_active = true)
+			real = Node.new(addr, port, is_active)
+			@nodes << real
+			add_virtual_nodes(real)
+			@space.sort!
+			real
+		end
+
+		def find_each(h, &block)
+			h = self.class.hash(h) if h.is_a?(String)
+			first = 0
+			@space.each {|v|
+				break unless v.hash < h
+				first += 1
+			}
+			i = first
+			last = first + @space.length
+			while true
+				break unless yield @space[i % @space.length].real
+				i += 1
+				break if i == last
+			end
+		end
+
+		private
+		def add_virtual_nodes(real)
+			x = self.class.hash(real.dump_addr)
+			@space << VirtualNode.new(x, real)
+			(VIRTUAL_NODE_NUMBER-1).times {
+				x = self.class.hash([x].pack('Q'))
+				@space << VirtualNode.new(x, real)
+			}
+			nil
+		end
+
+		def rehash
+			@space.clear
+			@nodes.each {|real|
+				add_virtual_nodes(real)
+			}
+			@space.sort!
+		end
+	end
 end
 
 
