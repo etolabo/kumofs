@@ -360,6 +360,21 @@ Usage: kumotop server-address[:port=19800] ...
 
 ''-m''に続いてManagerノードのアドレスを指定すると、ManagerノードからServer一覧を取得し、attachされているすべてのServerノードの状態を表示します。
 
+**kumohash
+kumohashコマンドを使うと、あるkeyがどのServerに保存されるかを計算することができます。
+>||
+Usage: kumohash server-address[:port=19800] ... -- command [options]
+       kumohash -m manager-address[:port=19700] command [options]
+command:
+   hash  keys...              calculate hash of keys
+   assign  keys...            calculate assign node
+   dump                       dump hash space
+||<
+
+:hash:keyのハッシュ値を計算する
+:assign:keyがどのServerに保存されるかを計算する
+:dump:Consistent Hashingのルーティング表を表示する
+
 
 *?kumofs internals
 *分散アルゴリズム

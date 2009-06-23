@@ -1,0 +1,19 @@
+.TH kumohash
+.SH NAME
+kumohash
+.SH SYNOPSIS
+kumohash server-address[:port=19800] ... -- command [options]
+.PP
+kumohash -m manager-address[:port=19700] command [options]
+.SH DESCRIPTION
+kumohash is a Consistent Hashing simulator.
+.SH COMMANDS
+.TP
+.B hash  key...               
+calculate hash of keys
+.TP
+.B assign  keys...            
+calculate assign node
+.TP
+.B dump                       
+dump hash space

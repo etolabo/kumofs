@@ -8,9 +8,9 @@ def usage
 	puts "Usage: #{File.basename($0)} server-address[:port=#{KumoRPC::SERVER_DEFAULT_PORT}] ... -- command [options]"
 	puts "       #{File.basename($0)} -m manager-address[:port=#{KumoRPC::MANAGER_DEFAULT_PORT}] command [options]"
 	puts "command:"
-	puts "   hash                       calculate hash"
+	puts "   hash  keys...              calculate hash of keys"
+	puts "   assign  keys...            calculate assign node"
 	puts "   dump                       dump hash space"
-	puts "   assign                     calculate assign node"
 	exit 1
 end
 
