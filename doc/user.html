@@ -10,82 +10,186 @@
     <link type="text/css" rel="stylesheet" href="user.css" />
   </head>
   <body>
-    <h1>kumofs user guide</h1>
-    <h2>kumofsとは</h2>
-    <p>kumofsはkey-value型のデータを保存する非常に高速な分散ストレージです。1台か2台のManagerノードと、複数のServerノードでクラスタを構成します。</p>
-    <p>動作中にサーバーを追加することができ、読み・書き両方の性能をスケールアウトさせることができます。またデータのレプリケーションをサポートしており、一部のサーバーに障害が発生しても正常に動作し続けます。</p>
-    <p>memcached互換のプロトコルをサポートしており、テキスト・バイナリどちらのプロトコルも利用できます。</p>
+    <h2>kumofsとは？</h2>
+    <p>kumofsはkey-value型のデータを保存する非常に高速な分散ストレージシステムです。</p>
+    <p>少ない台数のサーバーでも運用でき、その後負荷に応じてサーバーを追加することで柔軟に性能を向上させていくことができます。また1台や2台のサーバーに障害が発生しても耐障害性を持ち、単一点障害が一切ありません。1台のサーバーでも毎秒10万回以上の問い合わせに応答できる性能を持ち、低コストで極めて高速なストレージシステムを構築・運用できます。</p>
+    <h2>特徴とデータモデル</h2>
+    <p>kumofsは以下のような特徴があります：</p>
+    <ul class="ul1">
+      <li>一部のサーバーがダウンしても正常に動き続けます</li>
+      <li>サーバーを追加すると読み・書き両方の性能が向上します</li>
+      <li>システムを止めずにサーバーを追加できます</li>
+      <li>小さなデータを大量に保存するのに適しています</li>
+      <li>2台から60台程度までスケールします（60台以上はまだ検証されていません）</li>
+      <li>memcachedプロトコルを使ってアクセスできます</li>
+    </ul>
+    <p>kumofsに保存できるデータは、<strong>key</strong>と<strong>value</strong>だけで表されるシンプルなデータです。以下の3つの操作をサポートしています：</p>
+    <dl>
+      <dt>Set(key, value)</dt>
+      <dd>keyとvalueのペアを保存します。１つのkey-valueペアは合計３台のサーバーにレプリケーションされます。</dd>
+      <dd>Set操作が成功すると、レプリケーション先のすべてのサーバーに同じkey-valueペアが保存され、その直後からどのクライアントからでも同じvalueをGetできます。</dd>
+      <dd>Set操作が失敗すると、そのkeyに対応するvalueは不定になります。そのkeyは再度Setするか、Deleteするか、Getしないようにしてください。</dd>
+      <dt>value = Get(key)</dt>
+      <dd>keyに対応するvalueを取得します。</dd>
+      <dd>Set中にGetした場合に古いvalueが取得されるか新しいvalueが取得されるかは不定です。ただし新旧が混ざったvalueにはなることはありません。</dd>
+      <dt>Delete(key, value)</dt>
+      <dd>keyに対応するvalueを削除します。</dd>
+      <dd>Delete操作は実際には「削除済みフラグをSet」する操作なので、Setと同じ挙動になります。削除済みフラグは一定の時間が経過すると本当に削除されます。</dd>
+    </dl>
     <h2>インストール</h2>
     <p>kumofsをコンパイルして実行するには以下の環境が必要です：</p>
     <ul class="ul1">
-      <li>Linux &gt;= 2.6.18</li>
-      <li>Tokyo Cabinet &gt;= 1.4.10</li>
-      <li>MessagePack for C++ &gt;= 0.3.1</li>
-      <li>MessagePack for Ruby &gt;= 0.3.1</li>
+      <li>linux &gt;= 2.6.18</li>
+      <li>
+        <a href="http://tokyocabinet.sourceforge.net/">Tokyo Cabinet</a> &gt;= 1.4.10</li>
+      <li>
+        <a href="http://msgpack.sourceforge.jp/ruby:install.ja">MessagePack for Ruby</a> &gt;= 0.3.1</li>
+      <li>
+        <a href="http://msgpack.sourceforge.jp/cpp:install.ja">MessagePack for C++</a> &gt;= 0.3.1（コンパイル時のみ）</li>
+      <li>
+        <a href="http://www.complang.org/ragel/">Ragel</a> &gt;= 6.3（コンパイル時のみ）</li>
+      <li>g++ &gt;= 4.1（コンパイル時のみ）</li>
       <li>ruby &gt;= 1.8.7</li>
       <li>libcrypto (openssl)</li>
       <li>zlib</li>
-      <li>g++ &gt;= 4.1 （コンパイルのみ）</li>
-      <li>ragel &gt;= 6.3 (コンパイルのみ)</li>
     </ul>
     <p> ./configure &amp;&amp; make &amp;&amp; make install でインストールできます。</p>
     <pre class="code_sh">$ ./configure
 $ make
 $ sudo make install
 </pre>
-    <h3>configureフラグ</h3>
-    <dl>
-      <dt>--with-tokyocabinet=DIR</dt>
-      <dd>Tokyo Cabinetがインストールされているディレクトリを指定する</dd>
-      <dt>--with-msgpack=DIR</dt>
-      <dd>MessagePackがインストールされているディレクトリを指定する</dd>
-      <dt>--with-tcmalloc[=DIR]</dt>
-      <dd>tcmallocとリンクする</dd>
-      <dt>--enable-trace</dt>
-      <dd>画面を埋め尽くすほど冗長なデバッグ用のメッセージを出力するようにする</dd>
-    </dl>
     <h2>チュートリアル</h2>
-    <p>kumofsは、実際にデータを保存する<strong>Server</strong>ノード、Serverノード群を管理する<strong>Manager</strong>ノード、アプリケーションからのリクエストを中継する<strong>Gateway</strong>の３種類のプロセスから構成されます。それぞれ<strong>kumo-server</strong>、<strong>kumo-manager</strong>、<strong>kumo-gateway</strong>というコマンドが対応します。</p>
-    <p>kumo-gatewayはmemcachedプロトコルをサポートしています。kumofsを利用したいホストでkumo-gatewayを動作させておくことで、アプリケーションはlocalhostのkumo-gatewayにmemcachedクライアントライブラリを使って接続することでkumofsを利用できます。</p>
-    <p>たとえば <em>s1</em>, <em>s2</em>, <em>s3</em>, <em>s4</em> の4台のホストをServerノード、<em>m1</em> をManagerノードとし、<em>c1</em>, <em>c2</em> の2台から利用するには、以下のようにします：</p>
-    <pre class="code_sh">[m1]$ kumo-manager -v -l m1
-[s1]$ kumo-server  -v -m m1 -l s1 -s database.tch    # -mでManagerを指定する
-[s2]$ kumo-server  -v -m m1 -l s2 -s database.tch    # -lは自ホストのアドレス
-[s3]$ kumo-server  -v -m m1 -l s3 -s database.tch    # -sはデータベース名
-[s4]$ kumo-server  -v -m m1 -l s4 -s database.tch    # -vは冗長なメッセージを出力
-[c1]$ kumo-gateway -v -m m1 -t 11211    # 11211/tcpでmemcachedテキストプロトコル
-[c2]$ kumo-gateway -v -m m1 -t 11211    # を待ち受ける
+    <p>kumofsは以下の３つのプログラムで構成されています：</p>
+    <dl>
+      <dt>kumo-server</dt>
+      <dd>実際にデータを保存する。少なくとも1台必要で、後から追加できる。</dd>
+      <dt>kumo-manager</dt>
+      <dd>kumo-server群を管理する。1台または2台。</dd>
+      <dt>kumo-gateway</dt>
+      <dd>アプリケーションからのリクエストをkumo-serverに中継する。アプリケーションを動かすホスト上で起動しておく。</dd>
+    </dl>
+    <p>ここでは３台のサーバー <em>svr[123]</em> を使って分散ストレージを構築する方法を紹介します。<em>svr1</em>と<em>svr2</em>でkumo-managerを起動し、<em>svr1,svr2,svr3</em>でkumo-serverを起動します。それから別のクライアント<em>cli1</em>からデータを保存･取得してみます。</p>
+    <h3>kumo-managerを起動</h3>
+    <p>まず最初に<em>svr1</em>と<em>svr2</em>の２台のサーバーでkumo-managerを起動します。</p>
+    <p>kumo-managerには少なくとも自分のホスト名かIPアドレスと、もう１台のkumo-managerのホスト名かIPアドレスを指定する必要があります。</p>
+    <pre class="code_sh">[svr1]$ kumo-manager -v -l svr1 -p svr2
+[svr2]$ kumo-manager -v -l svr2 -p svr1
 </pre>
-    <p>kumo-managerとkumo-serverとkumo-gatewayを同じホスト上で動かすこともできます。たとえば <em>m1</em> と <em>s1</em> と <em>c1</em> は実際には同じホストでも大丈夫です。</p>
-    <p>kumo-managerは2台のホストで冗長化することができます。<em>m1</em>と<em>m2</em>の2台のホストでkumo-managerを起動するには以下のようにします：</p>
-    <pre class="code_sh">[m1]$ kumo-manager -v -l m1 -p m2    # Manager同士は互いに指定する
-[m2]$ kumo-manager -v -l m2 -p m1    # Manager同士は互いに指定する
-[s1]$ kumo-server  -v -m m1 -p m2 -l s1 -s database.tch    # -mと-pでManagerを指定する
-[s2]$ kumo-server  -v -m m1 -p m2 -l s2 -s database.tch
-[s3]$ kumo-server  -v -m m1 -p m2 -l s3 -s database.tch
-[s4]$ kumo-server  -v -m m1 -p m2 -l s4 -s database.tch
-[c1]$ kumo-gateway -v -m m1 -p m2 -t 11211    # -mと-pでManagerを指定する
-[c2]$ kumo-gateway -v -m m1 -p m2 -t 11211    # 11211/tcpでmemcachedテキストプロトコル
+    <p>kumo-managerは19700/tcpをlistenします（デフォルト値）。</p>
+    <h3>kumo-serverを起動</h3>
+    <p>次に<em>svr1,svr2,svr3</em>の３台のサーバーでkumo-serverを起動します。</p>
+    <p>kumo-serverには少なくとも自分のホスト名かIPアドレス、kumo-managerのホスト名かIPアドレス、データベースのパスを指定する必要があります。</p>
+    <pre class="code_sh">[svr1]$ kumo-server -v -l svr1 -m svr1 -p svr2 -s /var/kumodb.tch
+[svr2]$ kumo-server -v -l svr2 -m svr1 -p svr2 -s /var/kumodb.tch
+[svr3]$ kumo-server -v -l svr3 -m svr1 -p svr2 -s /var/kumodb.tch
 </pre>
-    <p>すべてのプロセスを <em>localhost</em> で動かすには以下のようにします：</p>
-    <pre class="code_sh">[localhost]$ kumo-manager -v -l localhost    # Serverはポートを変更して起動する
-[localhost]$ kumo-server  -v -m localhost -l localhost:19801 -L 19901 -s database1.tch
-[localhost]$ kumo-server  -v -m localhost -l localhost:19802 -L 19902 -s database2.tch
-[localhost]$ kumo-gateway -v -m localhost -t 11211    # 11211/tcpでmemcachedテキストプロトコル
+    <p>kumo-serverは19800/tcpと19900/tcpをlistenします（デフォルト値）。</p>
+    <h3>kumo-serverを登録</h3>
+    <p>kumo-serverは起動しただけでは追加されません。<strong>kumoctl</strong>コマンドを使って登録します。</p>
+    <p>まずはkumo-managerからkumo-serverが認識されているかどうかを確認してみます：</p>
+    <pre class="code_sh">$ kumoctl svr1 status
+hash space timestamp:
+  Wed Dec 03 22:15:55 +0900 2008 clock 62
+attached node:
+not attached node:
+  192.168.0.101:19800
+  192.168.0.102:19800
+  192.168.0.103:19800
 </pre>
-    <h3>Serverノードの追加</h3>
-    <p>動作中にServerノードを追加するには、新しくkumo-serverを起動し、<strong>kumoctl</strong>コマンドを使って登録します。</p>
-    <p>kumoctlコマンドにはManager（2台動作しているならどちらか片方）のアドレスを指定します。</p>
-    <pre class="code_sh">[s5]$ kumo-server -v -m m1 -p m2 -l s5 -s database.tch    # 新しいServerを起動
-[xx]$ kumoctl m1 status    # 新しいServerが認識されているか確認
-[xx]$ kumoctl m1 attach    # 新しいServerをattach
+    <p>
+      <strong>not attached node</strong> のところに３台のサーバーが認識されていることを確認したら、実際に登録します：</p>
+    <pre class="code_sh">$ kumoctl svr1 attach
 </pre>
-    <h2>障害からの復旧方法</h2>
-    <p>kumofsでは、1つのkey-valueのペアは3台のServerノードにコピーされます。そのため2台までならServerノードがダウンしてもデータが欠損することなく動作し続けます。</p>
-    <p>またManagerノードは2台で冗長構成を取ることができます。片方がダウンしても正常に動作し続け、両方ダウンしてもその間にServerに障害が発生しなければ問題なく動作し続けます。</p>
-    <h3>Serverノードの復旧</h3>
-    <p>Serverノードが1台ダウンすると、一部のkey-valueペアの複製が1つ減った状態のまま動作し続けます。2台ダウンすると、1つか2つ減った状態のままになります。この状態から複製の数を3つに戻すには、Serverノードを復旧させたあとkumoctlコマンドを使って登録するか、Serverノードを復旧させずにダウンしたServerノードを完全に切り離します。</p>
-    <p>まずkumoctlコマンドを使ってどのServerノードに障害が発生しているかを確認します：</p>
+    <p>最後に本当に登録されたか確認します：</p>
+    <pre class="code_sh">$ kumoctl svr1 status
+hash space timestamp:
+  Wed Dec 03 22:16:00 +0900 2008 clock 72
+attached node:
+  192.168.0.101:19800  (active)
+  192.168.0.102:19800  (active)
+  192.168.0.103:19800  (active)
+not attached node:
+</pre>
+    <p>無事 <strong>attached node</strong> のところに登録されました。</p>
+    <h3>kumo-gatewayの起動</h3>
+    <p>実際にアプリケーションからkumofsを利用するには、そのホストでkumo-gatewayを起動しておきます。kumo-gatewayにはmemcachedプロトコルが実装されているので、アプリケーションからは <strong>localhostで動作しているmemcached</strong> に見えます。</p>
+    <p>kumo-gatewayには少なくともkumo-managerのホスト名かIPアドレスと、memcachedをlistenするポート番号を指定する必要があります。</p>
+    <pre class="code_sh">[cli1]$ kumo-gateway -v -m svr1 -p svr2 -t 11211
+</pre>
+    <p>これでkumofsを利用する準備が整いました。cli1でlocalhostの11211番にmemcachedクライアントを使って接続してみてください。</p>
+    <h3>kumo-serverを追加する</h3>
+    <p>別のサーバー<em>svr4</em>を追加してみましょう。まずkumo-serverを起動し、次にkumoctlコマンドを使って登録します。</p>
+    <pre class="code_sh">[svr4]$ kumo-server -v -l svr4 -m svr1 -p svr2 -s /var/kumodb.tch
+$ kumoctl svr1 attach
+</pre>
+    <p>これで新しいサーバーが追加されました。</p>
+    <h3>すべてのプロセスをlocalhostで動かす</h3>
+    <p>すべてのプロセスを１台のホストで動かして試してみるには以下のようにします：</p>
+    <pre class="code_sh">[localhost]$ kumo-manager -v -l localhost
+[localhost]$ kumo-server  -v -m localhost -l localhost:19801 -L 19901 -s ./database1.tch
+[localhost]$ kumo-server  -v -m localhost -l localhost:19802 -L 19902 -s ./database2.tch
+[localhost]$ kumo-server  -v -m localhost -l localhost:19803 -L 19902 -s ./database3.tch
+[localhost]$ kumo-gateway -v -m localhost -t 11211
+</pre>
+    <h2>HowTo</h2>
+    <h3>kumo-managerの状態を取得する</h3>
+    <p>kumo-managerはクラスタ全体を管理しているノードです。kumo-managerの状態を取得することでクラスタ全体の状態を知ることができます。</p>
+    <p>kumo-managerの状態を取得するには、<strong>kumoctl</strong>コマンドを使います。第一引数にはkumo-manager（複数いる場合はどれか１台）のアドレスを指定し、第二引数には<strong>status</strong>と指定します。</p>
+    <pre class="code_sh">$ kumoctl svr1 status
+hash space timestamp:
+  Wed Dec 03 22:15:45 +0900 2008 clock 58
+attached node:
+  192.168.0.101:19800  (active)
+  192.168.0.102:19800  (active)
+  192.168.0.103:19800  (active)
+  192.168.0.104:19800  (fault)
+not attached node:
+  192.168.0.104:19800
+</pre>
+    <p>表示の見方：</p>
+    <dl>
+      <dt>hash space timestamp</dt>
+      <dd>このkumo-managerに登録されているkumo-serverの一覧が最後に更新された時刻。サーバーを追加したときとサーバーがダウンしたときに更新されます。</dd>
+      <dt>attached node</dt>
+      <dd>登録されているkumo-serverの一覧。<strong>(active)</strong>と表示されているノードは正常に動作しているノードで、<strong>(fault)</strong>と表示されているノードは障害が発生しているか障害が発生してからまだ再登録されていないノードです。</dd>
+      <dt>not attached node</dt>
+      <dd>認識されているがまだ登録されていないkumo-serverの一覧。</dd>
+    </dl>
+    <p>kumoctlコマンドの詳しい使い方はリファレンスを参照してください。</p>
+    <h3>kumo-serverの状態を取得する</h3>
+    <p>kumo-serverは実際にデータを保存しているノードです。<strong>kumostat</strong>コマンドを使うと、そのkumo-serverに保存されているデータの件数や、今までに処理されたGet操作の総数などを取得できます。</p>
+    <pre class="code_sh">$ kumostat svr1 items
+</pre>
+    <p>第１引数にはkumo-serverのアドレスを指定します。第２引数には主に以下のサブコマンドを指定できます：</p>
+    <dl>
+      <dt>uptime</dt>
+      <dd>kumo-serverプロセスの起動時間（単位は秒）</dd>
+      <dt>version</dt>
+      <dd>kumo-serverのバージョン</dd>
+      <dt>cmd_get</dt>
+      <dd>Get操作を処理した回数</dd>
+      <dt>cmd_set</dt>
+      <dd>Set操作を処理した回数</dd>
+      <dt>cmd_delete</dt>
+      <dd>Delete操作を処理した回数</dd>
+      <dt>items</dt>
+      <dd>データベースに保存されているデータの件数</dd>
+    </dl>
+    <p>kumostatコマンドの詳しい使い方はリファレンスを参照してください。</p>
+    <h3>kumo-serverの負荷をモニタする</h3>
+    <p>
+      <strong>kumotop</strong>コマンドを使うと、topコマンドのようにkumo-serverの負荷をモニタリングすることができます。</p>
+    <p>引数には<strong>-m</strong>に続いてkumo-managerのアドレスを指定するか、モニタしたいkumo-serverのアドレスを列挙します。</p>
+    <pre>$ kumotop -m svr1
+</pre>
+    <h3>落ちたkumo-managerを復旧する</h3>
+    <p>FIXME</p>
+    <p>2台で冗長構成を取っているときに片方のkumo-managerがダウンしまった場合は、まずkumo-managerを再起動してください。kumo-managerのIPアドレスは障害発生前と同じにしておく必要があります。次に残っていた方のkumo-managerに対して<em>kumoctl</em>コマンドの<strong>replace</strong>サブコマンドを発行して、２台のkumo-managerの情報を同期してください。</p>
+    <p>またkumo-managerはすべてダウンしてしまってもシステムを止めることなく復旧できます。この場合は、まずダウンしているkumo-serverがいるときは再起動してください。次にkumo-managerをすべて再起動させてください。最後に<em>kumoctl</em>コマンドの<strong>attach</strong>サブコマンドを使ってkumo-serverを登録します。</p>
+    <h3>落ちたkumo-serverを復旧する</h3>
+    <p>FIXME</p>
+    <p>kumo-serverが1台ダウンすると、一部のkey-valueペアの複製が1つ減った状態のまま動作し続けます。2台ダウンすると、1つか2つ減った状態のままになります。この状態から複製の数を3つに戻すには、kumo-serverを復旧させてkumoctlコマンドを使って再度登録するか、ダウンしたkumo-serverを完全に切り離します。</p>
+    <p>まずkumoctlコマンドを使ってどのkumo-serverに障害が発生しているかを確認します：</p>
     <pre class="code_sh">[xx]$ kumoctl m1 status    # Managerのアドレスを指定して状態を取得
 hash space timestamp:
   Wed Dec 03 22:15:35 +0900 2008 clock 50
@@ -97,7 +201,7 @@ attached node:
 not attached node:
 </pre>
     <p>
-      <strong>(fault)</strong>と表示されているServerノードに障害が発生しています。ここでServerノードを再起動すると、以下のようになります：</p>
+      <strong>(fault)</strong>と表示されているkumo-serverに障害が発生しています。ここでkumo-serverを再起動すると、以下のようになります：</p>
     <pre class="code_sh">[xx]$ kumoctl m1 status
 hash space timestamp:
   Wed Dec 03 22:15:45 +0900 2008 clock 58
@@ -110,8 +214,8 @@ not attached node:
   192.168.0.104:19800
 </pre>
     <p>
-      <strong>not attached node</strong>のところに表示されているServerノードは、Managerノードから認識されているが、まだ登録されていないServerノードの一覧です。</p>
-    <p>ここで<strong>attach</strong>コマンドを発行すると、Serverノードが実際に登録され、データの複製が3つになるようにコピーされます：</p>
+      <strong>not attached node</strong>のところに表示されているkumo-serverは、Managerノードから認識されているが、まだ登録されていないkumo-serverの一覧です。</p>
+    <p>ここで<strong>attach</strong>コマンドを発行すると、kumo-serverが実際に登録され、データの複製が3つになるようにコピーされます：</p>
     <pre class="code_sh">[xx]$ kumoctl m1 attach    # attach
 [xx]$ kumoctl m1 status
 hash space timestamp:
@@ -123,8 +227,8 @@ attached node:
   192.168.0.104:19800  (active)
 not attached node:
 </pre>
-    <p>attachコマンドを発行して新たにServerノードを登録するとき、データの複製をコピーするための比較的大規模なネットワークトラフィックが発生することに注意してください。</p>
-    <p>kumoctlコマンドで、attachコマンドの代わりに<strong>detach</strong>コマンドを発行すると、fault状態のServerノードが切り離されます。このときも複製の数が3つになるようにデータのコピーが行われます。</p>
+    <p>attachコマンドを発行して新たにkumo-serverを登録するとき、データの複製をコピーするための比較的大規模なネットワークトラフィックが発生することに注意してください。</p>
+    <p>kumoctlコマンドで、attachコマンドの代わりに<strong>detach</strong>コマンドを発行すると、fault状態のkumo-serverが切り離されます。このときも複製の数が3つになるようにデータのコピーが行われます。</p>
     <pre class="code_sh">[xx]$ kumoctl m1 detach    # detach
 [xx]$ kumoctl m1 status
 hash space timestamp:
@@ -136,53 +240,72 @@ attached node:
 not attached node:
   192.168.0.104:19800
 </pre>
-    <p>FIXME Serverノードを復旧するときにのデータベースファイルの扱い deleteしたデータが復活する件</p>
-    <h3>Managerノードの復旧</h3>
-    <p>2台で冗長構成を取っているときに片方のManagerノードがダウンした場合は、Managerノードを再起動してください。ManagerノードのIPアドレスは障害発生前と同じにしておく必要があります。</p>
-    <p>両方のManagerノードがダウンした場合や、Managerノードを1台で運用していた場合は、Managerノードを再起動し、kumoctlコマンドでattachコマンドを発行してください。</p>
-    <h2>チューニング</h2>
-    <h3>Tokyo Cabinetのチューニング</h3>
-    <p>Tokyo Cabinetのハッシュデータベースのチューニングによって性能は大きく変わります。kumo-serverを起動する前に、tchmgrコマンドを使ってデータベースファイルをあらかじめ作成しておいてください。</p>
-    <p>tchmgrコマンドのパラメータについては、Tokyo Cabinetのドキュメントを参照してください。</p>
-    <p>Tokyo Cabinetのパラメータのうち、拡張メモリマップのサイズ（xmsiz）とキャッシュ機構（rcnum）はkumo-serverのコマンドライン引数で指定します。kumo-serverの<strong>-s</strong>オプションで、データベースファイル名の後ろに<strong>#xmsiz=XXX</strong>と指定すると拡張メモリマップのサイズを指定できます。<strong>#rcnum=XXX</strong>と指定するとキャッシュ機構を有効化できます。</p>
-    <pre class="code_sh">[s2]$ kumo-server  -v -m m1 -l s2 -s database.tch#xmsiz=600m#rcnum=4k
+    <p>FIXME kumo-serverを復旧するときにのデータベースファイルの扱い deleteしたデータが復活する件</p>
+    <h3>新しいkumo-serverを追加する</h3>
+    <p>TODO</p>
+    <h3>あるデータがどのkumo-serverに保存されているか調べる</h3>
+    <p>kumofsはデータを複数のkumo-serverに分散して保存します。あるkeyが実際にどのkumo-serverに保存されているかを調べるには、<strong>kumohash</strong>コマンドを使います。</p>
+    <pre class="code_sh">$ kumohash -m svr1 assign &quot;the-key&quot;
 </pre>
-    <h3>スレッド数</h3>
-    <p>CPUのハードウェアスレッドの数が多い場合は、kumo-serverとkumo-gatewayのワーカースレッドの数（-TR引数）を増やすと性能が向上します。ハードウェアスレッド数+2 くらいが目安です。デフォルトは4です。</p>
-    <p>保存する1つ1つのkey-valueペアのサイズが大きい場合は、kumo-serverとkumo-gatewayの送信用スレッドの数（-TW引数）を増やすと性能が向上する可能性があります。デフォルトは2です。</p>
-    <h3>非同期レプリケーション</h3>
-    <p>kumofsではデータをsetしたりdeleteしたりするときレプリケーションを行いますが、デフォルトではレプリケーションが完了するまで待ってから（すべてのサーバーから応答が帰ってきてから）アプリケーションに応答が返されます。これを1台のServerに書き込みが完了した時点で応答を返すようにすると（非同期レプリケーション）、更新系の応答時間が大幅に短縮されます。</p>
-    <p>ただし非同期レプリケーションを有効にすると、成功応答が帰ってきたとしても、必ずしもレプリケーションが成功していることが保証されず、そのため複数のServerノード間でデータの一貫性が保たれているとが保証されなくなります。</p>
-    <p>Set操作のレプリケーションを非同期にするには、kumo-gatewayのコマンドライン引数に<strong>-As</strong>を、Delete操作のレプリケーションを非同期にするには<strong>-Ad</strong>を追加してください。</p>
-    <h2>リファレンス</h2>
-    <h3>保証範囲の制限</h3>
-    <p>kumofsはスケーラビリティとアベイラビリティを持つ代わりに、複数のServerノード間に保存されるデータの一貫性に制限があります。アプリケーションで以下に挙げる保証範囲に含まれない動作を前提としないように注意してください。</p>
-    <h4>Set</h4>
-    <p>Set操作はkey-valueペアを保存します。</p>
-    <p>Setが成功応答を返した場合は一貫性は保証されます。つまりすべての担当Serverノードに同じkey-valueペアが書き込まれ、どのノードからでも同じ値を直後にGetすることができ、古い値が読み出されることはありません。</p>
-    <p>Setが失敗応答を返した場合は一貫性は保証されません。つまりServerノードによって古い値を持っていたり新しい値を持っていたりします。</p>
-    <p>Set操作を実行中に同じkeyをGetした場合は、新旧どちらの値が読み出されるかは不定ですが、どちらかの値が読み出されます。混ざった値が読み出されることはありません。</p>
-    <h4>Delete</h4>
-    <p>Delete操作はkey-valueペアを削除します。</p>
-    <p>Delete操作は一貫性を保証しませんが、できる限り一貫性が保たれるように努力します。</p>
-    <p>Delete操作は実際には「deleteフラグ」をSetする操作です。しかしdeleteフラグは時間が経過すると回収され、本当に削除されます。deleteフラグが回収されると一貫性は保証されません。deleteフラグは以下の条件で回収されます：</p>
+    <p>TODO</p>
+    <h3>バックアップを作成する</h3>
+    <p>TODO</p>
+    <h3>バックアップから復旧する</h3>
+    <p>サーバーのお引っ越しなどでバックアップを使ってクラスタを復旧したい場合は、次の手順で行います：</p>
     <dl>
-      <dt>Deleteしてから一定の時間が経過した</dt>
-      <dd>この時間はkumo-serverの<strong>-gX</strong>オプションで指定できます。</dd>
-      <dt>Deleteフラグを記憶するメモリ使用量の上限に達し、かつDeleteしてから一定の時間が経過した</dt>
-      <dd>この時間はkumo-serverの<strong>-gN</strong>オプションで指定できます。メモリ使用量の上限は<strong>-gS</strong>オプションで指定できます。</dd>
+      <dt>1.バックアップを作成する</dt>
+      <dd>
+        <em>kumoctl</em>コマンドの<strong>backup</strong>サブコマンドを使って、データベースファイルのバックアップを作成しておきます。</dd>
+      <dt>2.バックアップファイルを１つにまとめる</dt>
+      <dd>データベースファイルのバックアップは、それぞれのkumo-serverで作成されるので、複数のファイルに分割されています。これを<strong>kumomergedb</strong>コマンドを使って１つのデータベースファイルに結合します。</dd>
+      <dt>3.まとめたデータベースファイルを配る</dt>
+      <dd>kumomergedbコマンドを使ってまとめたデータベースファイルを、kumo-serverを起動するすべてのサーバーに配ります。</dd>
+      <dt>4.kumo-serverを起動する</dt>
+      <dd>kumo-serverを起動します。このとき-sオプションには先ほど配ったデータベースファイルを指定します。</dd>
+      <dt>5.kumoctlでattachする</dt>
+      <dd>
+        <em>kumoctl</em>コマンドの<strong>attach</strong>サブコマンドを使ってkumo-serverを登録します。このときそのkumo-serverが持っている必要の無いデータがデータベースファイルから削除されます。</dd>
     </dl>
-    <p>deleteフラグを記憶するメモリ使用量の上限に達したが、Deleteしてから一定の時間が経過していない場合は、deleteフラグはデータベースファイルの中に放置されます。放置されたdeleteフラグは、次に再配置操作が行われたときに回収されます。</p>
-    <h3>ログ</h3>
-    <p>kumo-manager, kumo-server, kumo-gatewayは、それぞれ2種類のログを出力します：</p>
+    <p>これで復旧は完了です。</p>
+    <h2>トラブルシューティング</h2>
+    <h3>Setが必ず失敗する</h3>
+    <p>何度やってもSet操作が必ず失敗してしまう場合は、以下の項目を調べてみてください：</p>
     <dl>
-      <dt>テキストログ</dt>
-      <dd>行区切りのテキストフォーマットのログ。標準出力に出力される</dd>
-      <dt>バイナリログ</dt>
-      <dd>MessagePackでシリアライズされたバイナリ形式のログ</dd>
+      <dt>kumo-serverは登録されているか</dt>
+      <dd>
+        <em>kumoctl MANAGER status</em>を使ってkumo-managerの状態を調べて、kumo-serverが<em>attached node''として登録されており、</em>(active)'''と表示されていることを確認してください。</dd>
+      <dt>サーバーによってルーティング表が食い違っていないか</dt>
+      <dd>
+        <em>kumostat SERVER whs</em>
+      </dd>
     </dl>
-    <p>テキストログは常に出力されます。<strong>-v</strong>オプションを付けると冗長なログも出力されるようになります。テキストログはファイルに書き出すこともできるが、ログローテーションはサポートしていません。デフォルトでは優先度によってログに色が付きますが、<strong>-d &lt;path.pid&gt;</strong>オプションを指定してデーモンとして起動するか、<strong>-o &quot;-&quot;</strong>オプションを指定すると、ログに色が付かなくなります。</p>
-    <p>バイナリログは<strong>-g &lt;path.mpac&gt;</strong>オプションを付けたときだけ出力されます。バイナリログはSIGHUPシグナルを受け取るとログファイルを開き直すため、logrotateなどを使ってログローテーションができます。</p>
+    <h3>Setがたまに失敗する</h3>
+    <p>memcachedのクライアントライブラリの実装によっては、デフォルトのタイムアウト時間が非常に短く設定されていることがあります。Set操作は比較的時間がかかるので、タイムアウトしてしまっている可能性があります。</p>
+    <p>memcachedのクライアントライブラリの設定で、タイムアウト時間を長くしてみてください。</p>
+    <h3>SetできるのにGetできない</h3>
+    <p>kumofsは、Set/Delete操作用とGet操作用の２つのルーティング表を使います。通常この２つは同じですが、サーバーの追加や復旧の処理中に通信エラーが発生すると、2つのルーティング表が食い違ってしまうことが有り得ます。</p>
+    <p>
+      <em>kumostat</em>コマンドの<strong>hscheck</strong>サブコマンドを使うと、２つのルーティング表が食い違っていないかを確認することができます。</p>
+    <p>もし食い違っていた場合は、<em>kumoctl</em>コマンドの<strong>replace</strong>サブコマンドを使うと修復できます。</p>
+    <h3>データベースファイルには保存されているのに取得できないkeyがある</h3>
+    <p>kumofsはデータを複数のkumo-serverに分散して保存しますが、保存するときに所定のkumo-serverに保存し、取得するときは所定のkumo-serverに保存されていることを前提とします。このため何らかの理由でデータが所定のkumo-serverとは違うkumo-serverに保存されていると、そのデータはデータベースファイルには保存されていても取得できません。</p>
+    <p>
+      <em>kumoctl</em>コマンドの<strong>full-replace</strong>サブコマンドを使うと修復できます。ただしfull-replaceを使うと大きなネットワークトラフィックが発生するので注意してください。</p>
+    <h3>kumo-serverが3台以上ダウンしてしまった</h3>
+    <p>kumo-serverダウンしてしまっても、データベースファイルが残っていればデータを復旧することができます。</p>
+    <p>TODO</p>
+    <h2>コマンドリファレンス</h2>
+    <h3>configureフラグ</h3>
+    <dl>
+      <dt>--with-tokyocabinet=DIR</dt>
+      <dd>Tokyo Cabinetがインストールされているディレクトリを指定する</dd>
+      <dt>--with-msgpack=DIR</dt>
+      <dd>MessagePackがインストールされているディレクトリを指定する</dd>
+      <dt>--with-tcmalloc[=DIR]</dt>
+      <dd>tcmallocとリンクする</dd>
+      <dt>--enable-trace</dt>
+      <dd>画面を埋め尽くすほど冗長なデバッグ用のメッセージを出力するようにする</dd>
+    </dl>
     <h3>共通のコマンドライン引数</h3>
     <dl>
       <dt>-o &lt;path.log&gt;</dt>
@@ -238,6 +361,15 @@ not attached node:
       <dt>-gX &lt;seconds&gt;</dt>
       <dd>deleteしたエントリのクロックを保持しておく最大時間を指定する</dd>
     </dl>
+    <h4>削除済みフラグの回収</h4>
+    <p>Delete操作は実際には削除済みフラグをSetする操作です。しかし削除済みフラグは時間が経過すると回収され、本当に削除されます。削除済みフラグが回収されると一貫性は保証されません。削除済みフラグは以下の条件で回収されます：</p>
+    <dl>
+      <dt>Deleteしてから一定の時間が経過した</dt>
+      <dd>この時間はkumo-serverの<strong>-gX</strong>オプションで指定できます。</dd>
+      <dt>Deleteフラグを記憶するメモリ使用量の上限に達し、かつDeleteしてから一定の時間が経過した</dt>
+      <dd>この時間はkumo-serverの<strong>-gN</strong>オプションで指定できます。メモリ使用量の上限は<strong>-gS</strong>オプションで指定できます。</dd>
+    </dl>
+    <p>削除済みフラグを記憶するメモリ使用量の上限に達したが、Deleteしてから一定の時間が経過していない場合は、削除済みフラグはデータベースファイルの中に放置されます。放置された削除済みフラグは、次に再配置操作が行われたときに回収されます。</p>
     <h3>kumo-gateway</h3>
     <dl>
       <dt>-m &lt;address&gt;</dt>
@@ -259,9 +391,13 @@ not attached node:
       <dt>-Ad</dt>
       <dd>Delete操作でレプリケーションするとき、レプリケーション完了の応答を待たずに成功を返すようにする</dd>
     </dl>
+    <h4>非同期レプリケーション</h4>
+    <p>kumofsではデータをsetしたりdeleteしたりするときレプリケーションを行いますが、デフォルトではレプリケーションが完了するまで待ってから（すべてのサーバーから応答が帰ってきてから）アプリケーションに応答が返されます。これを1台のkumo-serverに書き込みが完了した時点で応答を返すようにすると（非同期レプリケーション）、更新系の応答時間が大幅に短縮されます。</p>
+    <p>ただし非同期レプリケーションを有効にすると、成功応答が帰ってきたとしても、必ずしもレプリケーションが成功していることが保証されず、そのため複数のkumo-server間でデータの一貫性が保たれているとが保証されなくなります。</p>
+    <p>Set操作のレプリケーションを非同期にするには、kumo-gatewayのコマンドライン引数に<strong>-As</strong>を、Delete操作のレプリケーションを非同期にするには<strong>-Ad</strong>を追加してください。</p>
     <h3>kumoctl</h3>
-    <p>kumoctlコマンドはManagerノードに様々なコマンドを発行するための管理コマンドです。</p>
-    <p>第一引数にManagerノードのアドレスを指定し、第二引数にサブコマンドを指定します。</p>
+    <p>kumoctlコマンドはkumo-managerに様々なコマンドを発行するための管理コマンドです。</p>
+    <p>第一引数にkumo-managerのアドレスを指定し、第二引数にサブコマンドを指定します。</p>
     <pre class="code_sh">Usage: kumoctl address[:port=19799] command [options]
 command:
    status                     get status
@@ -275,60 +411,21 @@ command:
    enable-auto-replace        enable auto replace
    disable-auto-replace       disable auto replace
 </pre>
-    <h4>ハッシュ空間の取得</h4>
     <p>
-      <strong>status</strong>サブコマンドは、どのServerにデータを保存するかを決定するハッシュ空間を取得します。以下のように表示されます：</p>
-    <pre class="code_sh">hash space timestamp:
-  Wed Dec 03 22:15:45 +0900 2008 clock 58
-attached node:
-  192.168.0.101:19800  (active)
-  192.168.0.102:19800  (active)
-  192.168.0.103:19800  (active)
-  192.168.0.104:19800  (fault)
-not attached node:
-  192.168.0.104:19800
-</pre>
+      <strong>attach</strong>サブコマンドは、認識しているが登録されていないkumo-serverを実際に登録します。<strong>detach</strong>サブコマンドは、fault状態のkumo-serverを切り離します。</p>
     <p>
-      <em>hash space timestamp</em>はハッシュ空間を更新した時刻を示しています。</p>
-    <p>
-      <em>attached node</em>は登録されている（ルーティング対象の）Serverノードの一覧を示しています。<em>(active)</em>はそのノードが利用可能なことを、<em>(fault)</em>はそのノードがダウンしていることを示します。</p>
-    <p>
-      <em>not attached node</em>は認識しているが登録されていないServerノードの一覧を示しています。</p>
-    <h4>Serverノードの追加と切り離し</h4>
-    <p>
-      <strong>attach</strong>サブコマンドは、認識しているが登録されていないServerノードを実際に登録します。<strong>detach</strong>サブコマンドは、fault状態のServerノードを切り離します。</p>
-    <p>
-      <strong>attach-noreplace</strong>サブコマンドは<strong>attach</strong>と同じですが、Serverノードを登録した後にkey-valueペアの複製の再配置を行いません。<strong>detach-noreplace</strong>サブコマンドは<strong>detach</strong>と同じですが、Serverノードを切り離した後に複製の再配置を行いません。</p>
+      <strong>attach-noreplace</strong>サブコマンドは<strong>attach</strong>と同じですが、kumo-serverを登録した後にkey-valueペアの複製の再配置を行いません。<strong>detach-noreplace</strong>サブコマンドは<strong>detach</strong>と同じですが、kumo-serverを切り離した後に複製の再配置を行いません。</p>
     <p>
       <strong>replace</strong>サブコマンドは複製の再配置だけを行います。</p>
     <p>attach-noreplaceサブコマンドとdetach-noreplaceサブコマンドはattachとdetachを同時に行いときのみ使用し、すぐにreplaceサブコマンドを使って再配置を行ってください。再配置を行わないまま長い間放置してはいけません。</p>
-    <h4>バックアップの作成</h4>
     <p>
       <strong>backup</strong>サブコマンドは、データベースファイルのバックアップを作成します。バックアップは認識しているすべてのServerノード上で作成されます。</p>
     <p>バックアップファイルのファイル名は、元のデータベースファイル名に第三引数で指定したsuffixを付けたファイル名になります。suffixを省略するとその日の日付(YYMMDD)が使われます。</p>
     <p>作成されたバックアップファイルは、<strong>kumomergedb</strong>コマンドを使って1つのファイルにまとめることができます。</p>
-    <h3>kumomergedb</h3>
-    <p>kumomergedbコマンドを使うと複数のデータベースファイルを1つにまとめることができます。第一引数に出力先のファイル名を指定し、第二引数以降にまとめたいデータベースファイルを指定します。</p>
-    <pre class="code_sh">$ kumomergedb backup.tch-20090101 \
-              server1.tch-20090101 server2.tch-20090101 server3.tch-20090101
-</pre>
-    <h3>kumolog</h3>
-    <p>kumologコマンドはバイナリ形式のログを人間にとって読みやすいテキストに変換して表示します。</p>
-    <pre>kumolog [options] &lt;logfile.mpac&gt;
-</pre>
-    <dl>
-      <dt>-f, --follow     </dt>
-      <dd>  <strong>tail -f</strong>と同じ効果</dd>
-      <dt>-t, --tail       </dt>
-      <dd>  最後のN個のログだけ表示する（デフォルト: N=10）</dd>
-      <dt>-h, --head       </dt>
-      <dd>  最初のN個のログだけ表示する（デフォルト: N=10）</dd>
-      <dt>-n, --lines=[-]N </dt>
-      <dd>  Nを指定する</dd>
-    </dl>
     <h3>kumostat</h3>
-    <p>kumostatコマンドを使うとServerノードの状態を取得することができます。</p>
-    <p>第一引数にServerノードのホスト名とポート番号を指定し、第二引数にコマンドを指定します：</p>
+    <p>FIXME</p>
+    <p>kumostatコマンドを使うとkumo-serverの状態を取得することができます。</p>
+    <p>第一引数にkumo-serverのホスト名とポート番号を指定し、第二引数にコマンドを指定します：</p>
     <pre>Usage: kumostat server-address[:port=19800] command
        kumostat -m manager-address[:port=19700] command
 command:
@@ -347,7 +444,7 @@ command:
    unset_delay                minimize latency at the expense of throughput&quot;
 </pre>
     <p>
-      <strong>-m</strong>に続いてManagerノードのアドレスを指定すると、ManagerノードからServer一覧を取得し、attachされていてactiveなすべてのServerノードの状態を表示します。</p>
+      <strong>-m</strong>に続いてkumo-managerのアドレスを指定すると、kumo-managerからkumo-server一覧を取得し、attachされていてactiveなすべてのkumo-serverの状態を表示します。</p>
     <dl>
       <dt>pid</dt>
       <dd>kumo-serverプロセスのpid</dd>
@@ -378,15 +475,22 @@ command:
     </dl>
     <p>rhsとwhsが食い違っている場合は、再配置を実行中か、前回の再配置が失敗している可能性があります。</p>
     <h3>kumotop</h3>
-    <p>kumotopコマンドを使うとServerノードの状態を定期的に更新しながら表示することができます。</p>
-    <p>引数に監視したいServerノードのアドレスを指定します。Serverノードのアドレスは複数指定できます：</p>
+    <p>FIXME</p>
+    <p>kumotopコマンドを使うとkumo-serverの状態を定期的に更新しながら表示することができます。</p>
+    <p>引数に監視したいkumo-serverのアドレスを指定します。kumo-serverのアドレスは複数指定できます：</p>
     <pre>Usage: kumotop server-address[:port=19800] ...
        kumotop -m manager-address[:port=19700]
 </pre>
     <p>
-      <strong>-m</strong>に続いてManagerノードのアドレスを指定すると、ManagerノードからServer一覧を取得し、attachされているすべてのServerノードの状態を表示します。</p>
+      <strong>-m</strong>に続いてkumo-managerのアドレスを指定すると、kumo-managerからServer一覧を取得し、attachされているすべてのServerノードの状態を表示します。</p>
+    <h3>kumomergedb</h3>
+    <p>FIXME</p>
+    <p>kumomergedbコマンドを使うと、複数のデータベースファイルを1つにまとめることができます。第一引数に出力先のファイル名を指定し、第二引数以降にまとめたいデータベースファイルを指定します。</p>
+    <pre class="code_sh">$ kumomergedb backup.tch-20090101 \
+              server1.tch-20090101 server2.tch-20090101 server3.tch-20090101
+</pre>
     <h3>kumohash</h3>
-    <p>kumohashコマンドを使うと、あるkeyがどのServerに保存されるかを計算することができます。</p>
+    <p>kumohashコマンドを使うと、あるkeyがどのkumo-serverに保存されるかを計算することができます。</p>
     <pre>Usage: kumohash server-address[:port=19800] ... -- command [options]
        kumohash -m manager-address[:port=19700] command [options]
 command:
@@ -398,27 +502,60 @@ command:
       <dt>hash</dt>
       <dd>keyのハッシュ値を計算する</dd>
       <dt>assign</dt>
-      <dd>keyがどのServerに保存されるかを計算する</dd>
+      <dd>keyがどのkumo-serverに保存されるかを計算する</dd>
       <dt>dump</dt>
       <dd>Consistent Hashingのルーティング表を表示する</dd>
     </dl>
+    <h3>kumolog</h3>
+    <p>FIXME</p>
+    <p>kumologコマンドはバイナリ形式のログを人間にとって読みやすいテキストに変換して表示します。</p>
+    <pre>kumolog [options] &lt;logfile.mpac&gt;
+</pre>
+    <dl>
+      <dt>-f, --follow     </dt>
+      <dd>  <em>tail -f</em>と同じ効果</dd>
+      <dt>-t, --tail       </dt>
+      <dd>  最後のN個のログだけ表示する（デフォルト: N=10）</dd>
+      <dt>-h, --head       </dt>
+      <dd>  最初のN個のログだけ表示する（デフォルト: N=10）</dd>
+      <dt>-n, --lines=[-]N </dt>
+      <dd>  Nを指定する</dd>
+    </dl>
+    <h4>ログ</h4>
+    <p>kumo-manager, kumo-server, kumo-gatewayは、それぞれ2種類のログを出力します：</p>
+    <dl>
+      <dt>テキストログ</dt>
+      <dd>行区切りのテキストフォーマットのログ。標準出力に出力される</dd>
+      <dt>バイナリログ</dt>
+      <dd>MessagePackでシリアライズされたバイナリ形式のログ</dd>
+    </dl>
+    <p>テキストログは常に出力されます。<strong>-v</strong>オプションを付けると冗長なログも出力されるようになります。テキストログはファイルに書き出すこともできるが、ログローテーションはサポートしていません。デフォルトでは優先度によってログに色が付きますが、<strong>-d &lt;path.pid&gt;</strong>オプションを指定してデーモンとして起動するか、<strong>-o &quot;-&quot;</strong>オプションを指定すると、ログに色が付かなくなります。</p>
+    <p>バイナリログは<strong>-g &lt;path.mpac&gt;</strong>オプションを付けたときだけ出力されます。バイナリログはSIGHUPシグナルを受け取るとログファイルを開き直すため、logrotateなどを使ってログローテーションができます。</p>
+    <h2>チューニング</h2>
+    <h3>データベースファイルのチューニング</h3>
+    <p>Tokyo Cabinetのハッシュデータベースのチューニングによって、性能が大きく変わります。データベースをチューニングするには、kumo-serverを起動する前に、<strong>tchmgr</strong>コマンドを使ってデータベースファイルをあらかじめ作成しておきます。</p>
+    <p>tchmgrコマンドのパラメータについては、Tokyo Cabinetのドキュメントを参照してください。</p>
+    <p>Tokyo Cabinetのパラメータのうち、拡張メモリマップのサイズ（xmsiz）とキャッシュ機構（rcnum）はkumo-serverのコマンドライン引数で指定します。kumo-serverの<strong>-s</strong>オプションで、データベースファイル名の後ろに<strong>#xmsiz=XXX</strong>と指定すると拡張メモリマップのサイズを指定できます。<strong>#rcnum=XXX</strong>と指定するとキャッシュ機構を有効化できます。</p>
+    <pre class="code_sh">[svr1]$ kumo-server -v -m mgr -l svr1 -s &quot;database.tch#xmsiz=600m#rcnum=4k&quot;
+</pre>
+    <h3>スレッド数のチューニング</h3>
+    <p>CPUのコア数が多い場合は、kumo-serverやkumo-gatewayのワーカースレッドの数（-TR引数）を増やすと性能が向上します。ハードウェアスレッド数+2 くらいが目安です。デフォルトは4です。</p>
+    <p>保存するデータのサイズが大きい場合は、kumo-serverやkumo-gatewayの送信用スレッドの数（-TW引数）を増やすと性能が向上する可能性があります。デフォルトは2です。</p>
     <br />
-    <h1>kumofs internals</h1>
-    <h2>分散アルゴリズム</h2>
-    <p>kumofsはどのServerノードにデータを保存するかを決定するために、Consistent Hashingを利用しています。ハッシュ関数はSHA-1で、下位の64ビットのみを使います。1台の物理ノードは128台の仮想ノードを持ちます。</p>
-    <p>データを取得するときは、Gatewayがkeyにハッシュ関数を掛けてハッシュ空間から担当Serverノードを計算し、担当Serverノードからデータを取得します。取得に失敗したときは、ハッシュ空間上でその次に当たる物理Serverノードから取得します。それでも失敗したらその次の次のServerノードから取得します。それでも失敗したら担当Serverに戻ってリトライします。</p>
-    <p>ハッシュ関数はGatewayで計算することでServerノードの負荷は下げています。</p>
-    <p>データを変更するときは、Gatewayがkeyにハッシュ関数を掛けてハッシュ空間から担当Serverノードを計算し、担当Serverノードにデータを送信します。取得する場合とは異なり、次のServerにフォールバックすることはありません。</p>
-    <p>担当Serverノードは変更操作を受け取ると、データをハッシュ空間上で次の物理Serverノードと、次の次の物理Serverノードにもkey-valueペアをコピーします。</p>
-    <p>ServerノードはGatewayからリクエストを受け取ったとき、本当に自分が担当ノードであるかどうかを自分が持っているハッシュ空間を使って確認します。間違っていた場合はリクエストを拒否します。このように必ず特定の担当Serverノードだけがデータを変更でき、他のServerノードが同じタイミングで同じkey-valueを変更することがないようになっています。</p>
-    <p>Serverノードを選ぶときfaultフラグがセットされているノードはスキップします。一部のServerノードがダウンしている状態でも正常なアクセスを続けられるようになっています。</p>
-    <h3>Serverノードの追加</h3>
-    <h2>死活監視と障害検出</h2>
-    <h3>障害の検出</h3>
+    <h2>FAQ</h2>
+    <h3>kumofsの名前の由来は？</h3>
+    <p>
+      <em>kumo</em>は空に浮かぶ<strong>雲</strong>を意味しています。<em>fs</em>はfast storageの略です。</p>
+    <h3>サーバーに障害が発生したと判断される基準は？</h3>
     <p>メッセージを送ろうとしたところ、接続済みのすべてのTCPコネクションでエラーが発生し、再接続を試みても失敗して再接続のリトライ回数が上限に達したら、そのノードはダウンしたと判断します。</p>
-    <p>TCPコネクションが切断されただけではダウンしたとは判断せず、メッセージの送信に失敗しても制限回数以内に再接続することができたら再送されます。</p>
-    <p>ServerノードとManagerノードは常にkeep-aliveメッセージをやりとりしており、いつもメッセージを送ろうとしている状態になっています。Serverノードがダウンしたらできるだけ早く検出してfaultフラグをセットし、正常なアクセスを継続させます。</p>
-    <h3>新しいノードの検出</h3>
-    <h2>再配置アルゴリズム</h2>
+    <p>TCPコネクションが切断されただけではダウンしたとは判断せず、メッセージの送信に失敗しても制限回数以内に再接続することができたら、メッセージは再送されます。</p>
+    <p>kumo-serverとkumo-managerは常にkeepaliveメッセージをやりとりしており、いつもメッセージを送ろうとしている状態になっています。kumo-managerはkumo-serverがダウンしたらできるだけ早く検出してfaultフラグをセットし、正常なアクセスを継続させます。</p>
+    <h3>どのkumo-serverにデータを保存するかを決めるアルゴリズムは？</h3>
+    <p>kumofsはConsistent Hashingと呼ばれるアルゴリズムを利用しています。ハッシュ関数はSHA-1で、下位の64ビットのみを使います。1台の物理ノードは128台の仮想ノードを持ちます。</p>
+    <p>データを取得するときは、kumo-gatewayがkeyにハッシュ関数を掛けてハッシュ表から担当ノードを計算し、担当ノードからデータを取得します。取得に失敗したときは、ハッシュ表上でその次に当たるノードから取得します。それでも失敗したらその次の次のノードから取得します。それでも失敗したら最初の担当ノードに戻ってリトライします。</p>
+    <p>データを変更するときは、kumo-gatewayがkeyにハッシュ関数を掛けてハッシュ表から担当ノードを計算し、担当ノードにデータを送信します。取得する場合とは異なり、次のノードにフォールバックすることはありません。</p>
+    <p>担当ノードはSetやDelete操作を受け取ると、データをハッシュ表上で次のノードと、次の次のノードにレプリケーションします。</p>
+    <p>担当ノードはkumo-gatewayからリクエストを受け取ったとき、本当に自分が担当ノードであるかどうかを自分が持っているハッシュ表を使って確認します。間違っていた場合はリクエストを拒否します。このように必ず特定の担当ノードだけがデータを変更でき、他のノードが同じタイミングで同じkey-valueを変更することがないようになっています。</p>
+    <p>担当ノードを選ぶときfaultフラグがセットされているノードはスキップします。このため一部の担当ノードがダウンしている状態でも正常なアクセスを続けられます。</p>
   </body>
 </html>
