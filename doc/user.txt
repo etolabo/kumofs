@@ -5,6 +5,10 @@
 
 //*?kumofs user guide
 
+*目次
+^if_format html
+#toc
+
 *kumofsとは？
 kumofsはkey-value型のデータを保存する非常に高速な分散ストレージシステムです。
 
