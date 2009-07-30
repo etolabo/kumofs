@@ -1,0 +1,17 @@
+MessagePack is developed by FURUHASHI Sadayuki, licensed under Apache License,
+Version 2.0. The original software and related information is available at
+http://msgpack.sourceforge.jp/.
+
+This software includes MessagePack fast log format which is developed by
+FURUHASHI Sadayuki, licensed under Apache License, Version 2.0.
+
+The memcached protocol parser is provided by memproto library copyright by
+FURUHASHI Sadayuki, which is open source source software licensed under
+Apache License, Version 2.0.
+
+This software includes mpio library developed by FURUHASHI Sadayuki, licensed
+under Apache License, Version 2.0.
+
+This software includes Kazuhiki 3 library developed by FURUHASHI Sadayuki,
+licensed under Apache License, Version 2.0.
+
