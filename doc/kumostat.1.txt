@@ -15,9 +15,9 @@ Get status from Server node.
 :uptime                     :get uptime
 :time                       :get UNIX time
 :version                    :get version
-:cmd_get                    :get number of get requests
-:cmd_set                    :get number of set requests
-:cmd_delete                 :get number of delete requests
+:cmd_get                    :get total number of processed get requests
+:cmd_set                    :get total number of processed set requests
+:cmd_delete                 :get total number of processed delete requests
 :items                      :get number of stored items
 :rhs                        :get rhs (routing table for Get)
 :whs                        :get whs (routing table for Set/Delete)

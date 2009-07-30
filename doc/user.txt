@@ -213,7 +213,7 @@ kumo-serverが1台ダウンすると、一部のkey-valueペアの複製が1つ�
 
 まずはkumoctlコマンドを使ってどのkumo-serverに障害が発生しているのかを確認します：
 >|sh|
-[xx]$ kumoctl m1 status    # kumo-managerのアドレスを指定して状態を取得
+[xx]$ kumoctl m1 status    # m1はkumo-managerのアドレス
 hash space timestamp:
   Wed Dec 03 22:15:35 +0900 2008 clock 50
 attached node:
