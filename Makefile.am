@@ -28,8 +28,9 @@ EXTRA_DIST = $(DOC_WFDOC) $(DOC_FILES)
 
 man_MANS = \
 		doc/kumoctl.1 \
+		doc/kumohash.1 \
 		doc/kumolog.1 \
-		doc/kumotop.1 \
+		doc/kumomergedb.1 \
 		doc/kumostat.1 \
-		doc/kumomergedb.1
+		doc/kumotop.1
 
