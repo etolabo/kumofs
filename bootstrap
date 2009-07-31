@@ -31,6 +31,13 @@ if test x"$1" = x"--help"; then
 fi
 
 
+mkdir -p ac
+test -f AUTHORS   || touch AUTHORS
+test -f COPYING   || touch COPYING
+test -f ChangeLog || touch ChangeLog
+test -f NEWS      || touch NEWS
+
+
 ACLOCAL="aclocal"
 ACLOCAL_FILES="aclocal.m4"
 ALWAYS_CLEAN="config.status config.log config.cache libtool"
