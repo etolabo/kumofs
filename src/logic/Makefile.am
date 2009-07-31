@@ -92,6 +92,7 @@ noinst_HEADERS = \
 		server/zconnection.h \
 		gateway/framework.h \
 		gateway/init.h \
+		gateway/mod_cache.h \
 		gateway/mod_store.h
 
 EXTRA_DIST = \

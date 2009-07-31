@@ -20,9 +20,10 @@ noinst_HEADERS = \
 		client_tmpl.h \
 		cluster.h \
 		connection.h \
+		exception.h \
 		message.h \
-		request.h \
 		protocol.h \
+		request.h \
 		responder.h \
 		responder_impl.h \
 		retry.h \
