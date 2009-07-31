@@ -207,7 +207,7 @@ void rpc_args::show_usage()
 			"--daemon\n"
 #ifdef VERSION
 #ifdef REVISION
-	"\n  " "v" VERSION "-r" REVISION "\n"
+	"\n  " "v" VERSION " revision " REVISION "\n"
 #else
 	"\n  " "v" VERSION "\n"
 #endif

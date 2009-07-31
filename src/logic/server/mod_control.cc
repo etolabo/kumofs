@@ -65,7 +65,7 @@ RPC_IMPL(mod_control_t, GetStatus, req, z, response)
 	case STAT_VERSION:
 #ifdef VERSION
 #ifdef REVISION
-		response.result(std::string(VERSION "-r" REVISION));
+		response.result(std::string(VERSION " revision " REVISION));
 #else
 		response.result(std::string(VERSION));
 #endif
