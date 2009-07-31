@@ -1,16 +1,13 @@
-== 準備 ==
 
-cpan install Test::More
-cpan install Test::Base
-cpan install Cache::Memcached::Fast
-ほか、「そんなモジュールないよ！」っていわれたら適宜いれてください。
+1. ./bootstrap && ./configure && make
 
-== how to test ==
+2. install following cpan modules:
 
-cd kumofs
-prove t/*.t
-  or
-prove -v t/*.t
-  or
-prove -v t/01_set.t
+    cpan install Test::More
+    cpan install Test::Base
+    cpan install Cache::Memcached::Fast
+
+3. prove -v t/*.t
+
+see each test cases for details.
 

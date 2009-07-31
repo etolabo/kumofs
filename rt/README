@@ -1,7 +1,93 @@
 
+== How to test ==
+
 1. ./bootstrap && ./configure && make
 
 2. gem install Ruby-MemCache
 
 3. prove rt/*.rt
+
+
+= Tests =
+
+== 01_mgr1_kill_1_srv ==
+ - kumo-manager 1台
+ - kummo-server 3台
+loop {
+  1. kumo-server をランダムに１台選んでkillする
+  2. killした kumo-server を再起動する
+}
+
+
+== 02_mgr2_kill_1_mgr ==
+ - kumo-manager 2台
+ - kummo-server 3台
+loop {
+  1. kumo-manager をランダムに１台選んでkillする
+  2. killした kumo-manager を再起動する
+}
+
+
+== 03_mgr1_kill_2_srvs ==
+ - kumo-manager 1台
+ - kummo-server 3台
+loop {
+  1. kumo-server をランダムに１台選んでkillする
+  2. kumo-server をランダムにもう１台選んでkillする
+  3. killした kumo-server をすべて再起動する
+}
+
+
+== 04_mgr2_kill_2_srvs ==
+ - kumo-manager 2台
+ - kummo-server 3台
+loop {
+  1. kumo-server をランダムに１台選んでkillする
+  2. kumo-server をランダムにもう１台選んでkillする
+  3. killした kumo-server をすべて再起動する
+}
+
+
+== 05_mgr2_kill_1_srv_1_mgr ==
+ - kumo-manager 2台
+ - kummo-server 3台
+loop {
+  1. kumo-manager をランダムに１台選んでkillする
+  2. kumo-server  をランダムに１台選んでkillする
+  3. killした kumo-manager を再起動する
+  4. killした kumo-server  を再起動する
+}
+
+
+== 06_mgr2_kill_1_mgr_1_srv ==
+ - kumo-manager 2台
+ - kummo-server 3台
+loop {
+  1. kumo-server  をランダムに１台選んでkillする
+  2. kumo-manager をランダムに１台選んでkillする
+  3. killした kumo-server  を再起動する
+  4. killした kumo-manager を再起動する
+}
+
+
+== 07_mgr2_kill_2_srvs_while_replacing ==
+ - kumo-manager 2台
+ - kummo-server 3台
+loop {
+  1. kumo-server  をランダムに１台選んでkillする
+  2. killした kumo-server  を再起動する
+  3. 再配置している最中に別の kumo-server を１台選んでkillする
+  4. killした kumo-server  を再起動する
+}
+
+
+== 08_mgr2_kill_2_srvs_while_replacing2 ==
+ - kumo-manager 2台
+ - kummo-server 6台
+loop {
+  1. kumo-server  をランダムに１台選んでkillする
+  2. killした kumo-server  を再起動する
+  3. 再配置している最中に別の kumo-server を１台選んでkillする
+  4. killした kumo-server  を再起動する
+}
 

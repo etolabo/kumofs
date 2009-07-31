@@ -14,7 +14,7 @@
 
 void usage(void)
 {
-	printf("usage: ./test <host> <port> <num>\n");
+	printf("usage: ./test_get_noset <host> <port> <num>\n");
 	exit(1);
 }
 

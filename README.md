@@ -33,16 +33,12 @@ Following libraries are required to build kumofs:
   - ruby >= 1.8.7
   - zlib
   - libcrypto (openssl)
-
   - Tokyo Cabinet >= 1.4.10
       http://tokyocabinet.sourceforge.net/spex-en.html#installation
-
   - MessagePack for Ruby >= 0.3.1
       http://msgpack.sourceforge.jp/ruby:install
-
   - MessagePack for C++ >= 0.3.1
       http://msgpack.sourceforge.jp/cpp:install
-
   - Ragel >= 6.3
       http://www.complang.org/ragel/
 

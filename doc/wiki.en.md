@@ -248,9 +248,9 @@ Finally, *attach* the kumo-server:
     not attached node:
 
 
-## Performance and Tuning
+## Performance tuning
 
-To get best performance, create database file using *tchmgr* command before starting kumo-server. See [document of Tokyo Cabinet](http://tokyocabinet.sourceforge.net/spex-en.html) for details.
+To get best performance, create database file using *tchmgr* command before starting kumo-server. See [documents of Tokyo Cabinet](http://tokyocabinet.sourceforge.net/spex-en.html) for details.
 
 Example:
 

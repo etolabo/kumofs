@@ -14,7 +14,7 @@
 
 void usage(void)
 {
-	printf("usage: ./test <host> <port> <num>\n");
+	printf("usage: ./check_set_get_delete <host> <port> <num>\n");
 	exit(1);
 }
 
