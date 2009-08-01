@@ -13,3 +13,6 @@ Show status of kumo-server and renew it continuously like ''top'' command.
 $ kumotop svr1 svr2 svr3 svr4 &br;
 $ kumotop -m mgr1
 
+*SEE ALSO
+kumo-server(1).
+

@@ -6,7 +6,7 @@ kumoctl
 kumoctl address[:port=19750] command [options]
 
 *DESCRIPTION
-Send control command to Manager node.
+Send control commands to kumo-manager
 
 *COMMANDS
 :status                     :get status
@@ -23,4 +23,7 @@ Send control command to Manager node.
 *EXAMPLE
 $ kumoctl mgr1 status &br;
 $ kumoctl mgr1 attach
+
+*SEE ALSO
+kumo-manager(1).
 

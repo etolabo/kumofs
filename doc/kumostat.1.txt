@@ -28,3 +28,6 @@ Get status from Server node.
 $ kumostat svr1 items &br;
 $ kumotop -m mgr1 hscheck
 
+*SEE ALSO
+kumo-server(1).
+

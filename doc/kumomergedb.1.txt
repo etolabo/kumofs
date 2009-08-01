@@ -12,3 +12,6 @@ useful to collect database files created by `kumoctl backup' command.
 *EXAMPLE
 $ kumomergedb backup.tch-20090101 svr1.tch-20090101 svr2.tch-20090101
 
+*SEE ALSO
+kumoctl(1).
+

@@ -77,11 +77,11 @@ enable binary log
 .B -d  <path.pid>    --daemon
 
 .SH EXAMPLE
-[on svr1  ]$ kumo-server -v -l svr1 -m mgr1 -p mgr2 -s /var/kumodb.tch
+[on svr1  ]$ kumo-server -v -l svr1 -m mgr1 -p mgr2 -s /var/kumodb.tch -gN 5 -gS 20480
 .PP
-[on svr2  ]$ kumo-server -v -l svr2 -m mgr1 -p mgr2 -s /var/kumodb.tch
+[on svr2  ]$ kumo-server -v -l svr2 -m mgr1 -p mgr2 -s /var/kumodb.tch -TR 6 -TW 4
 .PP
-[on svr3  ]$ kumo-server -v -l svr3 -m mgr1 -p mgr2 -s /var/kumodb.tch
+[on svr3  ]$ kumo-server -v -l svr3 -m mgr1 -p mgr2 -s /var/kumodb.tch -Ci 16
 .PP
 [localhost]$ kumo-server  -v -m localhost -l localhost:19801 -L 19901 -s ./database1.tch
 .PP

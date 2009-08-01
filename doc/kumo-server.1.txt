@@ -54,9 +54,9 @@ You can get live status of the kumo-manager using ''kumostat'' and ''kumotop'' c
 ::= 
 
 *EXAMPLE
-[on svr1  ]$ kumo-server -v -l svr1 -m mgr1 -p mgr2 -s /var/kumodb.tch &br;
-[on svr2  ]$ kumo-server -v -l svr2 -m mgr1 -p mgr2 -s /var/kumodb.tch &br;
-[on svr3  ]$ kumo-server -v -l svr3 -m mgr1 -p mgr2 -s /var/kumodb.tch &br;
+[on svr1  ]$ kumo-server -v -l svr1 -m mgr1 -p mgr2 -s /var/kumodb.tch -gN 5 -gS 20480 &br;
+[on svr2  ]$ kumo-server -v -l svr2 -m mgr1 -p mgr2 -s /var/kumodb.tch -TR 6 -TW 4 &br;
+[on svr3  ]$ kumo-server -v -l svr3 -m mgr1 -p mgr2 -s /var/kumodb.tch -Ci 16 &br;
 [localhost]$ kumo-server  -v -m localhost -l localhost:19801 -L 19901 -s ./database1.tch &br;
 [localhost]$ kumo-server  -v -m localhost -l localhost:19802 -L 19902 -s ./database2.tch &br;
 [localhost]$ kumo-server  -v -m localhost -l localhost:19803 -L 19902 -s ./database3.tch &br;
