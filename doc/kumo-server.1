@@ -11,11 +11,7 @@ You can get live status of the kumo-manager using
 .B kumostat
 and
 .B kumotop
-command. See
-.B kumostat(1)
-and
-.B kumotop(1)
-for details.
+command.
 .SH OPTIONS
 .TP
 .B -l  <addr[:port=19800]>   --listen
@@ -79,3 +75,19 @@ enable binary log
 
 .TP
 .B -d  <path.pid>    --daemon
+
+.SH EXAMPLE
+[on svr1  ]$ kumo-server -v -l svr1 -m mgr1 -p mgr2 -s /var/kumodb.tch
+.PP
+[on svr2  ]$ kumo-server -v -l svr2 -m mgr1 -p mgr2 -s /var/kumodb.tch
+.PP
+[on svr3  ]$ kumo-server -v -l svr3 -m mgr1 -p mgr2 -s /var/kumodb.tch
+.PP
+[localhost]$ kumo-server  -v -m localhost -l localhost:19801 -L 19901 -s ./database1.tch
+.PP
+[localhost]$ kumo-server  -v -m localhost -l localhost:19802 -L 19902 -s ./database2.tch
+.PP
+[localhost]$ kumo-server  -v -m localhost -l localhost:19803 -L 19902 -s ./database3.tch
+.PP
+.SH SEE ALSO
+kumostat(1), kumotop(1), kumolog(1), kumomergedb(1), kumohash(1).

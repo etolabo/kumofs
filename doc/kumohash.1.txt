@@ -15,3 +15,7 @@ kumohash is a Consistent Hashing simulator.
 :assign  keys...            :calculate assign node
 :dump                       :dump hash space
 
+*EXAMPLE
+$ kumohash svr1 svr2 svr3 svr4 -- dump &br;
+$ kumohash -m mgr1 assign "key1" "key2" "key3"
+

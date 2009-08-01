@@ -37,3 +37,11 @@ You can get live status of the kumo-manager using ''kumoctl'' command. See ''kum
 ::?-d  <path.pid>    --daemon
 ::= 
 
+*EXAMPLE
+[on mgr1  ]$ kumo-manager -v -l mgr1 -p mgr2 &br;
+[on mgr2  ]$ kumo-manager -v -l mgr2 -p mgr1 &br;
+[localhost]$ kumo-manager -v -l localhost
+
+*SEE ALSO
+kumoctl(1), kumolog(1).
+

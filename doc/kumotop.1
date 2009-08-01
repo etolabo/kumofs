@@ -3,8 +3,13 @@
 kumotop
 .SH SYNOPSIS
 kumotop server-address[:port=19800] ...
-
 .PP
 kumotop -m manager-address[:port=19700]
 .SH DESCRIPTION
-Get status from Server nodes and renew it continuously.
+Show status of kumo-server and renew it continuously like
+.B top
+command.
+.SH EXAMPLE
+$ kumotop svr1 svr2 svr3 svr4
+.PP
+$ kumotop -m mgr1

@@ -3,10 +3,13 @@
 kumotop
 
 *SYNOPSIS
-kumotop server-address[:port=19800] ...
-&br;
+kumotop server-address[:port=19800] ... &br;
 kumotop -m manager-address[:port=19700]
 
 *DESCRIPTION
-Get status from Server nodes and renew it continuously.
+Show status of kumo-server and renew it continuously like ''top'' command.
+
+*EXAMPLE
+$ kumotop svr1 svr2 svr3 svr4 &br;
+$ kumotop -m mgr1
 

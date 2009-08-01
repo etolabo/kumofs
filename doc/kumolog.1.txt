@@ -14,3 +14,7 @@ Convert binary logs into human-readable format.
 :-h, --head       :  show only first N logs (default: N=10)
 :-n, --lines=[-]N :  specify N
 
+*EXAMPLE
+$ kumolog -f svr1_log.mpac &br;
+$ kumolog -h -n 50 svr1_log.mpac
+

@@ -6,6 +6,9 @@ kumomergedb -- merge database files
 kumomergedb <dst.tch> <src.tch>...
 
 *DESCRIPTION
-Merge multiple database files into one database file. This command is 
+Merge multiple database files into one database file. This command is
 useful to collect database files created by `kumoctl backup' command.
+
+*EXAMPLE
+$ kumomergedb backup.tch-20090101 svr1.tch-20090101 svr2.tch-20090101
 

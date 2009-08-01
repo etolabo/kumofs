@@ -3,7 +3,6 @@
 kumostat
 .SH SYNOPSIS
 kumostat server-address[:port=19800] command
-
 .PP
 kumostat -m manager-address[:port=19700] command
 .SH DESCRIPTION
@@ -48,3 +47,7 @@ maximize throughput at the expense of latency
 .TP
 .B unset_delay                
 maximize throughput at the expense of latency
+.SH EXAMPLE
+$ kumostat svr1 items
+.PP
+$ kumotop -m mgr1 hscheck

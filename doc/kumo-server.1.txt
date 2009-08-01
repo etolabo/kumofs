@@ -7,7 +7,7 @@ kumo-server -m <addr[:port=19700]> -p <addr[:port19700]> -l <addr[:port=19800]> 
 
 *DESCRIPTION
 ''kumo-server'' stores actual data. You can add kumo-servers after buiding the cluster.
-You can get live status of the kumo-manager using ''kumostat'' and ''kumotop'' command. See ''kumostat(1)'' and ''kumotop(1)'' for details.
+You can get live status of the kumo-manager using ''kumostat'' and ''kumotop'' command.
 
 *OPTIONS
 ::?-l  <addr[:port=19800]>   --listen
@@ -52,4 +52,15 @@ You can get live status of the kumo-manager using ''kumostat'' and ''kumotop'' c
 ::= 
 ::?-d  <path.pid>    --daemon
 ::= 
+
+*EXAMPLE
+[on svr1  ]$ kumo-server -v -l svr1 -m mgr1 -p mgr2 -s /var/kumodb.tch &br;
+[on svr2  ]$ kumo-server -v -l svr2 -m mgr1 -p mgr2 -s /var/kumodb.tch &br;
+[on svr3  ]$ kumo-server -v -l svr3 -m mgr1 -p mgr2 -s /var/kumodb.tch &br;
+[localhost]$ kumo-server  -v -m localhost -l localhost:19801 -L 19901 -s ./database1.tch &br;
+[localhost]$ kumo-server  -v -m localhost -l localhost:19802 -L 19902 -s ./database2.tch &br;
+[localhost]$ kumo-server  -v -m localhost -l localhost:19803 -L 19902 -s ./database3.tch &br;
+
+*SEE ALSO
+kumostat(1), kumotop(1), kumolog(1), kumomergedb(1), kumohash(1).
 

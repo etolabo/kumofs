@@ -20,3 +20,7 @@ Send control command to Manager node.
 :enable-auto-replace        :enable auto replace
 :disable-auto-replace       :disable auto replace
 
+*EXAMPLE
+$ kumoctl mgr1 status &br;
+$ kumoctl mgr1 attach
+

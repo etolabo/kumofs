@@ -51,3 +51,12 @@ enable binary log
 
 .TP
 .B -d  <path.pid>    --daemon
+
+.SH EXAMPLE
+[on mgr1  ]$ kumo-manager -v -l mgr1 -p mgr2
+.PP
+[on mgr2  ]$ kumo-manager -v -l mgr2 -p mgr1
+.PP
+[localhost]$ kumo-manager -v -l localhost
+.SH SEE ALSO
+kumoctl(1), kumolog(1).

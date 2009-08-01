@@ -54,3 +54,10 @@ kumo-gateway -m <addr[:port]> -p <addr[:port]> [-t port] [-b port] [-c port]
 ::?-d  <path.pid>    --daemon
 ::= 
 
+*EXAMPLE
+[on cli1  ]$ kumo-gateway -v -m mgr1 -p mgr2 -t 11211 &br;
+[localhost]$ kumo-gateway -v -m localhost -t 11211
+
+*SEE ALSO
+kumolog(1).
+

@@ -3,8 +3,7 @@
 kumostat
 
 *SYNOPSIS
-kumostat server-address[:port=19800] command
-&br;
+kumostat server-address[:port=19800] command &br;
 kumostat -m manager-address[:port=19700] command
 
 *DESCRIPTION
@@ -24,4 +23,8 @@ Get status from Server node.
 :hscheck                    :check if rhs == whs
 :set_delay                  :maximize throughput at the expense of latency
 :unset_delay                :maximize throughput at the expense of latency
+
+*EXAMPLE
+$ kumostat svr1 items &br;
+$ kumotop -m mgr1 hscheck
 
