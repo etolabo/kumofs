@@ -6,7 +6,8 @@ kumo-gateway
 kumo-gateway -m <addr[:port]> -p <addr[:port]> [-t port] [-b port] [-c port]
 
 *DESCRIPTION
-''kumo-gateway'' receives requests from applications and relays it to the kumo-servers. Run this daemon on the hosts that runs applications that uses kumofs.
+''kumo-gateway'' receives requests from applications and relays it to the kumo-servers.
+Run this daemon on the hosts that runs applications that uses kumofs.
 
 *OPTIONS
 ::?-m  <addr[:port=19700]>   --manager1

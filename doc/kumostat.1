@@ -47,7 +47,23 @@ maximize throughput at the expense of latency
 .TP
 .B unset_delay                
 maximize throughput at the expense of latency
+.SH DELAY MODE
+If the delay mode is enabled, req/sec throughput is maximized at the expense of latency. This mode actually disables TCP_NODELAY option of all sockets.
+The practice of this feature is as following:
+.PP
+- run some scripts that watches load of the kumo-server. (see source code of kumotop)
+.PP
+- if the load of kumo-server becomes high, enable delay mode by
+.B kumostat set_delay
+command.
+.PP
+- if the load of kumo-server becomes low, disable delay mode by
+.B kumostat unset_delay
+command.
+.PP
 .SH EXAMPLE
 $ kumostat svr1 items
 .PP
 $ kumotop -m mgr1 hscheck
+.SH SEE ALSO
+kumo-server(1).

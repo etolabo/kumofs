@@ -7,7 +7,7 @@ kumo-manager -l <addr[:port=19700]> -p <addr[:port=19700]>
 
 *DESCRIPTION
 ''kumo-manager'' manages kumo-servers. Run this daemon on one or two hosts.
-You can get live status of the kumo-manager using ''kumoctl'' command. See ''kumoctl(1)'' for details.
+You can get live status of the kumo-manager using ''kumoctl'' command.
 
 *OPTIONS
 ::?-p  <addr[:port=19700]>   --partner
@@ -36,6 +36,9 @@ You can get live status of the kumo-manager using ''kumoctl'' command. See ''kum
 ::= 
 ::?-d  <path.pid>    --daemon
 ::= 
+
+*AUTO REPLACING
+See ''kumoctl(1)'' for details.
 
 *EXAMPLE
 [on mgr1  ]$ kumo-manager -v -l mgr1 -p mgr2 -o - &br;

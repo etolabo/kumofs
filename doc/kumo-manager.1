@@ -9,9 +9,7 @@ kumo-manager -l <addr[:port=19700]> -p <addr[:port=19700]>
 manages kumo-servers. Run this daemon on one or two hosts.
 You can get live status of the kumo-manager using
 .B kumoctl
-command. See
-.B kumoctl(1)
-for details.
+command.
 .SH OPTIONS
 .TP
 .B -p  <addr[:port=19700]>   --partner
@@ -52,11 +50,15 @@ enable binary log
 .TP
 .B -d  <path.pid>    --daemon
 
+.SH AUTO REPLACING
+See
+.B kumoctl(1)
+for details.
 .SH EXAMPLE
 [on mgr1  ]$ kumo-manager -v -l mgr1 -p mgr2 -o -
 .PP
 [on mgr2  ]$ kumo-manager -v -l mgr2 -p mgr1 -g errlog.mpac
 .PP
-[localhost]$ kumo-manager -v -l localhost
+[localhost]$ kumo-manager -v -l localhost -Ys 4 -Yn 2
 .SH SEE ALSO
 kumoctl(1), kumolog(1).

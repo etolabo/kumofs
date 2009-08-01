@@ -6,10 +6,10 @@ kumoctl
 kumoctl address[:port=19750] command [options]
 
 *DESCRIPTION
-Send control commands to kumo-manager
+Show status of kumo-manager and send control commands to kumo-manager.
 
 *COMMANDS
-:status                     :get status
+:status                     :show status of the cluster
 :attach                     :attach all new servers and start replace
 :attach-noreplace           :attach all new servers
 :detach                     :detach all fault servers and start replace
@@ -19,6 +19,15 @@ Send control commands to kumo-manager
 :backup  [suffix=20090304]  :create backup with specified suffix
 :enable-auto-replace        :enable auto replace
 :disable-auto-replace       :disable auto replace
+
+*STATUS
+:hash space timestamp  :The time that the list of attached kumo-servers is updated. It is updated when new kumo-server is added or existing kumo-server is down.
+:attached node         :The list of attached kumo-servers. ''(active)'' is normal node and ''(fault)'' is fault node or recoverd but not re-attached node.
+:not attached node     :The list of recognized but not-attached nodes.
+
+*AUTO REPLACING
+By default, you have to attach new kumo-servers manually using ''kumoctl'' command. If the auto replacing is enabled, new kumo-servers are attached automatically.
+This is experimental feature.
 
 *EXAMPLE
 $ kumoctl mgr1 status &br;

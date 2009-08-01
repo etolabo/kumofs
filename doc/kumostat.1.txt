@@ -24,6 +24,13 @@ Get status from Server node.
 :set_delay                  :maximize throughput at the expense of latency
 :unset_delay                :maximize throughput at the expense of latency
 
+*DELAY MODE
+If the delay mode is enabled, req/sec throughput is maximized at the expense of latency. This mode actually disables TCP_NODELAY option of all sockets.
+The practice of this feature is as following: &br;
+ - run some scripts that watches load of the kumo-server. (see source code of kumotop) &br;
+ - if the load of kumo-server becomes high, enable delay mode by ''kumostat set_delay'' command. &br;
+ - if the load of kumo-server becomes low, disable delay mode by ''kumostat unset_delay'' command. &br;
+
 *EXAMPLE
 $ kumostat svr1 items &br;
 $ kumotop -m mgr1 hscheck
