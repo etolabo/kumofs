@@ -1,4 +1,4 @@
-*? kumotop
+*? KUMOTOP "1" "July 2009" "kumotop"
 *NAME
 kumotop
 

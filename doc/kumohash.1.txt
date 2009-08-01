@@ -1,4 +1,4 @@
-*? kumohash
+*? KUMOHASH "1" "July 2009" "kumohash"
 *NAME
 kumohash
 

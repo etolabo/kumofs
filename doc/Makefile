@@ -1,12 +1,18 @@
-#SRCS=$(wildcard *txt)
-#default: $(SRCS:.txt=.pdf) $(SRCS:.txt=.html)
-#clean: $(SRCS:.txt=.clean)
-#distclean: $(SRCS:.txt=.distclean)
 
-default: memo.pdf memo.html user.pdf user.html kumoctl.1 kumostat.1 kumotop.1 kumolog.1 kumomergedb.1 kumohash.1
-clean: memo.clean
-distclean: memo.distclean
+DOCS = \
+	kumo-gateway.1 \
+	kumo-manager.1 \
+	kumo-server.1 \
+	kumoctl.1 \
+	kumohash.1 \
+	kumolog.1 \
+	kumomergedb.1 \
+	kumostat.1 \
+	kumotop.1
 
+all: $(DOCS)
+
+clean: kumo-gateway.1.clean kumo-manager.1.clean kumo-server.1.clean kumoctl.1.clean kumohash.1.clean kumolog.1.clean kumomergedb.1.clean kumostat.1.clean kumotop.1.clean
 
 %.sdoc : %.txt
 	wfdoc -i $< -o $@

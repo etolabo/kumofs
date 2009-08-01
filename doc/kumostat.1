@@ -1,8 +1,9 @@
-.TH kumostat
+.TH KUMOSTAT "1" "July 2009" "kumostat"
 .SH NAME
 kumostat
 .SH SYNOPSIS
 kumostat server-address[:port=19800] command
+
 .PP
 kumostat -m manager-address[:port=19700] command
 .SH DESCRIPTION
@@ -22,13 +23,13 @@ get UNIX time
 get version
 .TP
 .B cmd_get                    
-get number of get requests
+get total number of processed get requests
 .TP
 .B cmd_set                    
-get number of set requests
+get total number of processed set requests
 .TP
 .B cmd_delete                 
-get number of delete requests
+get total number of processed delete requests
 .TP
 .B items                      
 get number of stored items

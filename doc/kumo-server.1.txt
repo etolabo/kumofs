@@ -1,0 +1,55 @@
+*? KUMO-SERVER "1" "July 2009" "kumo-server"
+*NAME
+kumo-server
+
+*SYNOPSIS
+kumo-server -m <addr[:port=19700]> -p <addr[:port19700]> -l <addr[:port=19800]> -s <path.tch>
+
+*DESCRIPTION
+''kumo-server'' stores actual data. You can add kumo-servers after buiding the cluster.
+You can get live status of the kumo-manager using ''kumostat'' and ''kumotop'' command. See ''kumostat(1)'' and ''kumotop(1)'' for details.
+
+*OPTIONS
+::?-l  <addr[:port=19800]>   --listen
+::=listen address
+::?-L  <port=19900>          --stream-listen
+::=listen port for replacing stream
+::?-f  <dir=/tmp>            --offer-tmp
+::=path to temporary directory for replacing
+::?-s  <path.tch>            --store
+::=path to database
+::?-m  <addr[:port=19700]>   --manager1
+::=address of manager 1
+::?-p  <addr[:port=19700]>   --manager2
+::=address of manager 2
+::?-S  <number=20>        --replicate-set-retry
+::=replicate set retry limit
+::?-D  <number=20>        --replicate-delete-retry
+::=replicate delete retry limit
+::?-gN <seconds=60>       --garbage-min-time
+::=minimum time to maintenance deleted key
+::?-gX <seconds=3600>     --garbage-max-time
+::=maximum time to maintenance deleted key
+::?-gS <kilobytes=2048>   --garbage-mem-limit
+::=maximum memory usage to memory deleted key
+::?-k  <number=2>    --keepalive-interval
+::=keepalive interval in seconds
+::?-Ys <number=1>    --connect-timeout
+::=connect timeout time in seconds
+::?-Yn <number=4>    --connect-retry-limit
+::=connect retry limit
+::?-Ci <number=8>    --clock-interval
+::=clock interval in seconds
+::?-TW <number=2>    --write-threads
+::=number of threads for asynchronous writing
+::?-TR <number=4>    --read-threads
+::=number of threads for asynchronous reading
+::?-o  <path.log>    --log
+::=output logs to the file
+::?-g  <path.mpac>   --binary-log
+::=enable binary log
+::?-v                --verbose
+::= 
+::?-d  <path.pid>    --daemon
+::= 
+

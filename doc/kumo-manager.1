@@ -1,0 +1,53 @@
+.TH KUMO-MANAGER "1" "July 2009" "kumo-manager"
+.SH NAME
+kumo-manager
+.SH SYNOPSIS
+kumo-manager -l <addr[:port=19700]> -p <addr[:port=19700]>
+.SH DESCRIPTION
+
+.B kumo-manager
+manages kumo-servers. Run this daemon on one or two hosts.
+You can get live status of the kumo-manager using
+.B kumoctl
+command. See
+.B kumoctl(1)
+for details.
+.SH OPTIONS
+.TP
+.B -p  <addr[:port=19700]>   --partner
+master-slave replication partner
+.TP
+.B -a                        --auto-replace
+enable auto replacing
+.TP
+.B -Rs <number=4>            --replace-delay
+delay time of auto replacing in sec.
+.TP
+.B -k  <number=2>    --keepalive-interval
+keepalive interval in seconds
+.TP
+.B -Ys <number=1>    --connect-timeout
+connect timeout time in seconds
+.TP
+.B -Yn <number=4>    --connect-retry-limit
+connect retry limit
+.TP
+.B -Ci <number=2>    --clock-interval
+clock interval in seconds
+.TP
+.B -TW <number=2>    --write-threads
+number of threads for asynchronous writing
+.TP
+.B -TR <number=4>    --read-threads
+number of threads for asynchronous reading
+.TP
+.B -o  <path.log>    --log
+output logs to the file
+.TP
+.B -g  <path.mpac>   --binary-log
+enable binary log
+.TP
+.B -v                --verbose
+
+.TP
+.B -d  <path.pid>    --daemon

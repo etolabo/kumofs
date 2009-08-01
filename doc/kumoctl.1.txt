@@ -1,4 +1,4 @@
-*? kumoctl
+*? KUMOCTL "1" "July 2009" "kumoctl"
 *NAME
 kumoctl
 

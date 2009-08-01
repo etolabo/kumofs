@@ -1,4 +1,4 @@
-*? kumomergedb
+*? KUMOMERGEDB "1" "July 2009" "kumomergedb"
 *NAME
 kumomergedb -- merge database files
 

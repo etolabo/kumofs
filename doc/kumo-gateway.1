@@ -1,0 +1,75 @@
+.TH KUMO-GATEWAY "1" "July 2009" "kumo-gateway"
+.SH NAME
+kumo-gateway
+.SH SYNOPSIS
+kumo-gateway -m <addr[:port]> -p <addr[:port]> [-t port] [-b port] [-c port]
+.SH DESCRIPTION
+
+.B kumo-gateway
+receives requests from applications and relays it to the kumo-servers. Run this daemon on the hosts that runs applications that uses kumofs.
+.SH OPTIONS
+.TP
+.B -m  <addr[:port=19700]>   --manager1
+address of manager 1
+.TP
+.B -p  <addr[:port=19700]>   --manager2
+address of manager 2
+.TP
+.B -lc                       --local-cache
+local cache (Tokyo Cabinet abstract database)
+.TP
+.B -t  <[addr:]port=11411>   --memproto-text
+memcached text protocol listen port
+.TP
+.B -b  <[addr:]port=11511>   --memproto-binary
+memcached binary protocol listen port
+.TP
+.B -c  <[addr:]port=11611>   --cloudy
+asynchronous memcached binary protocol listen port
+.TP
+.B -As               --async-replicate-set
+send response without waiting replication on set
+.TP
+.B -Ad               --async-replicate-delete
+send response without waiting replication on delete
+.TP
+.B -G  <number=5>    --get-retry
+get retry limit
+.TP
+.B -S  <number=20>   --set-retry
+set retry limit
+.TP
+.B -D  <number=20>   --delete-retry
+delete retry limit
+.TP
+.B -rn <number=4>    --renew-threshold
+hash space renew threshold
+.TP
+.B -k  <number=2>    --keepalive-interval
+keepalive interval in seconds
+.TP
+.B -Ys <number=1>    --connect-timeout
+connect timeout time in seconds
+.TP
+.B -Yn <number=4>    --connect-retry-limit
+connect retry limit
+.TP
+.B -Ci <number=2>    --clock-interval
+clock interval in seconds
+.TP
+.B -TW <number=2>    --write-threads
+number of threads for asynchronous writing
+.TP
+.B -TR <number=4>    --read-threads
+number of threads for asynchronous reading
+.TP
+.B -o  <path.log>    --log
+output logs to the file
+.TP
+.B -g  <path.mpac>   --binary-log
+enable binary log
+.TP
+.B -v                --verbose
+
+.TP
+.B -d  <path.pid>    --daemon
