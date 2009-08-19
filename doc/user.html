@@ -359,7 +359,7 @@ $ kumostat svr3 cmd_get
     <h3 id="section_7_1">kumo-serverが1台か2台ダウンした</h3>
     <p>kumo-serverが1台ダウンすると、一部のkey-valueペアの複製が1つ減った状態のまま動作し続けます。2台ダウンすると、1つか2つ減った状態のままになります。この状態から複製の数を3つに戻すには、kumo-serverを復旧させたあとkumoctlコマンドを使って再度登録するか、ダウンしたkumo-serverを完全に切り離します。</p>
     <p>まずはkumoctlコマンドを使ってどのkumo-serverに障害が発生しているのかを確認します：</p>
-    <pre class="code_sh">[xx]$ kumoctl m1 status    # kumo-managerのアドレスを指定して状態を取得
+    <pre class="code_sh">[xx]$ kumoctl m1 status    # m1はkumo-managerのアドレス
 hash space timestamp:
   Wed Dec 03 22:15:35 +0900 2008 clock 50
 attached node:
