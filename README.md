@@ -76,7 +76,7 @@ Configure and install in the usual way:
 
 ## License
 
-    Copyright (C) 2009 Etolabo Corp.
+    Copyright (C) 2009 FURUHASHI Sadayuki
     
        Licensed under the Apache License, Version 2.0 (the "License");
        you may not use this file except in compliance with the License.

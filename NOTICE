@@ -2,7 +2,7 @@ MessagePack is developed by FURUHASHI Sadayuki, licensed under Apache License,
 Version 2.0. The original software and related information is available at
 http://msgpack.sourceforge.jp/.
 
-This software includes MessagePack fast log format which is developed by
+This software includes MessagePack fast log library which is developed by
 FURUHASHI Sadayuki, licensed under Apache License, Version 2.0.
 
 The memcached protocol parser is provided by memproto library copyright by
@@ -14,4 +14,14 @@ under Apache License, Version 2.0.
 
 This software includes Kazuhiki 3 library developed by FURUHASHI Sadayuki,
 licensed under Apache License, Version 2.0.
+
+This product includes software developed by the OpenSSL Project for use in the
+OpenSSL Toolkit.(http://www.openssl.org/)
+This product includes cryptographic software written by Eric Young
+(eay@cryptsoft.com)
+This product includes software written by Tim Hudson (tjh@cryptsoft.com)
+
+I have had the support and encouragement of Etolabo Corp. for developing this
+software. I would like to thank for the aid that made it possible to achieve
+this work.
 
