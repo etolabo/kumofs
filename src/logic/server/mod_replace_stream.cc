@@ -277,11 +277,13 @@ void mod_replace_stream_t::stream_accumulator::send(int sock)
 		size -= rl;
 	}
 #else
-	off_t len = 0;
-	while(len < size) {
-		if(::sendfile(m_fd.get(), sock, size-len, &len, NULL, 0) < 0) {
+	off_t sent = 0;
+	while(sent < size) {
+		off_t len = size - sent;
+		if(::sendfile(m_fd.get(), sock, sent, &len, NULL, 0) < 0) {
 			throw mp::system_error(errno, "offer send error");
 		}
+		sent += len;
 	}
 #endif
 }
