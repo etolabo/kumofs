@@ -123,7 +123,7 @@ void init_mlogger(const std::string& logfile, bool use_tty, mlogger::level level
 rpc_args::rpc_args() :
 	keepalive_interval(2.0),
 	clock_interval(2.0),
-	connect_timeout_sec(1.0),
+	connect_timeout_sec(10.0),
 	connect_retry_limit(4),
 	wthreads(2),
 	rthreads(4)
