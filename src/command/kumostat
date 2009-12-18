@@ -83,8 +83,8 @@ end
 	"rhs"         => Proc.new{|s| KumoRPC::HSSeed.parse s.GetStatus(KumoServer::STAT_RHS) },
 	"whs"         => Proc.new{|s| KumoRPC::HSSeed.parse s.GetStatus(KumoServer::STAT_WHS) },
 	"hscheck"     => Proc.new{|s| s.GetStatus(KumoServer::STAT_RHS) == s.GetStatus(KumoServer::STAT_WHS) },
-	"set_delay"   => [KumoServer::CONF_TCP_NODELAY, false],
-	"unset_delay" => [KumoServer::CONF_TCP_NODELAY, true],
+	"set_delay"   => Proc.new{|s| s.SetConfig(KumoServer::CONF_TCP_NODELAY, false) },
+	"unset_delay" => Proc.new{|s| s.SetConfig(KumoServer::CONF_TCP_NODELAY, true) },
 }
 
 
