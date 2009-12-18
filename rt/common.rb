@@ -27,7 +27,7 @@ class Manager < Chukan::LocalProcess
 		@host = "127.0.0.1"
 		@port = MANAGER_PORT + index
 
-		cmd = "#{KUMO_MANAGER} -v -l #{@host}:#{@port}"
+		cmd = "#{KUMO_MANAGER} -v -l #{@host}:#{@port} -Ys 3.0 -Yn 2"
 		if partner.is_a?(Manager)
 			cmd += " -p #{partner.host}:#{partner.port}"
 		elsif partner
@@ -91,7 +91,7 @@ class Gateway < Chukan::LocalProcess
 
 	def client
 		require 'memcache'  # gem install Ruby-MemCache
-		MemCache.new("127.0.0.1:#{@port}", {:urlencode => false, :compression => false})
+		MemCache.new("127.0.0.1:#{@port}", {:urlencode => false, :compression => false, :multithread => true, :timeout => 10.0})
 	end
 end
 
@@ -196,7 +196,7 @@ end
 
 class RandomTester
 	def initialize(gw, num_store)
-		@client = gw.client
+		@gw = gw
 		@end_flag = false
 		@thread = Thread.start(num_store, &method(:run))
 	end
@@ -217,6 +217,7 @@ class RandomTester
 
 	private
 	def run(num_store)
+		client = @gw.client
 		pid = Process.pid
 		until @end_flag
 			source = (1..num_store).to_a.shuffle.map {|x| ["#{pid}-key#{x}", "val#{x}"] }
@@ -224,7 +225,7 @@ class RandomTester
 			test "set value" do
 				source.each {|k, v|
 					begin
-						@client.set(k, v)
+						client.set(k, v)
 					rescue
 						raise "set failed #{k.inspect} => #{v.inspect}: #{$!.inspect}"
 					end
@@ -235,7 +236,7 @@ class RandomTester
 			test "get value" do
 				source.shuffle.each {|k, v|
 					begin
-						r = @client.get(k)
+						r = client.get(k)
 					rescue
 						raise "get failed #{k.inspect}: #{$!.inspect}"
 					end

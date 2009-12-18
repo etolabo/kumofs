@@ -24,6 +24,8 @@ test "run normally" do
 
 		k.get.kill
 		m.get.kill
+		k.get.join
+		m.get.join
 
 		k.set start_srv(k.get, pt.get, m.get)
 		m.set start_mgr(m.get, pt.get)
