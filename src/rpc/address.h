@@ -65,7 +65,7 @@ private:
 	char m_serial_address[22];
 	unsigned int m_serial_length;  // 6 or 22
 #else
-	uint64_t m_serial;
+	char m_serial_address[8];
 #endif
 
 public:
@@ -88,15 +88,16 @@ public:
 std::ostream& operator<< (std::ostream& stream, const address& addr);
 
 
-inline address::address() :
+inline address::address()
 #ifdef KUMO_IPV6
-	m_serial_length(0)
+	: m_serial_length(0)
 {
 	*((uint16_t*)&m_serial_address[0]) = 0;
 }
 #else
-	m_serial(0)
-{ }
+{
+	*((uint64_t*)&m_serial_address[0]) = 0;
+}
 #endif
 
 //inline address::address(const address& o) :
@@ -110,7 +111,7 @@ inline uint16_t address::raw_port() const
 #ifdef KUMO_IPV6
 	return *((uint16_t*)&m_serial_address[0]);
 #else
-	return (uint16_t)m_serial;
+	return *((uint16_t*)&m_serial_address[0]);
 #endif
 }
 
@@ -127,7 +128,7 @@ inline const char* address::dump() const
 #ifdef KUMO_IPV6
 	return m_serial_address;
 #else
-	return (char*)&m_serial;
+	return m_serial_address;
 #endif
 }
 
@@ -141,8 +142,7 @@ inline void address::set_port(uint16_t p)
 #ifdef KUMO_IPV6
 	*((uint16_t*)m_serial_address) = htons(p);
 #else
-	m_serial &= 0x0000ffffffffffffULL;
-	m_serial |= htons(p);
+	*((uint16_t*)m_serial_address) = htons(p);
 #endif
 }
 
@@ -167,7 +167,7 @@ inline bool address::operator== (const address& addr) const
 	return m_serial_length == addr.m_serial_length &&
 		memcmp(m_serial_address, addr.m_serial_address, m_serial_length) == 0;
 #else
-	return m_serial == addr.m_serial;
+	return memcmp(m_serial_address, addr.m_serial_address, 8) == 0;
 #endif
 }
 
@@ -185,7 +185,7 @@ inline bool address::operator< (const address& addr) const
 		return m_serial_length < addr.m_serial_length;
 	}
 #else
-	return m_serial < addr.m_serial;
+	return memcmp(m_serial_address, addr.m_serial_address, 8) < 0;
 #endif
 }
 
@@ -198,7 +198,7 @@ inline bool address::operator> (const address& addr) const
 		return m_serial_length > addr.m_serial_length;
 	}
 #else
-	return m_serial > addr.m_serial;
+	return memcmp(m_serial_address, addr.m_serial_address, 8) > 0;
 #endif
 }
 

@@ -29,9 +29,8 @@ address::address(const struct sockaddr_in& addr)
 	memcpy(&m_serial_address[0], &addr.sin_port, 2);
 	memcpy(&m_serial_address[2], &addr.sin_addr.s_addr, 4);
 #else
-	m_serial = addr.sin_addr.s_addr;
-	m_serial <<= 16;
-	m_serial |= addr.sin_port;
+	memcpy(&m_serial_address[0], &addr.sin_port, 2);
+	memcpy(&m_serial_address[2], &addr.sin_addr.s_addr, 4);
 #endif
 }
 
@@ -60,8 +59,7 @@ address::address(const char* ptr, unsigned int len)
 		throw std::runtime_error("unknown address type");
 	}
 
-	m_serial = 0;
-	memcpy(&m_serial, ptr, len);  // FIXME
+	memcpy(m_serial_address, ptr, len);
 #endif
 }
 
@@ -93,7 +91,7 @@ void address::getaddr(sockaddr* addrbuf) const
 	memset(addr, 0, sizeof(sockaddr_in));
 	addr->sin_family = AF_INET;
 	addr->sin_port = raw_port();
-	addr->sin_addr.s_addr = (uint32_t)(m_serial >> 16);
+	addr->sin_addr.s_addr = *((uint32_t*)&m_serial_address[2]);
 #endif
 }
 
@@ -112,7 +110,7 @@ std::ostream& operator<< (std::ostream& stream, const address& addr)
 		return stream << '[' << ::inet_ntop(AF_INET6, sa, buf, sizeof(buf)) << "]:" << ntohs(addr.raw_port());
 	}
 #else
-	uint32_t sa = (uint32_t)(addr.m_serial >> 16);
+	uint32_t sa = *(uint32_t*)&addr.m_serial_address[2];
 	char buf[16];
 	return stream << ::inet_ntop(AF_INET, &sa, buf, sizeof(buf)) << ':' << ntohs(addr.raw_port());
 #endif
