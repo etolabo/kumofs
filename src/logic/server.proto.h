@@ -177,8 +177,8 @@ private:
 
 	struct for_each_replace_copy;
 	struct for_each_full_replace_copy;
-	void replace_copy(const address& manager_addr, HashSpace& hs);
-	void full_replace_copy(const address& manager_addr, HashSpace& hs);
+	void replace_copy(const address& manager_addr, HashSpace& hs, shared_zone life);
+	void full_replace_copy(const address& manager_addr, HashSpace& hs, shared_zone life);
 
 	void finish_replace_copy(ClockTime clocktime, REQUIRE_STLK);
 	RPC_REPLY_DECL(ReplaceCopyEnd, from, res, err, z);

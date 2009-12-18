@@ -92,14 +92,17 @@ RPC_IMPL(mod_replace_t, ReplaceCopyStart, req, z, response)
 	net->clock_update(req.param().adjust_clock);
 
 	HashSpace hs(req.param().hsseed);
+	shared_zone life(z.release());
 
 	response.result(true);
 
 	try {
 		if(req.param().full) {
-			full_replace_copy(req.node()->addr(), hs);
+			wavy::submit(&mod_replace_t::full_replace_copy, this,
+					req.node()->addr(), hs, life);
 		} else {
-			replace_copy(req.node()->addr(), hs);
+			wavy::submit(&mod_replace_t::replace_copy, this,
+					req.node()->addr(), hs, life);
 		}
 	} catch (std::runtime_error& e) {
 		LOG_ERROR("replace copy failed: ",e.what());
@@ -163,7 +166,7 @@ private:
 	for_each_replace_copy();
 };
 
-void mod_replace_t::replace_copy(const address& manager_addr, HashSpace& hs)
+void mod_replace_t::replace_copy(const address& manager_addr, HashSpace& hs, shared_zone life)
 {
 	ClockTime replace_time = hs.clocktime();
 
@@ -314,7 +317,7 @@ private:
 	for_each_full_replace_copy();
 };
 
-void mod_replace_t::full_replace_copy(const address& manager_addr, HashSpace& hs)
+void mod_replace_t::full_replace_copy(const address& manager_addr, HashSpace& hs, shared_zone life)
 {
 	ClockTime replace_time = hs.clocktime();
 
