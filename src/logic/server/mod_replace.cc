@@ -117,11 +117,13 @@ RPC_IMPL(mod_replace_t, ReplaceDeleteStart, req, z, response)
 	net->clock_update(req.param().adjust_clock);
 
 	HashSpace hs(req.param().hsseed);
+	shared_zone life(z.release());
 
 	response.result(true);
 
 	try {
-		replace_delete(req.node(), hs);
+		wavy::submit(&mod_replace_t::replace_delete, this,
+				req.node(), hs, life);
 	} catch (std::runtime_error& e) {
 		LOG_ERROR("replace delete failed: ",e.what());
 	} catch (...) {
@@ -410,7 +412,7 @@ private:
 	for_each_replace_delete();
 };
 
-void mod_replace_t::replace_delete(shared_node& manager, HashSpace& hs)
+void mod_replace_t::replace_delete(shared_node& manager, HashSpace& hs, shared_zone life)
 {
 	pthread_scoped_rdlock whlk(share->whs_mutex());
 

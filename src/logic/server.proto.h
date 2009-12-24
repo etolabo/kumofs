@@ -183,7 +183,7 @@ private:
 	void finish_replace_copy(ClockTime clocktime, REQUIRE_STLK);
 	RPC_REPLY_DECL(ReplaceCopyEnd, from, res, err, z);
 
-	void replace_delete(shared_node& manager, HashSpace& hs);
+	void replace_delete(shared_node& manager, HashSpace& hs, shared_zone life);
 	struct for_each_replace_delete;
 	RPC_REPLY_DECL(ReplaceDeleteEnd, from, res, err, z);
 
