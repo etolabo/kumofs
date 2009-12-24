@@ -96,7 +96,7 @@ inline address::address()
 }
 #else
 {
-	*((uint64_t*)&m_serial_address[0]) = 0;
+	memset(&m_serial_address[0], 0, 8);
 }
 #endif
 

@@ -31,6 +31,7 @@ address::address(const struct sockaddr_in& addr)
 #else
 	memcpy(&m_serial_address[0], &addr.sin_port, 2);
 	memcpy(&m_serial_address[2], &addr.sin_addr.s_addr, 4);
+	memset(&m_serial_address[6], 0, 2);
 #endif
 }
 
@@ -59,7 +60,8 @@ address::address(const char* ptr, unsigned int len)
 		throw std::runtime_error("unknown address type");
 	}
 
-	memcpy(m_serial_address, ptr, len);
+	memcpy(m_serial_address, ptr, 6);
+	memset(&m_serial_address[6], 0, 2);
 #endif
 }
 
