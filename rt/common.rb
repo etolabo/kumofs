@@ -106,6 +106,25 @@ unless Array.method_defined? :choice
 	end
 end
 
+unless Array.method_defined? :shuffle
+	class Array
+		def shuffle!
+			self.size.times {|i|
+				j = rand(size)
+				tmp = self[i]
+				self[i] = self[j]
+				self[j] = self[i]
+			}
+			self
+		end
+		def shuffle
+			ary = self.dup
+			ary.shuffle!
+			ary
+		end
+	end
+end
+
 
 def init_cluster(manager2, num_srv)
 	if manager2
