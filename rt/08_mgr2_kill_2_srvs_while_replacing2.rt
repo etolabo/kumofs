@@ -57,6 +57,5 @@ test "run normally" do
 
 	true
 end
-term_daemons *(mgrs + srvs).map {|r| r.get }
-
+term_daemons *((mgrs + srvs).map {|r| r.get } + [gw])
 
