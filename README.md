@@ -30,7 +30,7 @@ Following libraries are required to build kumofs:
 
   - linux >= 2.6.18
   - g++ >= 4.1
-  - ruby >= 1.8.7
+  - ruby >= 1.8.6
   - zlib
   - libcrypto (openssl)
   - Tokyo Cabinet >= 1.4.10

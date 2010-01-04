@@ -46,7 +46,7 @@ kumofsをコンパイルして実行するには以下の環境が必要です�
 -[[MessagePack for C++>http://msgpack.sourceforge.jp/cpp:install.ja]] >= 0.3.1（コンパイル時のみ）
 -[[Ragel>http://www.complang.org/ragel/]] >= 6.3（コンパイル時のみ）
 -g++ >= 4.1（コンパイル時のみ）
--ruby >= 1.8.7
+-ruby >= 1.8.6
 -libcrypto (openssl)
 -zlib
 

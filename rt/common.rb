@@ -96,6 +96,17 @@ class Gateway < Chukan::LocalProcess
 end
 
 
+# Ruby 1.8.6 compat
+unless Array.method_defined? :choice
+	class Array
+		def choice
+			return nil if empty?
+			self[rand(size)]
+		end
+	end
+end
+
+
 def init_cluster(manager2, num_srv)
 	if manager2
 		mgrs = Manager.redundantly
