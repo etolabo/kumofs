@@ -427,7 +427,8 @@ module Chukan
 	
 		def self.included(mod)
 			unless @@start
-				ObjectSpace.define_finalizer(mod, report)
+				#ObjectSpace.define_finalizer(mod, report)
+				at_exit &report
 				@@start = Time.now
 			end
 		end

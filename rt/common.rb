@@ -113,7 +113,7 @@ unless Array.method_defined? :shuffle
 				j = rand(size)
 				tmp = self[i]
 				self[i] = self[j]
-				self[j] = self[i]
+				self[j] = tmp
 			}
 			self
 		end
