@@ -415,29 +415,36 @@ private:
 void mod_replace_t::replace_delete(shared_node& manager, HashSpace& hs, shared_zone life)
 {
 	pthread_scoped_rdlock whlk(share->whs_mutex());
+	ClockTime replace_time = share->whs().clocktime();
 
 	{
 		pthread_scoped_wrlock rhlk(share->rhs_mutex());
 		share->rhs() = share->whs();
 	}
 
-	LOG_INFO("start replace delete for time(",share->whs().clocktime().get(),")");
+	LOG_INFO("start replace delete for time(",replace_time.get(),")");
 
 	if(!share->whs().empty()) {
+		HashSpace dsths(share->whs());
+		whlk.unlock();
+
 		share->db().for_each(
-				for_each_replace_delete(share->whs(), net->addr()),
+				for_each_replace_delete(dsths, net->addr()),
 				net->clocktime_now() );
+
+	} else {
+		whlk.unlock();
 	}
 
 	shared_zone nullz;
 	manager::mod_replace_t::ReplaceDeleteEnd param(
-			share->whs().clocktime(), net->clock_incr());
+			replace_time, net->clock_incr());
 
 	using namespace mp::placeholders;
 	manager->call(param, nullz,
 			BIND_RESPONSE(mod_replace_t, ReplaceDeleteEnd), 10);
 
-	LOG_INFO("finish replace for time(",share->whs().clocktime().get(),")");
+	LOG_INFO("finish replace for time(",replace_time.get(),")");
 }
 
 void mod_replace_t::for_each_replace_delete::operator() (Storage::iterator& kv)
