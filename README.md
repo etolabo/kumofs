@@ -19,9 +19,9 @@ kumofs is a distributed key-value storage system.
 
 See following URLs for more details:
 
-  - http://etolabo.github.com/...  (documents)
-  - http://etolabo.github.com/...  (documents; japanese)
-  - http://etolabo.github.com/...  (source code)
+  - [document](http://github.com/etolabo/kumofs/blob/master/doc/wiki.en.md)
+  - [document, Japanese](http://github.com/etolabo/kumofs/blob/master/doc/wiki.ja.md)
+  - [source code](http://github.com/etolabo/kumofs/)
 
 
 ## Installation
