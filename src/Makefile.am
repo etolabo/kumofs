@@ -5,3 +5,6 @@ export REVISION
 
 SUBDIRS = mp mpsrc log kazuhiki rpc storage gate logic command
 
+prep:
+	cd gate && make prep
+

@@ -33,3 +33,6 @@ man_MANS = \
 		doc/kumostat.1 \
 		doc/kumotop.1
 
+prep:
+	cd src && make prep
+

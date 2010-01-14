@@ -30,7 +30,8 @@ fi
 
 AC_CHECK_PROG(RAGEL, ragel, ragel)
 if test "x$RAGEL" = x; then
-	AC_MSG_ERROR([cannot find ragel. Ragel is needed to build.])
+	#AC_MSG_ERROR([cannot find ragel. Ragel is needed to build.])
+	RAGEL=ragel
 fi
 
 

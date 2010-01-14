@@ -18,13 +18,10 @@ noinst_HEADERS = \
 		memcache_text.h \
 		cloudy.h
 
-memproto/memtext.c: memproto/memtext.rl
+prep: memproto/memtext.rl
 	$(RAGEL) -C $< -o $@.tmp
 	mv $@.tmp $@
 
 EXTRA_DIST = \
 		memproto/memtext.rl
-
-MOSTLYCLEANFILES = \
-		memproto/memtext.c
 
