@@ -2,7 +2,7 @@
 
 ## Overview
 
-kumofs is a scalable and high-available distributed key-value store.
+kumofs is a scalable and highly available distributed key-value store.
 
   - Data is replicated over multiple servers.
   - Data is partitioned over multiple servers.
@@ -39,9 +39,9 @@ Following environment is required to build kumofs:
   - linux &gt;= 2.6.18
   - g++ &gt;= 4.1
   - ruby &gt;= 1.8.6
-  - [Tokyo Cabinet](http://tokyocabinet.sourceforge.net/) &gt;= 1.4.10
-  - [MessagePack for Ruby](http://msgpack.sourceforge.jp/ruby:install.ja) &gt;= 0.3.1
-  - [MessagePack for C++](http://msgpack.sourceforge.jp/cpp:install.ja) &gt;= 0.3.1
+  - [Tokyo Cabinet](http://1978th.net/tokyocabinet/) &gt;= 1.4.10
+  - [MessagePack for C++](http://msgpack.sourceforge.jp/cpp:install) &gt;= 0.3.1
+  - [MessagePack for Ruby](http://msgpack.sourceforge.jp/ruby:install) &gt;= 0.3.1
   - libcrypto (openssl)
   - zlib
 

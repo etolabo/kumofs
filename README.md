@@ -3,7 +3,7 @@ kumofs
 
 ## Overview
 
-kumofs is a scalabe and high-available distributed key-value store.
+kumofs is a scalabe and highly available distributed key-value store.
 
   - Data is replicated over multiple servers.
   - Data is partitioned over multiple servers.
@@ -32,11 +32,11 @@ Following libraries are required to build kumofs:
   - g++ >= 4.1
   - ruby >= 1.8.6
   - Tokyo Cabinet >= 1.4.10
-      http://tokyocabinet.sourceforge.net/spex-en.html#installation
-  - MessagePack for Ruby >= 0.3.1
-      http://msgpack.sourceforge.jp/ruby:install
+      http://1978th.net/tokyocabinet/
   - MessagePack for C++ >= 0.3.1
       http://msgpack.sourceforge.jp/cpp:install
+  - MessagePack for Ruby >= 0.3.1
+      http://msgpack.sourceforge.jp/ruby:install
   - zlib
   - libcrypto (openssl)
 
@@ -80,7 +80,7 @@ This example runs kumofs on single host.
 
 ## License
 
-    Copyright (C) 2009 FURUHASHI Sadayuki
+    Copyright (C) 2009-2010 FURUHASHI Sadayuki
     
        Licensed under the Apache License, Version 2.0 (the "License");
        you may not use this file except in compliance with the License.
