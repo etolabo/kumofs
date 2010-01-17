@@ -21,7 +21,10 @@ DOC_FILES = \
 		doc/kumolog.1 \
 		doc/kumomergedb.1 \
 		doc/kumostat.1 \
-		doc/kumotop.1
+		doc/kumotop.1 \
+		doc/doc.en.md \
+		doc/doc.ja.md
+
 
 EXTRA_DIST = $(DOC_FILES)
 
