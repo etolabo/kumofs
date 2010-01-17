@@ -19,8 +19,8 @@ kumofs is a scalabe and high-available distributed key-value store.
 
 See following URLs for more details:
 
-  - [document](http://github.com/etolabo/kumofs/blob/master/doc/wiki.en.md)
-  - [document, Japanese](http://github.com/etolabo/kumofs/blob/master/doc/wiki.ja.md)
+  - [document](http://github.com/etolabo/kumofs/blob/master/doc/doc.en.md)
+  - [document, Japanese](http://github.com/etolabo/kumofs/blob/master/doc/doc.ja.md)
   - [source code](http://github.com/etolabo/kumofs/)
 
 
