@@ -3,11 +3,11 @@ kumofs
 
 ## Overview
 
-kumofs is a distributed key-value storage system.
+kumofs is a scalabe and high-available distributed key-value store.
 
   - Data is replicated over multiple servers.
   - Data is partitioned over multiple servers.
-  - Single node performance is good; comparable with memcached.
+  - Extreme single node performance; comparable with memcached.
   - Both read and write performance got improved as servers added.
   - Servers can be added without stopping the system.
   - Servers can be added without changing the client applications.
@@ -31,16 +31,14 @@ Following libraries are required to build kumofs:
   - linux >= 2.6.18
   - g++ >= 4.1
   - ruby >= 1.8.6
-  - zlib
-  - libcrypto (openssl)
   - Tokyo Cabinet >= 1.4.10
       http://tokyocabinet.sourceforge.net/spex-en.html#installation
   - MessagePack for Ruby >= 0.3.1
       http://msgpack.sourceforge.jp/ruby:install
   - MessagePack for C++ >= 0.3.1
       http://msgpack.sourceforge.jp/cpp:install
-  - Ragel >= 6.3
-      http://www.complang.org/ragel/
+  - zlib
+  - libcrypto (openssl)
 
 
 Configure and install in the usual way:
@@ -53,6 +51,8 @@ Configure and install in the usual way:
 
 ## Example
 
+This example runs kumofs on 6-node cluster. Run *kumo-manager* on **mgr1** and **mgr2**, *kumo-server* on **svr1**, **svr2** and **svr3**, then run *kumo-gateway* on **cli1**.
+
     [on mgr1]$ kumo-manager -v -l mgr1 -p mgr2
     [on mgr2]$ kumo-manager -v -l mgr2 -p mgr1
     [on svr1]$ kumo-server  -v -l svr1 -m mgr1 -p mgr2 -s /var/kumodb.tch
@@ -60,9 +60,14 @@ Configure and install in the usual way:
     [on svr3]$ kumo-server  -v -l svr3 -m mgr1 -p mgr2 -s /var/kumodb.tch
     [       ]$ kumoctl mgr1 attach
     [on cli1]$ kumo-gateway -v -m mgr1 -p mgr2 -t 11211
-    [on cli1]$ # have fun with memcached client on 11211/tcp
+    [on cli1]$ # use memcached client on 11211/tcp
+
+See documents for details.
+
 
 ### Run on single host
+
+This example runs kumofs on single host.
 
     [localhost]$ kumo-manager -v -l localhost
     [localhost]$ kumo-server  -v -m localhost -l localhost:19801 -L 19901 -s ./kumodb1.tch
@@ -71,7 +76,6 @@ Configure and install in the usual way:
     [localhost]$ kumoctl localhost attach
     [localhost]$ kumo-gateway -v -m localhost -t 11211
     [localhost]$ # have fun with memcached client on 11211/tcp
-
 
 
 ## License

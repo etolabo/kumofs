@@ -126,7 +126,7 @@ rpc_args::rpc_args() :
 	connect_timeout_sec(10.0),
 	connect_retry_limit(4),
 	wthreads(2),
-	rthreads(4)
+	rthreads(8)
 {
 	kazuhiki::init();
 }

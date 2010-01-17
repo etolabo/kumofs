@@ -2,11 +2,11 @@
 
 ## Overview
 
-kumofs is a high-performance distributed key-value storage system.
+kumofs is a scalable and high-available distributed key-value store.
 
   - Data is replicated over multiple servers.
   - Data is partitioned over multiple servers.
-  - Single node performance is good; comparable with memcached.
+  - Extreme single node performance; comparable with memcached.
   - Both read and write performance got improved as servers added.
   - Servers can be added without stopping the system.
   - Servers can be added without changing the client applications.
@@ -37,12 +37,11 @@ Delete the key and its associated value.
 Following environment is required to build kumofs:
 
   - linux &gt;= 2.6.18
+  - g++ &gt;= 4.1
+  - ruby &gt;= 1.8.6
   - [Tokyo Cabinet](http://tokyocabinet.sourceforge.net/) &gt;= 1.4.10
   - [MessagePack for Ruby](http://msgpack.sourceforge.jp/ruby:install.ja) &gt;= 0.3.1
   - [MessagePack for C++](http://msgpack.sourceforge.jp/cpp:install.ja) &gt;= 0.3.1
-  - [Ragel](http://www.complang.org/ragel/) &gt;= 6.3
-  - g++ &gt;= 4.1
-  - ruby &gt;= 1.8.6
   - libcrypto (openssl)
   - zlib
 
