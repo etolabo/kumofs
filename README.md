@@ -19,8 +19,9 @@ kumofs is a scalabe and highly available distributed key-value store.
 
 See following URLs for more details:
 
-  - [document](http://github.com/etolabo/kumofs/blob/master/doc/doc.en.md)
+  - [document, English](http://github.com/etolabo/kumofs/blob/master/doc/doc.en.md)
   - [document, Japanese](http://github.com/etolabo/kumofs/blob/master/doc/doc.ja.md)
+  - [blog, Japanese](http://d.hatena.ne.jp/viver/20100117/p1)
   - [source code](http://github.com/etolabo/kumofs/)
 
 
@@ -31,12 +32,9 @@ Following libraries are required to build kumofs:
   - linux >= 2.6.18
   - g++ >= 4.1
   - ruby >= 1.8.6
-  - Tokyo Cabinet >= 1.4.10
-      http://1978th.net/tokyocabinet/
-  - MessagePack for C++ >= 0.3.1
-      http://msgpack.sourceforge.jp/cpp:install
-  - MessagePack for Ruby >= 0.3.1
-      http://msgpack.sourceforge.jp/ruby:install
+  - [Tokyo Cabinet](http://1978th.net/tokyocabinet/) >= 1.4.10
+  - [MessagePack for C++](http://msgpack.sourceforge.jp/c:install) >= 0.3.1
+  - [MessagePack for Ruby](http://msgpack.sourceforge.jp/ruby:install) >= 0.3.1
   - zlib
   - libcrypto (openssl)
 
