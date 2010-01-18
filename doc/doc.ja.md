@@ -49,9 +49,18 @@ kumofsをコンパイルして実行するには、以下の環境が必要で�
   - libcrypto (openssl)
   - zlib
 
-./configure && make && make install でインストールできます。
 
-    $ ./bootstrap  # 必要なときのみ
+Tokyo Cabinet をインストールするには、[Tokyo CabinetのWebサイト](http://1978th.net/tokyocabinet/)から最新のソースパッケージを入手して、./configure && make && make install してください。
+
+MessagePack をインストールするには、[MessagePackのWebサイト](http://msgpack.sourceforge.jp/cpp:install.ja)から、C/C++向けの最新のソースパッケージを入手して、./configure && make && make install してください。
+
+管理ツールは、rubyで実装されています。"msgpack"パッケージを利用しているので、gemを使ってインストールしてください。
+
+    $ sudo gem install msgpack
+
+kumofsのソースパッケージは、[Downloads](http://github.com/etolabo/kumofs/downloads) にあります。ダウンロードしたら、./configure && make && make install でインストールしてください。
+
+    $ ./bootstrap  # 必要な場合
     $ ./configure
     $ make
     $ sudo make install
@@ -381,7 +390,7 @@ kumofsは１台の AMD Athlon64 X2 5000+ を搭載したサーバーを使って
 ### データベースファイルのチューニング
 
 Tokyo Cabinetのハッシュデータベースのチューニングすることで、性能が大きく変わります。最大の性能を得るには、kumo-serverを起動する前に必ず **tchmgr** コマンドを使ってデータベースファイルを作成してください。
-最も重要なのは、バケット数のチューニングです。詳しくは [Tokyo Cabinet のドキュメント](http://tokyocabinet.sourceforge.net/spex-en.html) を参照してください。
+最も重要なのは、バケット数のチューニングです。詳しくは [Tokyo Cabinet のドキュメント](http://1978th.net/tokyocabinet/spex-ja.html) を参照してください。
 
 Tokyo Cabinetのパラメータのうち、拡張メモリマップのサイズ（xmsiz）とキャッシュ機構（rcnum）は、kumo-serverのコマンドライン引数で指定します。kumo-serverの **-s** オプションで、データベースファイル名の後ろに **#xmsiz=XXX** と指定すると、拡張メモリマップのサイズを指定できます。**#rcnum=XXX** と指定すると、キャッシュ機構を有効化できます。
 
@@ -678,33 +687,33 @@ kumofsはConsistent Hashingと呼ばれるアルゴリズムを利用してい�
 
 ### データベースファイルのフォーマット
 
-以下のような構造で保存されています。
+以下のような構造で保存されています。箱の中の数字はビット数で、エンディアンはビッグエンディアンです。
 
     key:
-    +--------+-----------------+
-    |   64   |       ...       |
-    +--------+-----------------+
+    +---------+-----------------+
+    |   64    |       ...       |
+    +---------+-----------------+
     hash
-             key
+              key
     
     active value:
-    +--------+--+-----------------+
-    |   64   |16|       ...       |
-    +--------+--+-----------------+
+    +---------+--+-----------------+
+    |   64    |16|       ...       |
+    +---------+--+-----------------+
     clocktime
-             metadata
-                data
+              metadata
+                 data
     
     deleted value:
-    +--------+
-    |   64   |
-    +--------+
+    +---------+
+    |   64    |
+    +---------+
     clocktime
     
     clocktime:
-    +---+---+
-    | 8 | 8 |
-    +---+---+
+    +----+----+
+    | 32 | 32 |
+    +----+----+
     UNIX time
-        logical clock
+         logical clock
 
