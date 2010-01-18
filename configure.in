@@ -133,6 +133,9 @@ AC_CHECK_LIB(crypto,SHA1,,
 AC_CHECK_LIB(msgpack,main,,
 	AC_MSG_ERROR([Can't find msgpack library]))
 
+AC_CHECK_LIB(msgpackc,main,,
+	AC_MSG_ERROR([Can't find msgpackc library]))
+
 AC_CHECK_HEADERS(tchdb.h,,
 	AC_MSG_ERROR([Can't find tokyo cabinet header]))
 AC_CHECK_LIB(tokyocabinet,tchdbget,,
