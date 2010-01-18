@@ -44,7 +44,7 @@ kumofsをコンパイルして実行するには、以下の環境が必要で�
   - g++ &gt;= 4.1
   - ruby &gt;= 1.8.6
   - [Tokyo Cabinet](http://1978th.net/tokyocabinet/) &gt;= 1.4.10
-  - [MessagePack for C++](http://msgpack.sourceforge.jp/cpp:install.ja) &gt;= 0.3.1
+  - [MessagePack for C++](http://msgpack.sourceforge.jp/c:install.ja) &gt;= 0.3.1
   - [MessagePack for Ruby](http://msgpack.sourceforge.jp/ruby:install.ja) &gt;= 0.3.1
   - libcrypto (openssl)
   - zlib
@@ -52,19 +52,25 @@ kumofsをコンパイルして実行するには、以下の環境が必要で�
 
 Tokyo Cabinet をインストールするには、[Tokyo CabinetのWebサイト](http://1978th.net/tokyocabinet/)から最新のソースパッケージを入手して、./configure && make && make install してください。
 
-MessagePack をインストールするには、[MessagePackのWebサイト](http://msgpack.sourceforge.jp/cpp:install.ja)から、C/C++向けの最新のソースパッケージを入手して、./configure && make && make install してください。
+MessagePack をインストールするには、[MessagePackのWebサイト](http://msgpack.sourceforge.jp/)から、C/C++向けの最新のソースパッケージを入手して、./configure && make && make install してください。
 
-管理ツールは、rubyで実装されています。"msgpack"パッケージを利用しているので、gemを使ってインストールしてください。
+管理ツールは、rubyで実装されています。"msgpack"パッケージを利用しているので、RubyGemsを使ってインストールしてください。
 
     $ sudo gem install msgpack
 
-kumofsのソースパッケージは、[Downloads](http://github.com/etolabo/kumofs/downloads) にあります。ダウンロードしたら、./configure && make && make install でインストールしてください。
+kumofs のソースパッケージは、[Downloads](http://github.com/etolabo/kumofs/downloads) にあります。ダウンロードしたら、./configure && make && make install でインストールしてください。
 
     $ ./bootstrap  # 必要な場合
     $ ./configure
     $ make
     $ sudo make install
 
+MessagePack や Tokyo Cabinet をインストールしたディレクトリによっては、./configure に --with-msgpack オプションや --with-tokyocabinet オプションを追加する必要があるかも知れません。
+
+    $ ./bootstrap
+    $ ./configure --with-msgpack=/usr/local --with-tokyocabinet=/opt/local
+    $ make
+    $ sudo make install
 
 ## チュートリアル
 
@@ -384,7 +390,7 @@ kumo-managerのタイムアウト時間が短すぎる可能性があります�
 
 kumofsは１台の AMD Athlon64 X2 5000+ を搭載したサーバーを使って、1秒間に約5万回のGet操作を処理できます。このスループットはkumo-serverの台数にほぼ比例して向上するので、5台のサーバーを使えば1秒間に約25万回のGet操作を処理できます。Set操作とDelete操作のスループットは、Get操作の約3分の1になります。
 このスループットを発揮するには、すべてのデータがキャッシュメモリに収まっている必要があります。1つのデータは3つにレプリケーションされるので、合計1GBのデータを保存するには合計3GBのメモリを必要とします。また、1つのデータはアラインメントが取られて保存されるため、1つのデータのサイズは16バイトの倍数（デフォルト）に切り上げられます。
-ここから計算すると、例えば１つのデータのサイズが160バイトで、2GBのメモリを搭載したサーバーを5台用意すると、2GB * 5台 / 3レプリカ / 160バイト = 2236万件 までのデータがキャッシュメモリに収まり、1秒間に約25万回のGet操作を処理できます。
+ここから計算すると、例えば１つのデータのサイズが160バイトで、2GBのメモリを搭載したサーバーを5台用意すると、2GB * 5台 / 3レプリカ / 160バイト = 2236万件 までのデータがキャッシュメモリに収まります。
 
 
 ### データベースファイルのチューニング
