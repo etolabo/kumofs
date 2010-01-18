@@ -21,7 +21,7 @@ See following URLs for more details:
 
   - [document, English](http://github.com/etolabo/kumofs/blob/master/doc/doc.en.md)
   - [document, Japanese](http://github.com/etolabo/kumofs/blob/master/doc/doc.ja.md)
-  - [blog, Japanese](http://d.hatena.ne.jp/viver/20100117/p1)
+  - [blog, Japanese](http://d.hatena.ne.jp/viver/20100118/p1)
   - [source code](http://github.com/etolabo/kumofs/)
 
 
