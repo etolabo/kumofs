@@ -1,0 +1,11 @@
+
+2010-01-20 version 0.3.1:
+
+  * Make it compilable on FreeBSD.
+  * Link msgpackc library. (--as-needed proglem)
+  * Update documents.
+
+2010-01-18 version 0.3.0:
+
+  * First public release.
+
