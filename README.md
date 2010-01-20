@@ -3,7 +3,7 @@ kumofs
 
 ## Overview
 
-kumofs is a scalabe and highly available distributed key-value store.
+kumofs is a scalable and highly available distributed key-value store.
 
   - Data is replicated over multiple servers.
   - Data is partitioned over multiple servers.

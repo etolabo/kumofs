@@ -23,10 +23,10 @@ kumofs supports following 3 operations:
 
 **Set(key, value)**
 Store the key-value pair. One key-value pair is copied on three servers.
-If the Set operation is failed (basecause of network trouble, etc.), the associated value of the key becomes indefinite. Retry to set the value, delete the key or not to get the key.
+If the Set operation is failed (because of network trouble, etc.), the associated value of the key becomes indefinite. Retry to set the value, delete the key or not to get the key.
 
 **value = Get(key)**
-Retrive the associated value of the key.
+Retrieve the associated value of the key.
 
 **Delete(key)**
 Delete the key and its associated value.
@@ -67,7 +67,7 @@ The latest release of the kumofs is available at [Downloads](http://github.com/e
     $ make
     $ sudo make install
 
-Accoording to the install directory of MessagePack or Tokyo Cabinet, --with-msgpack option or --with-tokyocabinet option might have to be added to ./configure.
+According to the install directory of MessagePack or Tokyo Cabinet, --with-msgpack option or --with-tokyocabinet option might have to be added to ./configure.
 
     $ ./bootstrap
     $ ./configure --with-msgpack=/usr/local --with-tokyocabinet=/opt/local
@@ -142,7 +142,7 @@ Attached kumo-servers are listed at **attached node**. Confirm it as follows:
 ### Run kumo-gateway
 
 Finally, run kumo-gateway on the hosts that runs applications that uses kumofs.
-kumo-gateway requres IP address of the kumo-managers and port number that accepts memcached protocol client.
+kumo-gateway requires IP address of the kumo-managers and port number that accepts memcached protocol client.
 
     [on cli1]$ kumo-gateway -v -m svr1 -p svr2 -t 11211
 
@@ -186,7 +186,7 @@ Use **kumoctl** command to get the status. Specify IP address of the kumo-manage
 
 **hash space timestamp** The time that the list of attached kumo-servers is updated. It is updated when new kumo-server is added or existing kumo-server is down.
 
-**attached node** The list of attached kumo-servers. **(active)** is normal node and **(fault)** is fault node or recoverd but not re-attached node.
+**attached node** The list of attached kumo-servers. **(active)** is normal node and **(fault)** is fault node or recovered but not re-attached node.
 
 **not attached node** The list of recognized but not-attached nodes.
 
