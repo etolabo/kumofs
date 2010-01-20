@@ -270,13 +270,14 @@ void mod_replace_stream_t::stream_accumulator::send(int sock)
 	m_mmap_stream->flush();
 	size_t size = m_mmap_stream->size();
 	//m_mmap_stream.reset(NULL);  // FIXME needed?
-#ifdef __linux__
+#if defined(__linux__)
 	while(size > 0) {
 		ssize_t rl = ::sendfile(sock, m_fd.get(), NULL, size);
 		if(rl <= 0) { throw mp::system_error(errno, "offer send error"); }
 		size -= rl;
 	}
-#else
+#elif defined(__APPLE__) && defined(__MACH__)
+	// Mac OS X
 	off_t sent = 0;
 	while(sent < size) {
 		off_t len = size - sent;
@@ -284,6 +285,16 @@ void mod_replace_stream_t::stream_accumulator::send(int sock)
 			throw mp::system_error(errno, "offer send error");
 		}
 		sent += len;
+	}
+#else
+	size_t sent = 0;
+	while(sent < size) {
+		size_t len = size - sent;
+		off_t sbytes = 0;
+		if(::sendfile(m_fd.get(), sock, sent, len, NULL, &sbytes, 0) < 0) {
+			throw mp::system_error(errno, "offer send error");
+		}
+		sent += sbytes;
 	}
 #endif
 }
