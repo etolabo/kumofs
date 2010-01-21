@@ -43,6 +43,22 @@ AM_PROG_AS
 AM_PROG_CC_C_O
 
 
+AC_LANG_PUSH(C++)
+AC_CACHE_CHECK([for inner class friend], kumofs_cv_inner_class_friend, [
+	AC_TRY_COMPILE([
+		class base {
+			class inner { int val; friend class base; };
+			class check { void test() { inner r; r.val = 0; } };
+		};
+	], [], kumofs_cv_inner_class_friend="yes")
+	])
+if test "$kumofs_cv_inner_class_friend" != "yes"; then
+	AC_MSG_ERROR([inner class friend is not supported.
+Note that g++ < 4.1 is not supported. Use g++ >= 4.1.])
+fi
+AC_LANG_POP
+
+
 AC_ARG_WITH([msgpack],
 	AS_HELP_STRING([--with-msgpack=DIR],
 				   [specify the root directory for msgpack library]),
@@ -131,15 +147,19 @@ AC_CHECK_LIB(crypto,SHA1,,
 	AC_MSG_ERROR([Can't find openssl library]))
 
 AC_CHECK_LIB(msgpack,main,,
-	AC_MSG_ERROR([Can't find msgpack library]))
+	AC_MSG_ERROR([Can't find msgpack library.
+--with-msgpack=DIR option may be needed.]))
 
 AC_CHECK_LIB(msgpackc,main,,
-	AC_MSG_ERROR([Can't find msgpackc library]))
+	AC_MSG_ERROR([Can't find msgpackc library.
+--with-msgpack=DIR option may be needed.]))
 
 AC_CHECK_HEADERS(tchdb.h,,
-	AC_MSG_ERROR([Can't find tokyo cabinet header]))
+	AC_MSG_ERROR([Can't find Tokyo Cabinet header.
+--with-tokyocabinet=DIR option may be needed.]))
 AC_CHECK_LIB(tokyocabinet,tchdbget,,
-	AC_MSG_ERROR([Can't find tokyocabinet library]))
+	AC_MSG_ERROR([Can't find tokyocabinet library.
+--with-tokyocabinet=DIR option may be needed.]))
 
 
 AC_MSG_CHECKING([storage type])
