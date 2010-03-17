@@ -36,6 +36,7 @@
 #include <algorithm>
 #include <memory>
 #include <inttypes.h>
+#include "config.h"  // PACKAGE VERSION
 
 namespace kumo {
 namespace {
@@ -144,6 +145,7 @@ static const char* const NOT_SUPPORTED_REPLY = "CLIENT_ERROR supported\r\n";
 static const char* const GET_FAILED_REPLY    = "SERVER_ERROR get failed\r\n";
 static const char* const STORE_FAILED_REPLY  = "SERVER_ERROR store failed\r\n";
 static const char* const DELETE_FAILED_REPLY = "SERVER_ERROR delete failed\r\n";
+static const char* const VERSION_REPLY       = "VERSION " PACKAGE "-" VERSION "\r\n";
 
 // "VALUE "+keylen+" 0 "+uint32+" "+uint64+"\r\n\0"
 #define HEADER_SIZE(keylen) \
@@ -459,6 +461,17 @@ int request_delete(void* user,
 	return 0;
 }
 
+int request_version(void* user,
+		memtext_command cmd,
+		memtext_request_other* r)
+{
+	LOG_TRACE("version");
+	RELEASE_REFERENCE(user, ctx, life);
+
+	wavy::write(ctx->fd(), VERSION_REPLY, strlen(VERSION_REPLY));
+
+	return 0;
+}
 
 handler::context::context(int fd, mp::stream_buffer* buf, const shared_valid& valid) :
 	m_fd(fd), m_buffer(buf), m_valid(valid) { }
@@ -496,6 +509,7 @@ handler::handler(int fd) :
 		request_delete, // delete
 		NULL,           // incr
 		NULL,           // decr
+		request_version,// version
 	};
 
 	memtext_init(&m_memproto, &cb, &m_context);

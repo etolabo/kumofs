@@ -50,6 +50,9 @@ typedef enum {
 	/* numeric */
 	MEMTEXT_CMD_INCR,
 	MEMTEXT_CMD_DECR,
+
+	/* other */
+	MEMTEXT_CMD_VERSION,
 } memtext_command;
 
 
@@ -94,6 +97,9 @@ typedef struct {
 	bool noreply;
 } memtext_request_numeric;
 
+typedef struct {
+} memtext_request_other;
+
 typedef int (*memtext_callback_retrieval)(
 		void* user, memtext_command cmd,
 		memtext_request_retrieval* req);
@@ -114,6 +120,10 @@ typedef int (*memtext_callback_numeric)(
 		void* user, memtext_command cmd,
 		memtext_request_numeric* req);
 
+typedef int (*memtext_callback_other)(
+		void* user, memtext_command cmd,
+		memtext_request_other* req);
+
 typedef struct {
 	memtext_callback_retrieval cmd_get;
 	memtext_callback_retrieval cmd_gets;
@@ -126,6 +136,7 @@ typedef struct {
 	memtext_callback_delete    cmd_delete;
 	memtext_callback_numeric   cmd_incr;
 	memtext_callback_numeric   cmd_decr;
+	memtext_callback_other     cmd_version;
 } memtext_callback;
 
 typedef struct {
