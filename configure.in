@@ -1,6 +1,6 @@
 AC_INIT(src/logic/boot.h)
 AC_CONFIG_AUX_DIR(ac)
-AM_INIT_AUTOMAKE(kumofs, 0.3.1)
+AM_INIT_AUTOMAKE(kumofs, 0.3.2)
 AC_CONFIG_HEADER(config.h)
 
 
