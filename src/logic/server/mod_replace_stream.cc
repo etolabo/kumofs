@@ -24,7 +24,7 @@
 #include <fcntl.h>
 #include <algorithm>
 
-#ifdef __linux__
+#if defined(__linux__) || defined(__sun__)
 #include <sys/sendfile.h>
 #endif
 
@@ -270,7 +270,7 @@ void mod_replace_stream_t::stream_accumulator::send(int sock)
 	m_mmap_stream->flush();
 	size_t size = m_mmap_stream->size();
 	//m_mmap_stream.reset(NULL);  // FIXME needed?
-#if defined(__linux__)
+#if defined(__linux__) || defined(__sun__)
 	while(size > 0) {
 		ssize_t rl = ::sendfile(sock, m_fd.get(), NULL, size);
 		if(rl <= 0) { throw mp::system_error(errno, "offer send error"); }

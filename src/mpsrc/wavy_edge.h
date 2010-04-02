@@ -17,10 +17,10 @@
 #      define MP_WAVY_EDGE kqueue
 #    elif defined(__FreeBSD__) || defined(__NetBSD__)
 #      define MP_WAVY_EDGE kqueue
-#    elif defined(__SunOS__)  // FIXME Solaris 10
-#      define MP_WAVY_EDGE kqueue
+#    elif defined(__sun__)
+#      define MP_WAVY_EDGE eventport
 #    else
-#      define MP_WAVY_EDGE select
+#      error this system is not supported.
 #    endif
 #  endif
 #endif

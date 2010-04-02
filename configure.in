@@ -1,5 +1,7 @@
 AC_INIT(src/logic/boot.h)
 AC_CONFIG_AUX_DIR(ac)
+AC_CANONICAL_TARGET
+
 AM_INIT_AUTOMAKE(kumofs, 0.3.2)
 AC_CONFIG_HEADER(config.h)
 
@@ -181,6 +183,18 @@ AC_CHECK_LIB(tokyocabinet,tchdbget,,
 	AC_MSG_ERROR([Can't find tokyocabinet library.
 --with-tokyocabinet=DIR option may be needed.]))
 
+case "$target_os" in
+solaris*)
+	AC_CHECK_LIB(socket,accept,,
+		AC_MSG_ERROR([Can't find libsocket.]))
+	AC_CHECK_LIB(nsl,inet_ntop,,
+		AC_MSG_ERROR([Can't find libnsl.]))
+	AC_CHECK_LIB(sendfile,sendfile,,
+		AC_MSG_ERROR([Can't find libsendfile.]))
+	CXXFLAGS="$CXXFLAGS -D_REENTRANT"
+	CFLAGS="$CFLAGS -D_REENTRANT"
+	;;
+esac
 
 AC_MSG_CHECKING([storage type])
 AC_MSG_RESULT($storage_type)

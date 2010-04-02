@@ -26,10 +26,12 @@
 #include <map>
 #include <arpa/inet.h>
 #include <netdb.h>
-#include <ifaddrs.h>
 #include <string.h>
 #include <stdio.h>
 #include <stdarg.h>
+#if 0
+#include <ifaddrs.h>
+#endif
 
 namespace kazuhiki {
 
@@ -582,6 +584,7 @@ acceptable listenable(sockaddr_in6*     dst, unsigned short d_port)
 }  // namespace type
 
 
+#if 0
 namespace convert {
 
 static int netif_addr_impl(const char* ifname, unsigned short port, void* dst, int family)
@@ -628,6 +631,7 @@ int netif_addr(const char* ifname, unsigned short port, sockaddr_in6* dst)
 }
 
 }  // namespace convert
+#endif
 
 
 }  // namespace kazuhiki
