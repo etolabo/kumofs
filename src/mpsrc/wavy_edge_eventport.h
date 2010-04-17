@@ -99,6 +99,11 @@ public:
 		if(port_getn(m_port, result->buf, 0, &num, NULL) < 0) {
 			return -1;
 		}
+		if(num == 0) num = 1;
+		if(num > MP_WAVY_EDGE_BACKLOG_SIZE) num = MP_WAVY_EDGE_BACKLOG_SIZE;
+		if(port_getn(m_port, result->buf, MP_WAVY_EDGE_BACKLOG_SIZE, &num, NULL) < 0) {
+			return -1;
+		}
 		return num;
 	}
 
@@ -109,6 +114,12 @@ public:
 		ts.tv_nsec = (timeout_msec % 1000) * 1000000;
 		uint_t num = MP_WAVY_EDGE_BACKLOG_SIZE;
 		if(port_getn(m_port, result->buf, 0, &num, &ts) < 0) {
+			return -1;
+		}
+		if(num == 0) num = 1;
+		if(num > MP_WAVY_EDGE_BACKLOG_SIZE) num = MP_WAVY_EDGE_BACKLOG_SIZE;
+		if(port_getn(m_port, result->buf, MP_WAVY_EDGE_BACKLOG_SIZE, &num, &ts) < 0) {
+			if(errno == ETIME) { return 0; }
 			return -1;
 		}
 		return num;
