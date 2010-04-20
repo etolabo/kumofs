@@ -14,7 +14,7 @@ kumofs is a scalable and highly available distributed key-value store.
   - The system does not stop to recover crashed servers.
   - Scalable from 2 to 60 servers. (more than 60 servers has not be tested yet)
   - Optimized for storing a large amount of small data.
-  - memcached protocol support. (get, set and delete only; expiration time and flags must be 0)
+  - memcached protocol support. (get, set and delete only; expiration time must be 0)
 
 
 ## Data Model
