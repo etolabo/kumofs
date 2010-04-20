@@ -1,4 +1,8 @@
 
+2010-04-20 version 0.3.4:
+
+  * Memcached gateway saves flags if -F option is specified.
+
 2010-03-18 version 0.3.2:
 
   * Memcached gateway supports 'version' command
