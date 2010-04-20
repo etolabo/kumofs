@@ -59,6 +59,8 @@ struct arg_t : rpc_args {
 	sockaddr_in cloudy_addr_in;
 	int cloudy_lsock;  // convert
 
+	bool mc_save_flag;
+
 	virtual void convert()
 	{
 		rpc_args::convert();
@@ -100,6 +102,8 @@ struct arg_t : rpc_args {
 				type::listenable(&mcbin_addr_in, MEMPROTO_DEFAULT_PORT));
 		on("-c", "--cloudy", &cloudy_set,
 				type::listenable(&cloudy_addr_in, CLOUDY_DEFAULT_PORT));
+		on("-F", "--memproto-save-flag",
+				type::boolean(&mc_save_flag));
 		on("-G", "--get-retry",
 				type::numeric(&get_retry_num, get_retry_num));
 		on("-S", "--set-retry",
@@ -131,6 +135,8 @@ struct arg_t : rpc_args {
 			"--local-cache     local cache (Tokyo Cabinet abstract database)\n"
 		"  -t  <[addr:]port="<<MEMTEXT_DEFAULT_PORT<<">   "
 			"--memproto-text   memcached text protocol listen port\n"
+		"  -F                "
+			"--memproto-save-flag     save flags on memcached text protocol"
 		"  -b  <[addr:]port="<<MEMPROTO_DEFAULT_PORT<<">   "
 			"--memproto-binary memcached binary protocol listen port\n"
 		"  -c  <[addr:]port="<<CLOUDY_DEFAULT_PORT<<">   "
@@ -167,7 +173,7 @@ int main(int argc, char* argv[])
 	std::auto_ptr<MemcacheText> mctext;
 	std::auto_ptr<MemcacheBinary> mcbin;
 	std::auto_ptr<Cloudy> cloudy;
-	if(arg.mctext_set) { mctext.reset(new MemcacheText(arg.mctext_lsock)); }
+	if(arg.mctext_set) { mctext.reset(new MemcacheText(arg.mctext_lsock, arg.mc_save_flag)); }
 	if(arg.mcbin_set)  { mcbin.reset(new MemcacheBinary(arg.mcbin_lsock)); }
 	if(arg.cloudy_set) { cloudy.reset(new Cloudy(arg.cloudy_lsock)); }
 

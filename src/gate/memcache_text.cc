@@ -41,6 +41,8 @@
 namespace kumo {
 namespace {
 
+static bool g_save_flag = false;
+
 using gate::wavy;
 using gate::shared_zone;
 using gate::auto_zone;
@@ -147,9 +149,9 @@ static const char* const STORE_FAILED_REPLY  = "SERVER_ERROR store failed\r\n";
 static const char* const DELETE_FAILED_REPLY = "SERVER_ERROR delete failed\r\n";
 static const char* const VERSION_REPLY       = "VERSION " PACKAGE "-" VERSION "\r\n";
 
-// "VALUE "+keylen+" 0 "+uint32+" "+uint64+"\r\n\0"
+// "VALUE "+keylen+" "+uint16+" "+uint32+" "+uint64+"\r\n\0"
 #define HEADER_SIZE(keylen) \
-		6 +(keylen)+ 3  +  10  + 1 +  20  +   3
+		6 +(keylen)+ 1+   5  + 1 +  10  + 1 +  20  +   3
 
 
 void response_get(void* user,
@@ -163,7 +165,7 @@ void response_get(void* user,
 		return;
 	}
 
-	if(!res.val) {
+	if(!res.val || (g_save_flag && res.vallen < 2)) {
 		send_data(e, "END\r\n", 5);
 		return;
 	}
@@ -173,7 +175,19 @@ void response_get(void* user,
 
 	memcpy(p, "VALUE ", 6);           p += 6;
 	memcpy(p, res.key,  res.keylen);  p += res.keylen;
-	p += sprintf(p, " 0 %"PRIu32, res.vallen);
+	if(g_save_flag) {
+		union {
+			uint16_t num;
+			char mem[2];
+		} cast;
+		memcpy(cast.mem, res.val, 2);
+		uint16_t flags = ntohs(cast.num);
+		res.val    += 2;
+		res.vallen -= 2;
+		p += sprintf(p, " %"PRIu16" %"PRIu32, flags, res.vallen);
+	} else {
+		p += sprintf(p, " 0 %"PRIu32, res.vallen);
+	}
 
 	if(e->require_cas) {
 		p += sprintf(p, " %"PRIu64"\r\n", (uint64_t)0);
@@ -198,7 +212,7 @@ void response_get_multi(void* user,
 	get_multi_entry* e = reinterpret_cast<get_multi_entry*>(user);
 	LOG_TRACE("get multi response");
 
-	if(res.error || !res.val) {
+	if(res.error || !res.val || (g_save_flag && res.vallen < 2)) {
 		goto filled;
 	}
 
@@ -209,7 +223,19 @@ void response_get_multi(void* user,
 	
 		memcpy(p, "\r\nVALUE ", 8);       p += 8;
 		memcpy(p, res.key,  res.keylen);  p += res.keylen;
-		p += sprintf(p, " 0 %"PRIu32, res.vallen);
+		if(g_save_flag) {
+			union {
+				uint16_t num;
+				char mem[2];
+			} cast;
+			memcpy(cast.mem, res.val, 2);
+			uint16_t flags = ntohs(cast.num);
+			res.val    += 2;
+			res.vallen -= 2;
+			p += sprintf(p, " %"PRIu16" %"PRIu32, flags, res.vallen);
+		} else {
+			p += sprintf(p, " 0 %"PRIu32, res.vallen);
+		}
 	
 		if(e->require_cas) {
 			p += sprintf(p, " %"PRIu64"\r\n", (uint64_t)0);  // FIXME p64X casval
@@ -400,9 +426,22 @@ int request_set(void* user,
 	LOG_TRACE("set");
 	RELEASE_REFERENCE(user, ctx, life);
 
-	if(r->flags || r->exptime) {
+	if((!g_save_flag && r->flags) || r->exptime) {
 		wavy::write(ctx->fd(), NOT_SUPPORTED_REPLY, strlen(NOT_SUPPORTED_REPLY));
 		return 0;
+	}
+
+	if(g_save_flag) {
+		union {
+			uint16_t num;
+			char mem[2];
+		} cast;
+		cast.num = htons(r->flags);
+		r->data     -= 2;
+		r->data_len += 2;
+		// テキストプロトコルでdataの前2バイトには\nとbytesが入っているが、
+		// r->data_lenにコピーされている
+		memcpy(const_cast<char*>(r->data), cast.mem, 2);
 	}
 
 	set_entry* e = life->allocate<set_entry>();
@@ -581,8 +620,11 @@ void accepted(int fd, int err)
 }  // noname namespace
 
 
-MemcacheText::MemcacheText(int lsock) :
-	m_lsock(lsock) { }
+MemcacheText::MemcacheText(int lsock, bool save_flag) :
+	m_lsock(lsock)
+{
+	g_save_flag = save_flag;
+}
 
 MemcacheText::~MemcacheText() {}
 

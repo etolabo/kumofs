@@ -187,7 +187,7 @@ void rpc_args::show_usage()
 	std::cout <<
 		"  -k  <number="<<keepalive_interval<<">    "
 			"--keepalive-interval     keepalive interval in seconds\n"
-		"  -Ys <number="<<connect_timeout_sec<<">    "
+		"  -Ys <number="<<connect_timeout_sec<<">   "
 			"--connect-timeout        connect timeout time in seconds\n"
 		"  -Yn <number="<<connect_retry_limit<<">    "
 			"--connect-retry-limit    connect retry limit\n"
