@@ -14,7 +14,8 @@ kumofsは、実用性を重視した分散データストアです。レプリ�
   - システムを止めずにダウンしたサーバーを復旧できます
   - 2台から60台程度までスケールします（60台以上はまだ検証されていません）
   - 小さなデータを大量に保存するのに適しています
-  - memcachedプロトコルをサポートしています（get, set, delete のみ。expireとflagsには必ず0を指定する必要があります）
+  - memcachedプロトコルをサポートしています
+    - サポートしているのはget, set, delete のみです。expireには必ず0を指定する必要があります。flagsを保存するにはkumo-gatewayに-Fオプションが必要です。
 
 
 ## データモデル
@@ -353,7 +354,9 @@ kumo-managerがすべてダウンしてしまっても、システムを止め�
 
 何かデータをSetしようとしたときに、何度やっても必ず失敗してしまう場合は、以下の点を調べてみてください：
 
-**flagsかexpireが0以外にセットされていないか** memcachedプロトコルを使ってkumofsにデータをsetするには、flagとexpireが0である必要があります。memcachedのクライアントライブラリによっては、自動的にflagをセットしてしまうものがあります。kumo-gatewayの代わりに、本物のmemcachedに**-vv**オプションを付けて起動すると、memcachedに発行されたコマンドのログがmemcachedの標準出力に表示されるようになります。これを利用して、クライアントライブラリが自動的にflagやexpireに0以外の値をセットしていないか確認してください。
+**expireに0以外の値がセットされていないか** memcachedプロトコルを使ってkumofsにデータをsetするには、expireが0である必要があります。
+
+**flagsに0以外の値がセットされていないか** memcachedプロトコルを使ってkumofsにデータをsetするには、kumo-gatewayの引数に **-F** オプションを付加する必要があります。memcachedのクライアントライブラリによっては、自動的にflagをセットしてしまうものがあります。kumo-gatewayの代わりに、本物のmemcachedに**-vv**オプションを付けて起動すると、memcachedに発行されたコマンドのログがmemcachedの標準出力に表示されるようになります。これを利用して、クライアントライブラリが自動的にexpireに0以外の値をセットしていないか確認してください。
 
 **kumo-serverは登録されているか**  *kumoctl*コマンドの**status**サブコマンドを使ってkumo-managerの状態を調べ、kumo-serverが*attached node*として登録されており、*active)*と表示されていることを確認してください。
 
@@ -499,6 +502,8 @@ Delete操作は実際には削除済みフラグをSetする操作です。し�
 **-t &lt;port&gt;** memcachedテキストプロトコルを待ち受けるポート番号を指定する
 
 **-b &lt;port&gt;** memcachedバイナリプロトコルを待ち受けるポート番号を指定する（EXPERIMENTAL）
+
+**-F** memcachedテキストプロトコルで、flagsを保存するようにする
 
 **-G &lt;number&gt;** Get操作の最大リトライ回数を指定する
 

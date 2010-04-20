@@ -22,6 +22,8 @@ Run this daemon on the hosts that runs applications that uses kumofs.
 ::=memcached binary protocol listen port
 ::?-c  <[addr:]port=11611>   --cloudy
 ::=asynchronous memcached binary protocol listen port
+::?-F                --memproto-save-flag
+::=save flags on memcached text protocol
 ::?-As               --async-replicate-set
 ::=send response without waiting replication on set
 ::?-Ad               --async-replicate-delete
