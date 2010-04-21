@@ -256,13 +256,13 @@
 	other_command = ('version') @cmd_version;
 
 	retrieval = retrieval_command ' ' key (' ' key >incr_key)*
-				' '?   # workaraound for libmemcached
+				' '*   # workaraound for libmemcached
 				'\r\n';
 
 	storage = storage_command ' ' key
 				' ' flags ' ' exptime ' ' bytes
 				(' ' noreply)?
-				' '?   # workaraound for apr_memcache
+				' '*   # workaraound for apr_memcache and memcached client for java
 				'\r\n'
 				@data_start
 				'\r\n'
@@ -272,6 +272,7 @@
 				' ' flags ' ' exptime ' ' bytes
 				' ' cas_unique
 				(' ' noreply)?
+				' '*   # workaraound for memcached client for java
 				'\r\n'
 				@data_start
 				'\r\n'
