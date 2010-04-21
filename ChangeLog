@@ -1,5 +1,9 @@
 
-2010-04-20 version 0.3.4:
+2010-04-22 version 0.3.4:
+
+  * Memcached gateway supports memcached client for java.
+
+2010-04-20 version 0.3.3:
 
   * Memcached gateway saves flags if -F option is specified.
 

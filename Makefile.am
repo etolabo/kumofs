@@ -1,6 +1,3 @@
-export ERB
-export RUBY
-export RAGEL
 
 REVISION = $(shell git show --pretty=format:'%T %ad' | head -n 1)
 export REVISION
