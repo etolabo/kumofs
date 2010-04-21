@@ -1,8 +1,4 @@
-export ERB
-export RUBY
-export RAGEL
 
-# work around for dependency
 SUBDIRS = manager server gateway
 
 noinst_LIBRARIES = libkumo_logic.a

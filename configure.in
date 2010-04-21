@@ -7,35 +7,10 @@ AC_CONFIG_HEADER(config.h)
 
 
 AC_SUBST(CFLAGS)
-if test "" = "$CFLAGS"; then
-	CFLAGS="-O4"
-fi
 CFLAGS="-O4 -Wall $CFLAGS"
 
-
 AC_SUBST(CXXFLAGS)
-if test "" = "$CXXFLAGS"; then
-	CXXFLAGS="-O4"
-fi
 CXXFLAGS="-O4 -Wall $CXXFLAGS"
-
-
-AC_CHECK_PROG(RUBY, ruby, ruby)
-if test "x$RUBY" = x; then
-	AC_MSG_ERROR([cannot find ruby. Ruby is needed to build.])
-fi
-
-AC_CHECK_PROG(ERB, erb, erb)
-if test "x$ERB" = x; then
-	AC_MSG_ERROR([cannot find erb. Ruby is needed to build.])
-fi
-
-AC_CHECK_PROG(RAGEL, ragel, ragel)
-if test "x$RAGEL" = x; then
-	#AC_MSG_ERROR([cannot find ragel. Ragel is needed to build.])
-	RAGEL=ragel
-fi
-
 
 AC_PROG_CC
 AC_PROG_CXX

@@ -1,0 +1,107 @@
+#!/usr/bin/env bash
+
+RUBY="ruby"
+ERB="erb"
+RAGEL="ragel"
+
+function r() {
+	echo "$@"
+	"$@"
+}
+
+function check_error() {
+	if [ "$1" != 0 ]; then
+		echo ""
+		echo "** preprocess failed **"
+		echo ""
+		exit 1
+	fi
+}
+
+function pre_h() {
+	file="$1"
+	out="$(dirname "$file")/$(basename "$file" .pre.h).h"
+	r "$RUBY" -e '
+		def args(n, &block) ;
+			Array.new(n) {|i| yield i+1} .join(", ") ;
+		end ;
+		src = File.read(ARGV[0]) ;
+		src.gsub!(/^MP_ARGS_BEGIN$(.*?)^MP_ARGS_END$/m) {|code| ;
+			result = [] ;
+			1.upto(15) {|n| ;
+				line = code.split("\n")[1..-2].join("\n") ;
+				line.gsub!(/MP_ARGS_TEMPLATE/,   args(n) {|i| "typename A#{i}" }) ;
+				line.gsub!(/MP_ARGS_PARAMS_PTR/, args(n) {|i| "A#{i}* a#{i}"   }) ;
+				line.gsub!(/MP_ARGS_PARAMS_REF/, args(n) {|i| "A#{i}& a#{i}"   }) ;
+				line.gsub!(/MP_ARGS_PARAMS/,     args(n) {|i| "A#{i} a#{i}"    }) ;
+				line.gsub!(/MP_ARGS_FUNC/,       args(n) {|i| "a#{i}"          }) ;
+				line.gsub!(/MP_ARGS_TYPES_PTR/,  args(n) {|i| "A#{i}*"    }) ;
+				line.gsub!(/MP_ARGS_TYPES_REF/,  args(n) {|i| "A#{i}&"    }) ;
+				line.gsub!(/MP_ARGS_TYPES/,      args(n) {|i| "A#{i}"     }) ;
+				line.gsub!(/MP_ARGS_ITERATOR_BEGIN$(.*?)^MP_ARGS_ITERATOR_END$/m) {|sub| ;
+					subresult = [] ;
+					subline = sub.split("\n")[1..-2].join("\n") ;
+					1.upto(n) {|it| ;
+						sublineit = subline.dup ;
+						sublineit.gsub!(/MP_ARGS_ITERATOR_PARAM/,    "a#{it}") ;
+						sublineit.gsub!(/MP_ARGS_ITERATOR_TYPE_PTR/, "A#{it}*") ;
+						sublineit.gsub!(/MP_ARGS_ITERATOR_TYPE_REF/, "A#{it}&") ;
+						sublineit.gsub!(/MP_ARGS_ITERATOR_TYPE/,     "A#{it}") ;
+						sublineit.gsub!(/\[MP_ARGS_ITERATOR\]/,      "#{it}" ) ;
+						if it == 1 ;
+							sublineit.gsub!(/MP_ARGS_ITERATOR_FIRST_COLON/, " " ) ;
+						else ;
+							sublineit.gsub!(/MP_ARGS_ITERATOR_FIRST_COLON/, "," ) ;
+						end ;
+						if it == n ;
+							sublineit.gsub!(/MP_ARGS_ITERATOR_LAST_COLON/, " " ) ;
+						else ;
+							sublineit.gsub!(/MP_ARGS_ITERATOR_LAST_COLON/, "," ) ;
+						end ;
+						subresult << sublineit ;
+					} ;
+					subresult.join("\n") ;
+				} ;
+				result << line ;
+			} ;
+			result.join("\n") ;
+		} ;
+		File.open(ARGV[1],"w") {|f| f.puts src }' "$file" "$out"
+	check_error $?
+}
+
+function pre_erb() {
+	file="$1"
+	out="$(dirname "$file")/$(basename "$file" .erb)"
+	echo "$ERB" "<" "$file" ">" "$out"
+	"$ERB" < "$file" > "$out"
+	check_error $?
+}
+
+pre_h src/mp/object_callback.pre.h
+pre_h src/mp/wavy/core.pre.h
+pre_h src/mp/wavy/singleton.pre.h
+
+pre_erb src/log/mlogger.h.erb
+pre_erb src/log/logpack.hpp.erb
+
+r "$RAGEL" -C src/gate/memproto/memtext.rl -o src/gate/memproto/memtext.c
+check_error $?
+
+cwd="$(pwd)"
+
+echo "cd $cwd/src/logic/gateway"
+cd src/logic/gateway && r "$RUBY" "$cwd/src/logic/protogen" ../gateway.proto.h
+check_error $?
+cd "$cwd"
+
+echo "cd $cwd/src/logic/manager"
+cd src/logic/manager && r "$RUBY" "$cwd/src/logic/protogen" ../manager.proto.h
+check_error $?
+cd "$cwd"
+
+echo "cd $cwd/src/logic/server"
+cd src/logic/server && r "$RUBY" "$cwd/src/logic/protogen" ../server.proto.h
+check_error $?
+cd "$cwd"
+

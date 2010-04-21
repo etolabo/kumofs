@@ -7,16 +7,6 @@ PROTOGEN_AUTOGEN_FILES = \
 		mod_replace_stream.h \
 		mod_store.h
 
-proto.generated: ../protogen ../server.proto.h
-	$(RUBY) ../protogen ../server.proto.h
-	touch $@
-
-$(PROTOGEN_AUTOGEN_FILES): proto.generated
-
-nodist_noinst_HEADERS = \
+EXTRA_DIST = \
 		$(PROTOGEN_AUTOGEN_FILES)
-
-MOSTLYCLEANFILES = \
-		$(PROTOGEN_AUTOGEN_FILES) \
-		proto.generated
 

@@ -1,5 +1,5 @@
 
-#line 1 "memproto/memtext.rl"
+#line 1 "src/gate/memproto/memtext.rl"
 /*
  * memtext
  *
@@ -56,12 +56,12 @@
 	TYPE NAME = ((TYPE*)(&ctx->callback))[ctx->command]
 
 
-#line 307 "memproto/memtext.rl"
+#line 307 "src/gate/memproto/memtext.rl"
 
 
 
 
-#line 65 "memproto/memtext.c.tmp"
+#line 65 "src/gate/memproto/memtext.c"
 static const char _memtext_actions[] = {
 	0, 1, 0, 1, 1, 1, 2, 1, 
 	4, 1, 5, 1, 6, 1, 7, 1, 
@@ -290,20 +290,20 @@ static const int memtext_en_main = 1;
 static const int memtext_en_data = 130;
 
 
-#line 311 "memproto/memtext.rl"
+#line 311 "src/gate/memproto/memtext.rl"
 
 void memtext_init(memtext_parser* ctx, memtext_callback* callback, void* user)
 {
 	int cs = 0;
 	int top = 0;
 	
-#line 301 "memproto/memtext.c.tmp"
+#line 301 "src/gate/memproto/memtext.c"
 	{
 	cs = memtext_start;
 	top = 0;
 	}
 
-#line 317 "memproto/memtext.rl"
+#line 317 "src/gate/memproto/memtext.rl"
 	memset(ctx, 0, sizeof(memtext_parser));
 	ctx->cs = cs;
 	ctx->callback = *callback;
@@ -333,7 +333,7 @@ int memtext_execute(memtext_parser* ctx, const char* data, size_t len, size_t* o
 	//printf("\n");
 
 	
-#line 337 "memproto/memtext.c.tmp"
+#line 337 "src/gate/memproto/memtext.c"
 	{
 	int _klen;
 	unsigned int _trans;
@@ -408,7 +408,7 @@ _match:
 		switch ( *_acts++ )
 		{
 	case 0:
-#line 59 "memproto/memtext.rl"
+#line 59 "src/gate/memproto/memtext.rl"
 	{
 		ctx->keys = 0;
 		ctx->noreply = false;
@@ -416,19 +416,19 @@ _match:
 	}
 	break;
 	case 1:
-#line 65 "memproto/memtext.rl"
+#line 65 "src/gate/memproto/memtext.rl"
 	{
 		MARK(key_pos[ctx->keys], p);
 	}
 	break;
 	case 2:
-#line 68 "memproto/memtext.rl"
+#line 68 "src/gate/memproto/memtext.rl"
 	{
 		SET_MARK_LEN(key_len[ctx->keys], key_pos[ctx->keys], p);
 	}
 	break;
 	case 3:
-#line 71 "memproto/memtext.rl"
+#line 71 "src/gate/memproto/memtext.rl"
 	{
 		++ctx->keys;
 		if(ctx->keys > MEMTEXT_MAX_MULTI_GET) {
@@ -437,61 +437,61 @@ _match:
 	}
 	break;
 	case 4:
-#line 78 "memproto/memtext.rl"
+#line 78 "src/gate/memproto/memtext.rl"
 	{
 		MARK(flags, p);
 	}
 	break;
 	case 5:
-#line 81 "memproto/memtext.rl"
+#line 81 "src/gate/memproto/memtext.rl"
 	{
 		SET_UINT(flags, flags, p);
 	}
 	break;
 	case 6:
-#line 85 "memproto/memtext.rl"
+#line 85 "src/gate/memproto/memtext.rl"
 	{
 		MARK(exptime, p);
 	}
 	break;
 	case 7:
-#line 88 "memproto/memtext.rl"
+#line 88 "src/gate/memproto/memtext.rl"
 	{
 		SET_UINT(exptime, exptime, p);
 	}
 	break;
 	case 8:
-#line 92 "memproto/memtext.rl"
+#line 92 "src/gate/memproto/memtext.rl"
 	{
 		MARK(bytes, p);
 	}
 	break;
 	case 9:
-#line 95 "memproto/memtext.rl"
+#line 95 "src/gate/memproto/memtext.rl"
 	{
 		SET_UINT(bytes, bytes, p);
 	}
 	break;
 	case 10:
-#line 99 "memproto/memtext.rl"
+#line 99 "src/gate/memproto/memtext.rl"
 	{
 		ctx->noreply = true;
 	}
 	break;
 	case 11:
-#line 103 "memproto/memtext.rl"
+#line 103 "src/gate/memproto/memtext.rl"
 	{
 		MARK(cas_unique, p);
 	}
 	break;
 	case 12:
-#line 106 "memproto/memtext.rl"
+#line 106 "src/gate/memproto/memtext.rl"
 	{
 		SET_ULL(cas_unique, cas_unique, p);
 	}
 	break;
 	case 13:
-#line 110 "memproto/memtext.rl"
+#line 110 "src/gate/memproto/memtext.rl"
 	{
 		MARK(data_pos, p+1);
 		ctx->data_count = ctx->bytes;
@@ -499,7 +499,7 @@ _match:
 	}
 	break;
 	case 14:
-#line 115 "memproto/memtext.rl"
+#line 115 "src/gate/memproto/memtext.rl"
 	{
 		if(--ctx->data_count == 0) {
 			//printf("mark %d\n", ctx->data_pos);
@@ -511,55 +511,55 @@ _match:
 	}
 	break;
 	case 15:
-#line 126 "memproto/memtext.rl"
+#line 126 "src/gate/memproto/memtext.rl"
 	{ ctx->command = MEMTEXT_CMD_GET;     }
 	break;
 	case 16:
-#line 127 "memproto/memtext.rl"
+#line 127 "src/gate/memproto/memtext.rl"
 	{ ctx->command = MEMTEXT_CMD_GETS;    }
 	break;
 	case 17:
-#line 128 "memproto/memtext.rl"
+#line 128 "src/gate/memproto/memtext.rl"
 	{ ctx->command = MEMTEXT_CMD_SET;     }
 	break;
 	case 18:
-#line 129 "memproto/memtext.rl"
+#line 129 "src/gate/memproto/memtext.rl"
 	{ ctx->command = MEMTEXT_CMD_ADD;     }
 	break;
 	case 19:
-#line 130 "memproto/memtext.rl"
+#line 130 "src/gate/memproto/memtext.rl"
 	{ ctx->command = MEMTEXT_CMD_REPLACE; }
 	break;
 	case 20:
-#line 131 "memproto/memtext.rl"
+#line 131 "src/gate/memproto/memtext.rl"
 	{ ctx->command = MEMTEXT_CMD_APPEND;  }
 	break;
 	case 21:
-#line 132 "memproto/memtext.rl"
+#line 132 "src/gate/memproto/memtext.rl"
 	{ ctx->command = MEMTEXT_CMD_PREPEND; }
 	break;
 	case 22:
-#line 133 "memproto/memtext.rl"
+#line 133 "src/gate/memproto/memtext.rl"
 	{ ctx->command = MEMTEXT_CMD_CAS;     }
 	break;
 	case 23:
-#line 134 "memproto/memtext.rl"
+#line 134 "src/gate/memproto/memtext.rl"
 	{ ctx->command = MEMTEXT_CMD_DELETE;  }
 	break;
 	case 24:
-#line 135 "memproto/memtext.rl"
+#line 135 "src/gate/memproto/memtext.rl"
 	{ ctx->command = MEMTEXT_CMD_INCR;    }
 	break;
 	case 25:
-#line 136 "memproto/memtext.rl"
+#line 136 "src/gate/memproto/memtext.rl"
 	{ ctx->command = MEMTEXT_CMD_DECR;    }
 	break;
 	case 26:
-#line 137 "memproto/memtext.rl"
+#line 137 "src/gate/memproto/memtext.rl"
 	{ ctx->command = MEMTEXT_CMD_VERSION; }
 	break;
 	case 27:
-#line 140 "memproto/memtext.rl"
+#line 140 "src/gate/memproto/memtext.rl"
 	{
 		unsigned int i;
 		++ctx->keys;
@@ -580,7 +580,7 @@ _match:
 	}
 	break;
 	case 28:
-#line 159 "memproto/memtext.rl"
+#line 159 "src/gate/memproto/memtext.rl"
 	{
 		CALLBACK(cb, memtext_callback_storage);
 		if(cb) {
@@ -598,7 +598,7 @@ _match:
 	}
 	break;
 	case 29:
-#line 175 "memproto/memtext.rl"
+#line 175 "src/gate/memproto/memtext.rl"
 	{
 		CALLBACK(cb, memtext_callback_cas);
 		if(cb) {
@@ -617,7 +617,7 @@ _match:
 	}
 	break;
 	case 30:
-#line 192 "memproto/memtext.rl"
+#line 192 "src/gate/memproto/memtext.rl"
 	{
 		CALLBACK(cb, memtext_callback_delete);
 		if(cb) {
@@ -632,7 +632,7 @@ _match:
 	}
 	break;
 	case 31:
-#line 205 "memproto/memtext.rl"
+#line 205 "src/gate/memproto/memtext.rl"
 	{
 		CALLBACK(cb, memtext_callback_numeric);
 		if(cb) {
@@ -647,7 +647,7 @@ _match:
 	}
 	break;
 	case 32:
-#line 218 "memproto/memtext.rl"
+#line 218 "src/gate/memproto/memtext.rl"
 	{
 		CALLBACK(cb, memtext_callback_other);
 		if(cb) {
@@ -658,7 +658,7 @@ _match:
 		} else { goto convert_error; }
 	}
 	break;
-#line 662 "memproto/memtext.c.tmp"
+#line 662 "src/gate/memproto/memtext.c"
 		}
 	}
 
@@ -671,7 +671,7 @@ _again:
 	_out: {}
 	}
 
-#line 346 "memproto/memtext.rl"
+#line 346 "src/gate/memproto/memtext.rl"
 
 ret:
 	ctx->cs = cs;

@@ -1,7 +1,4 @@
 
-nodist_noinst_DATA = mlogger.h
-dist_noinst_DATA = mlogger.h.erb
-
 noinst_LIBRARIES = libkumo_log.a
 
 libkumo_log_a_SOURCES = \
@@ -13,17 +10,6 @@ libkumo_log_a_SOURCES = \
 		logpack.c \
 		logpacker.cc
 
-# FIXME GNU make extension
-%.h: %.h.erb
-	$(ERB) < $< > $@.tmp
-	mv $@.tmp $@
-
-%.hpp: %.hpp.erb
-	$(ERB) < $< > $@.tmp
-	mv $@.tmp $@
-
-MOSTLYCLEANFILES = mlogger.h logpack.hpp
-
 noinst_HEADERS = \
 		mlogger.h \
 		mlogger_null.h \
@@ -34,5 +20,8 @@ noinst_HEADERS = \
 		logpack.hpp \
 		logpacker.h
 
-$(libkumo_log_a_SOURCES): mlogger.h logpack.hpp
+EXTRA_DIST = \
+		mlogger.h.erb \
+		logpack.hpp.erb
+
 
