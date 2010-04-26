@@ -136,7 +136,7 @@ struct arg_t : rpc_args {
 		"  -t  <[addr:]port="<<MEMTEXT_DEFAULT_PORT<<">   "
 			"--memproto-text   memcached text protocol listen port\n"
 		"  -F                "
-			"--memproto-save-flag     save flags on memcached text protocol"
+			"--memproto-save-flag     save flags on memcached text protocol\n"
 		"  -b  <[addr:]port="<<MEMPROTO_DEFAULT_PORT<<">   "
 			"--memproto-binary memcached binary protocol listen port\n"
 		"  -c  <[addr:]port="<<CLOUDY_DEFAULT_PORT<<">   "
