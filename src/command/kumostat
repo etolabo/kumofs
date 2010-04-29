@@ -53,7 +53,7 @@ if $0 == __FILE__
 
 def usage
 	puts "Usage: #{File.basename($0)} server-address[:port=#{KumoRPC::SERVER_DEFAULT_PORT}] command"
-	puts "       #{File.basename($0)} -m manager-address[:port=#{KumoRPC::SERVER_DEFAULT_PORT}] command"
+	puts "       #{File.basename($0)} -m manager-address[:port=#{KumoRPC::MANAGER_DEFAULT_PORT}] command"
 	puts "command:"
 	puts "   pid                        get pid of server process"
 	puts "   uptime                     get uptime"
