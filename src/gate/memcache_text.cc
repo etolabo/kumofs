@@ -36,12 +36,35 @@
 #include <algorithm>
 #include <memory>
 #include <inttypes.h>
+#include <sys/time.h>
 #include "config.h"  // PACKAGE VERSION
 
 namespace kumo {
 namespace {
 
 static bool g_save_flag = false;
+static bool g_save_exptime = false;
+static uint32_t g_system_time;
+
+#define RELATIVE_MAX (60*60*24*30)
+
+uint32_t exptime_to_system(uint32_t exptime)
+{
+	if(exptime == 0) { return 0; }
+	if(exptime <= RELATIVE_MAX) {
+		return exptime + g_system_time;
+	} else {
+		return exptime;
+	}
+}
+
+void update_system_time()
+{
+	struct timeval v;
+	if(gettimeofday(&v, NULL) == 0) {
+		g_system_time = v.tv_sec;
+	}
+}
 
 using gate::wavy;
 using gate::shared_zone;
@@ -165,7 +188,31 @@ void response_get(void* user,
 		return;
 	}
 
-	if(!res.val || (g_save_flag && res.vallen < 2)) {
+	if(!res.val) {
+		send_data(e, "END\r\n", 5);
+		return;
+	}
+
+	if(g_save_exptime) {
+		if(res.vallen < 4) {
+			send_data(e, "END\r\n", 5);
+			return;
+		}
+		union {
+			uint32_t num;
+			char mem[4];
+		} cast;
+		memcpy(cast.mem, res.val, 4);
+		uint32_t exptime = ntohl(cast.num);
+		if(exptime != 0 && exptime < g_system_time) {
+			send_data(e, "END\r\n", 5);
+			return;
+		}
+		res.vallen -= 4;
+		res.val    += 4;
+	}
+
+	if(g_save_flag && res.vallen < 2) {
 		send_data(e, "END\r\n", 5);
 		return;
 	}
@@ -175,6 +222,7 @@ void response_get(void* user,
 
 	memcpy(p, "VALUE ", 6);           p += 6;
 	memcpy(p, res.key,  res.keylen);  p += res.keylen;
+
 	if(g_save_flag) {
 		union {
 			uint16_t num;
@@ -212,7 +260,28 @@ void response_get_multi(void* user,
 	get_multi_entry* e = reinterpret_cast<get_multi_entry*>(user);
 	LOG_TRACE("get multi response");
 
-	if(res.error || !res.val || (g_save_flag && res.vallen < 2)) {
+	if(res.error || !res.val) {
+		goto filled;
+	}
+
+	if(g_save_exptime) {
+		if(res.vallen < 4) {
+			goto filled;
+		}
+		union {
+			uint32_t num;
+			char mem[4];
+		} cast;
+		memcpy(cast.mem, res.val, 4);
+		uint32_t exptime = ntohl(cast.num);
+		if(exptime != 0 && exptime < g_system_time) {
+			goto filled;
+		}
+		res.vallen -= 4;
+		res.val    += 4;
+	}
+
+	if(g_save_flag && res.vallen < 2) {
 		goto filled;
 	}
 
@@ -223,6 +292,7 @@ void response_get_multi(void* user,
 	
 		memcpy(p, "\r\nVALUE ", 8);       p += 8;
 		memcpy(p, res.key,  res.keylen);  p += res.keylen;
+
 		if(g_save_flag) {
 			union {
 				uint16_t num;
@@ -419,6 +489,7 @@ int request_gets(void* user,
 	}
 }
 
+
 int request_set(void* user,
 		memtext_command cmd,
 		memtext_request_storage* r)
@@ -426,7 +497,7 @@ int request_set(void* user,
 	LOG_TRACE("set");
 	RELEASE_REFERENCE(user, ctx, life);
 
-	if((!g_save_flag && r->flags) || r->exptime) {
+	if((!g_save_flag && r->flags) || (!g_save_exptime && r->exptime)) {
 		wavy::write(ctx->fd(), NOT_SUPPORTED_REPLY, strlen(NOT_SUPPORTED_REPLY));
 		return 0;
 	}
@@ -442,6 +513,17 @@ int request_set(void* user,
 		// テキストプロトコルでdataの前2バイトには\nとbytesが入っているが、
 		// r->data_lenにコピーされている
 		memcpy(const_cast<char*>(r->data), cast.mem, 2);
+	}
+
+	if(g_save_exptime) {
+		union {
+			uint32_t num;
+			char mem[4];
+		} cast;
+		cast.num = htonl( exptime_to_system(r->exptime) );
+		r->data     -= 4;
+		r->data_len += 4;
+		memcpy(const_cast<char*>(r->data), cast.mem, 4);
 	}
 
 	set_entry* e = life->allocate<set_entry>();
@@ -620,10 +702,11 @@ void accepted(int fd, int err)
 }  // noname namespace
 
 
-MemcacheText::MemcacheText(int lsock, bool save_flag) :
+MemcacheText::MemcacheText(int lsock, bool save_flag, bool save_exptime) :
 	m_lsock(lsock)
 {
 	g_save_flag = save_flag;
+	g_save_exptime = save_exptime;
 }
 
 MemcacheText::~MemcacheText() {}
@@ -633,6 +716,12 @@ void MemcacheText::run()
 	using namespace mp::placeholders;
 	wavy::listen(m_lsock,
 			mp::bind(&accepted, _1, _2));
+
+	if(g_save_exptime) {
+		update_system_time();
+		struct timespec interval = {0, 500*1000*1000};
+		wavy::timer(&interval, &update_system_time);
+	}
 }
 
 

@@ -60,6 +60,7 @@ struct arg_t : rpc_args {
 	int cloudy_lsock;  // convert
 
 	bool mc_save_flag;
+	bool mc_save_exptime;
 
 	virtual void convert()
 	{
@@ -104,6 +105,8 @@ struct arg_t : rpc_args {
 				type::listenable(&cloudy_addr_in, CLOUDY_DEFAULT_PORT));
 		on("-F", "--memproto-save-flag",
 				type::boolean(&mc_save_flag));
+		on("-E", "--memproto-save-expire",
+				type::boolean(&mc_save_exptime));
 		on("-G", "--get-retry",
 				type::numeric(&get_retry_num, get_retry_num));
 		on("-S", "--set-retry",
@@ -141,6 +144,8 @@ struct arg_t : rpc_args {
 			"--cloudy          asynchronous memcached binary protocol listen port\n"
 		"  -F                "
 			"--memproto-save-flag     save flags on memcached text protocol\n"
+		"  -E                "
+			"--memproto-save-expire   save expire time on memcached text protocol\n"
 		"  -As               "
 			"--async-replicate-set    send response without waiting replication on set\n"
 		"  -Ad               "
@@ -173,7 +178,7 @@ int main(int argc, char* argv[])
 	std::auto_ptr<MemcacheText> mctext;
 	std::auto_ptr<MemcacheBinary> mcbin;
 	std::auto_ptr<Cloudy> cloudy;
-	if(arg.mctext_set) { mctext.reset(new MemcacheText(arg.mctext_lsock, arg.mc_save_flag)); }
+	if(arg.mctext_set) { mctext.reset(new MemcacheText(arg.mctext_lsock, arg.mc_save_flag, arg.mc_save_exptime)); }
 	if(arg.mcbin_set)  { mcbin.reset(new MemcacheBinary(arg.mcbin_lsock)); }
 	if(arg.cloudy_set) { cloudy.reset(new Cloudy(arg.cloudy_lsock)); }
 

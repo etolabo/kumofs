@@ -25,7 +25,7 @@ namespace kumo {
 
 class MemcacheText : public gate::gate {
 public:
-	MemcacheText(int lsock, bool save_flag = false);
+	MemcacheText(int lsock, bool save_flag, bool save_exptime);
 	~MemcacheText();
 
 	void run();
