@@ -2,7 +2,7 @@ AC_INIT(src/logic/boot.h)
 AC_CONFIG_AUX_DIR(ac)
 AC_CANONICAL_TARGET
 
-AM_INIT_AUTOMAKE(kumofs, 0.3.4)
+AM_INIT_AUTOMAKE(kumofs, 0.3.5)
 AC_CONFIG_HEADER(config.h)
 
 

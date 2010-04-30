@@ -1,4 +1,8 @@
 
+2010-04-30 version 0.3.3:
+
+  * Memcached gateway saves expiration time if -E option is specified.
+
 2010-04-22 version 0.3.4:
 
   * Memcached gateway supports memcached client for java.
