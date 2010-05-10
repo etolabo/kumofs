@@ -178,7 +178,7 @@ inline void stream_buffer::reserve_buffer(size_t len, size_t initial_buffer_size
 
 inline void stream_buffer::expand_buffer(size_t len, size_t initial_buffer_size)
 {
-	if(m_off == sizeof(count_t)) {
+	if(m_off == sizeof(count_t) && get_count(m_buffer) == 1) {
 		size_t next_size = (m_used + m_free) * 2;
 		while(next_size < len + m_used) { next_size *= 2; }
 
