@@ -1,5 +1,9 @@
 
-2010-04-30 version 0.3.3:
+2010-05-10 version 0.3.6:
+
+  * fixed SEGV on memcached gateway.
+
+2010-04-30 version 0.3.5:
 
   * Memcached gateway saves expiration time if -E option is specified.
 
