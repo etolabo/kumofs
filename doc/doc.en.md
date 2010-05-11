@@ -16,8 +16,8 @@ kumofs is a scalable and highly available distributed key-value store.
   - Optimized for storing a large amount of small data.
   - memcached protocol support.
     - supported commands are get (+get_multi), set and delete.
-	- specify -E option to the kumo-gateway to save flags.
-	- specify -F option to the kumo-gateway to save expiration time.
+	- specify -F option to the kumo-gateway to save flags.
+	- specify -E option to the kumo-gateway to save expiration time.
 
 
 ## Data Model
