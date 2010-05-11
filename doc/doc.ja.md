@@ -47,8 +47,8 @@ kumofsをコンパイルして実行するには、以下の環境が必要で�
   - g++ &gt;= 4.1
   - ruby &gt;= 1.8.6
   - [Tokyo Cabinet](http://1978th.net/tokyocabinet/) &gt;= 1.4.10
-  - [MessagePack for C++](http://msgpack.sourceforge.jp/c:install.ja) &gt;= 0.3.1
-  - [MessagePack for Ruby](http://msgpack.sourceforge.jp/ruby:install.ja) &gt;= 0.3.1
+  - [MessagePack for C++](http://msgpack.sourceforge.net/cpp:install) &gt;= 0.3.1
+  - [MessagePack for Ruby](http://msgpack.sourceforge.net/ruby:install) &gt;= 0.3.1
   - libcrypto (openssl)
   - zlib
 
