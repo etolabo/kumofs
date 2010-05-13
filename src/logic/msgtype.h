@@ -78,9 +78,10 @@ private:
 
 struct DBValue {
 	DBValue() : m_clocktime(0) {}
+	DBValue(ClockTime ct) : m_clocktime(ct) { }
 
-	DBValue(const char* val, size_t vallen, uint16_t meta) :
-		m_vallen(vallen), m_val(val), m_clocktime(0), m_meta(meta) {}
+	DBValue(const char* val, size_t vallen, uint16_t meta, uint64_t clocktime) :
+		m_vallen(vallen), m_val(val), m_clocktime(clocktime), m_meta(meta) {}
 
 	DBValue(const char* raw_val, size_t raw_vallen) :
 		m_clocktime(0)

@@ -62,7 +62,7 @@ void Storage::set(
 }
 
 
-static bool storage_casproc(void* casdata,
+static bool storage_updateproc(void* casdata,
 		const char* oldval, size_t oldvallen)
 {
 	if(oldvallen < Storage::VALUE_CLOCKTIME_SIZE) {
@@ -87,8 +87,37 @@ bool Storage::update(
 	return m_op.update(m_data,
 			raw_key, raw_keylen,
 			raw_val, raw_vallen,
-			&storage_casproc,
+			&storage_updateproc,
 			reinterpret_cast<void*>(&update_clocktime));
+}
+
+
+static bool storage_casproc(void* casdata,
+		const char* oldval, size_t oldvallen)
+{
+	if(oldvallen < Storage::VALUE_CLOCKTIME_SIZE) {
+		return true;
+	}
+
+	ClockTime compare =
+		ClockTime( *reinterpret_cast<uint64_t*>(casdata) );
+
+	ClockTime old_clocktime = ClockTime( Storage::clocktime_of(oldval) );
+
+	return compare == old_clocktime;
+}
+
+
+bool Storage::cas(
+		const char* raw_key, uint32_t raw_keylen,
+		const char* raw_val, uint32_t raw_vallen,
+		ClockTime compare)
+{
+	return m_op.update(m_data,
+			raw_key, raw_keylen,
+			raw_val, raw_vallen,
+			&storage_casproc,
+			static_cast<void*>(&compare));
 }
 
 
@@ -193,7 +222,7 @@ bool Storage::remove(
 				ClockTime ct = garbage_key.clocktime();
 				m_op.del(m_data,
 						garbage_key.key(), garbage_key.keylen(),
-						&storage_casproc,
+						&storage_updateproc,
 						reinterpret_cast<void*>(&ct));
 			}
 			m_garbage.pop();
@@ -203,7 +232,7 @@ bool Storage::remove(
 			ClockTime ct = garbage_key.clocktime();
 			m_op.del(m_data,
 					garbage_key.key(), garbage_key.keylen(),
-					&storage_casproc,
+					&storage_updateproc,
 					reinterpret_cast<void*>(&ct));
 			m_garbage.pop();
 
@@ -239,7 +268,7 @@ try {
 			if(vallen < Storage::VALUE_CLOCKTIME_SIZE) {
 				// invalid value
 				data->op->iterator_del(iterator_data,
-						&storage_casproc,
+						&storage_updateproc,
 						reinterpret_cast<void*>(&data->clocktime_limit));
 	
 			} else {
@@ -247,7 +276,7 @@ try {
 				ClockTime garbage_clocktime = Storage::clocktime_of(val);
 				if(garbage_clocktime < data->clocktime_limit) {
 					data->op->iterator_del(iterator_data,
-						&storage_casproc,
+						&storage_updateproc,
 						reinterpret_cast<void*>(&data->clocktime_limit));
 				}
 			}

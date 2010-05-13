@@ -1,3 +1,4 @@
+
 #line 1 "src/gate/memproto/memtext.rl"
 /*
  * memtext
@@ -54,12 +55,13 @@
 #define CALLBACK(NAME, TYPE) \
 	TYPE NAME = ((TYPE*)(&ctx->callback))[ctx->command]
 
+
 #line 307 "src/gate/memproto/memtext.rl"
 
 
 
 
-#line 63 "src/gate/memproto/memtext.c"
+#line 65 "src/gate/memproto/memtext.c"
 static const char _memtext_actions[] = {
 	0, 1, 0, 1, 1, 1, 2, 1, 
 	4, 1, 5, 1, 6, 1, 7, 1, 
@@ -287,6 +289,7 @@ static const int memtext_error = 0;
 static const int memtext_en_main = 1;
 static const int memtext_en_data = 130;
 
+
 #line 311 "src/gate/memproto/memtext.rl"
 
 void memtext_init(memtext_parser* ctx, memtext_callback* callback, void* user)
@@ -294,11 +297,12 @@ void memtext_init(memtext_parser* ctx, memtext_callback* callback, void* user)
 	int cs = 0;
 	int top = 0;
 	
-#line 298 "src/gate/memproto/memtext.c"
+#line 301 "src/gate/memproto/memtext.c"
 	{
 	cs = memtext_start;
 	top = 0;
 	}
+
 #line 317 "src/gate/memproto/memtext.rl"
 	memset(ctx, 0, sizeof(memtext_parser));
 	ctx->cs = cs;
@@ -329,7 +333,7 @@ int memtext_execute(memtext_parser* ctx, const char* data, size_t len, size_t* o
 	//printf("\n");
 
 	
-#line 333 "src/gate/memproto/memtext.c"
+#line 337 "src/gate/memproto/memtext.c"
 	{
 	int _klen;
 	unsigned int _trans;
@@ -603,8 +607,8 @@ _match:
 				MARK_PTR(data_pos), ctx->data_len,
 				ctx->flags,
 				ctx->exptime,
-				ctx->cas_unique,
-				ctx->noreply
+				ctx->noreply,
+				ctx->cas_unique
 			};
 			if((*cb)(ctx->user, ctx->command, &req) < 0) {
 				goto convert_error;
@@ -654,7 +658,7 @@ _match:
 		} else { goto convert_error; }
 	}
 	break;
-#line 658 "src/gate/memproto/memtext.c"
+#line 662 "src/gate/memproto/memtext.c"
 		}
 	}
 
@@ -666,6 +670,7 @@ _again:
 	_test_eof: {}
 	_out: {}
 	}
+
 #line 346 "src/gate/memproto/memtext.rl"
 
 ret:

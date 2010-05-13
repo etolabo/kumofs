@@ -126,6 +126,11 @@ public:
 			const char* raw_key, uint32_t raw_keylen,
 			const char* raw_val, uint32_t raw_vallen);
 
+	bool cas(
+			const char* raw_key, uint32_t raw_keylen,
+			const char* raw_val, uint32_t raw_vallen,
+			ClockTime compare);
+
 	bool update(
 			const char* raw_key, uint32_t raw_keylen,
 			const char* raw_val, uint32_t raw_vallen);

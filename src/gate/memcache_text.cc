@@ -171,6 +171,8 @@ static const char* const GET_FAILED_REPLY    = "SERVER_ERROR get failed\r\n";
 static const char* const STORE_FAILED_REPLY  = "SERVER_ERROR store failed\r\n";
 static const char* const DELETE_FAILED_REPLY = "SERVER_ERROR delete failed\r\n";
 static const char* const VERSION_REPLY       = "VERSION " PACKAGE "-" VERSION "\r\n";
+static const char* const EXISTS_REPLY        = "EXISTS\r\n";
+static const char* const NOT_FOUND_REPLY     = "NOT_FOUND\r\n";
 
 // "VALUE "+keylen+" "+uint16+" "+uint32+" "+uint64+"\r\n\0"
 #define HEADER_SIZE(keylen) \
@@ -238,7 +240,7 @@ void response_get(void* user,
 	}
 
 	if(e->require_cas) {
-		p += sprintf(p, " %"PRIu64"\r\n", (uint64_t)0);
+		p += sprintf(p, " %"PRIu64"\r\n", res.clocktime);
 	} else {
 		p[0] = '\r'; p[1] = '\n'; p += 2;
 	}
@@ -352,6 +354,26 @@ void response_set(void* user,
 	send_data(e, "STORED\r\n", 8);
 }
 
+void response_cas(void* user,
+		gate::res_set& res, auto_zone z)
+{
+	set_entry* e = reinterpret_cast<set_entry*>(user);
+	LOG_TRACE("cas response");
+
+	if(res.error) {
+		send_data(e, STORE_FAILED_REPLY, strlen(STORE_FAILED_REPLY));
+		return;
+	}
+
+	if(!res.cas_success) {
+		// FIXME EXISTS, NOT_FOUND
+		send_data(e, EXISTS_REPLY, strlen(EXISTS_REPLY));
+		return;
+	}
+
+	send_data(e, "STORED\r\n", 8);
+}
+
 void response_delete(void* user,
 		gate::res_delete& res, auto_zone z)
 {
@@ -371,6 +393,10 @@ void response_delete(void* user,
 }
 
 void response_noreply_set(void* user,
+		gate::res_set& res, auto_zone z)
+{ }
+
+void response_noreply_cas(void* user,
 		gate::res_set& res, auto_zone z)
 { }
 
@@ -549,6 +575,67 @@ int request_set(void* user,
 	return 0;
 }
 
+int request_cas(void* user,
+		memtext_command cmd,
+		memtext_request_cas* r)
+{
+	LOG_TRACE("cas");
+	RELEASE_REFERENCE(user, ctx, life);
+
+	if((!g_save_flag && r->flags) || (!g_save_exptime && r->exptime)) {
+		wavy::write(ctx->fd(), NOT_SUPPORTED_REPLY, strlen(NOT_SUPPORTED_REPLY));
+		return 0;
+	}
+
+	if(g_save_flag) {
+		union {
+			uint16_t num;
+			char mem[2];
+		} cast;
+		cast.num = htons(r->flags);
+		r->data     -= 2;
+		r->data_len += 2;
+		// テキストプロトコルでdataの前2バイトには\nとbytesが入っているが、
+		// r->data_lenにコピーされている
+		memcpy(const_cast<char*>(r->data), cast.mem, 2);
+	}
+
+	if(g_save_exptime) {
+		union {
+			uint32_t num;
+			char mem[4];
+		} cast;
+		cast.num = htonl( exptime_to_system(r->exptime) );
+		r->data     -= 4;
+		r->data_len += 4;
+		memcpy(const_cast<char*>(r->data), cast.mem, 4);
+	}
+
+	set_entry* e = life->allocate<set_entry>();
+	e->fd    = ctx->fd();
+	e->valid = ctx->valid();
+
+	gate::req_set req;
+	req.keylen   = r->key_len;
+	req.key      = r->key;
+	req.vallen   = r->data_len;
+	req.val      = r->data;
+	req.cas      = true;
+	req.clocktime = r->cas_unique;
+	req.hash     = gate::stdhash(req.key, req.keylen);
+	req.user     = reinterpret_cast<void*>(e);
+	if(r->noreply) {
+		req.async    = true;
+		req.callback = &response_noreply_cas;
+	} else {
+		req.callback = &response_cas;
+	}
+	req.life     = life;
+
+	req.submit();
+	return 0;
+}
+
 int request_delete(void* user,
 		memtext_command cmd,
 		memtext_request_delete* r)
@@ -626,7 +713,7 @@ handler::handler(int fd) :
 		NULL,           // replace
 		NULL,           // append
 		NULL,           // prepend
-		NULL,           // cas
+		request_cas,    // cas
 		request_delete, // delete
 		NULL,           // incr
 		NULL,           // decr

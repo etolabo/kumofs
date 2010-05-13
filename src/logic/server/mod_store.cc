@@ -190,6 +190,7 @@ RPC_IMPL(mod_store_t, Set, req, z, response)
 {
 	msgtype::DBKey key(req.param().dbkey);
 	msgtype::DBValue val(req.param().dbval);
+	ClockTime cas_require = val.clocktime();
 	bool is_async = req.param().flags.is_async();
 	LOG_DEBUG("Set '",
 			/*std::string(key.data(),key.size()),*/"' => '",
@@ -250,9 +251,21 @@ RPC_IMPL(mod_store_t, Set, req, z, response)
 		}
 	}
 
-	share->db().set(
-			key.raw_data(), key.raw_size(),
-			val.raw_data(), val.raw_size());
+	if(req.param().flags.is_cas()) {
+		LOG_TRACE("try cas: ",val.clocktime().get());
+		bool success = share->db().cas(
+				key.raw_data(), key.raw_size(),
+				val.raw_data(), val.raw_size(),
+				cas_require);
+		if(!success) {
+			response.result(false);
+			return;
+		}
+	} else {
+		share->db().set(
+				key.raw_data(), key.raw_size(),
+				val.raw_data(), val.raw_size());
+	}
 
 	LOG_DEBUG("set copy required: ", wrep_num+rrep_num);
 	if((wrep_num == 0 && rrep_num == 0) || is_async) {

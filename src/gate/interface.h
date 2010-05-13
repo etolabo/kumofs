@@ -83,12 +83,14 @@ struct res_set {
 	const char* val;
 	uint32_t vallen;
 	uint64_t clocktime;
+
+	bool cas_success;
 };
 
 typedef void (*callback_set)(void* user, res_set& res, auto_zone z);
 
 struct req_set {
-	req_set() : async(false) { }
+	req_set() : async(false), cas(false) { }
 
 	const char* key;
 	uint32_t keylen;
@@ -98,6 +100,9 @@ struct req_set {
 	uint32_t vallen;
 
 	bool async;
+
+	bool cas;
+	uint64_t clocktime;
 
 	shared_zone life;
 	callback_set callback;

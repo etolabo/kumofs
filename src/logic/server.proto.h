@@ -72,8 +72,12 @@ private:
 struct store_flags;
 typedef msgtype::flags<store_flags, 0>    store_flags_none;
 typedef msgtype::flags<store_flags, 0x01> store_flags_async;
+typedef msgtype::flags<store_flags, 0x02> store_flags_cas;
 struct store_flags : public msgtype::flags_base {
-	bool is_async() { return is_set<store_flags_async>(); }
+	bool is_async() const { return is_set<store_flags_async>(); }
+	bool is_cas()   const { return is_set<store_flags_cas>(); }
+	void set_async() { m |= store_flags_async::flag; }
+	void set_cas()   { m |= store_flags_cas::flag; }
 };
 
 struct replicate_flags;
@@ -106,6 +110,7 @@ struct replicate_flags : msgtype::flags_base {
 		msgtype::DBValue dbval;
 		// success: clocktime:ClockTime
 		// failed:  nil
+		// cas is tried and failed: false
 	};
 
 	message Delete {

@@ -180,8 +180,8 @@
 				MARK_PTR(data_pos), ctx->data_len,
 				ctx->flags,
 				ctx->exptime,
-				ctx->cas_unique,
-				ctx->noreply
+				ctx->noreply,
+				ctx->cas_unique
 			};
 			if((*cb)(ctx->user, ctx->command, &req) < 0) {
 				goto convert_error;
