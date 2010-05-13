@@ -29,9 +29,12 @@ namespace kumo {
 namespace server {
 
 
-RPC_IMPL(mod_control_t, CreateBackup, req, z, response)
+void mod_control_t::create_backup(
+		shared_zone life,
+		std::string suffix,
+		rpc::weak_responder response)
 {
-	std::string dst = share->cfg_db_backup_basename() + req.param().suffix;
+	std::string dst = share->cfg_db_backup_basename() + suffix;
 	LOG_INFO("create backup: ",dst);
 
 	try {
@@ -42,6 +45,13 @@ RPC_IMPL(mod_control_t, CreateBackup, req, z, response)
 		LOG_ERROR("backup failed ",dst,": ",e.what());
 		response.error(true);
 	}
+}
+
+RPC_IMPL(mod_control_t, CreateBackup, req, z, response)
+{
+	shared_zone life(z.release());
+	wavy::submit(&mod_control_t::create_backup, this,
+			life, req.param().suffix, response);
 }
 
 

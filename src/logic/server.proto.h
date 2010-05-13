@@ -319,6 +319,11 @@ enum config_type {
 		uint32_t command;
 		msgpack::object arg;
 	};
+
+private:
+	void create_backup(shared_zone life,
+			std::string suffix,
+			rpc::weak_responder response);
 @end
 
 
