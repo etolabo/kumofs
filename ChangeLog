@@ -1,4 +1,8 @@
 
+2010-05-13 version 0.3.7:
+
+  * create backup on background thread
+
 2010-05-10 version 0.3.6:
 
   * fixed SEGV on memcached gateway.
