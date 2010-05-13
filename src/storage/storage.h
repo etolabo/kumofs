@@ -140,6 +140,12 @@ public:
 			ClockTime update_clocktime);
 
 	// FIXME
+	//bool append(
+	//		const char* raw_key, uint32_t raw_keylen,
+	//		const char* val, uint32_t vallen,
+	//		ClockTime ct, bool prepend = false);
+
+	// FIXME
 	//void updatev()
 
 	uint64_t rnum();

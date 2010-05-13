@@ -160,20 +160,31 @@ try {
 	shared_zone life(req.life);
 	if(!life) { life.reset(new msgpack::zone()); }
 
-	server::store_flags flags;
+	server::set_op_t op;
 	uint64_t clocktime = 0;
-	if(share->cfg_async_replicate_set() || req.async) {
-		flags.set_async();
-	}
-	if(req.cas) {
-		flags.set_cas();
+	switch(req.operation) {
+	case gate::OP_SET:
+		op = server::OP_SET;
+		break;
+	case gate::OP_SET_ASYNC:
+		op = server::OP_SET_ASYNC;
+		break;
+	case gate::OP_CAS:
+		op = server::OP_CAS;
 		clocktime = req.clocktime;
+		break;
+	case gate::OP_APPEND:
+		op = server::OP_APPEND;
+		break;
+	case gate::OP_PREPEND:
+		op = server::OP_PREPEND;
+		break;
 	}
 
 	uint16_t meta = 0;
 	rpc::retry<server::mod_store_t::Set>* retry =
 		life->allocate< rpc::retry<server::mod_store_t::Set> >(
-				server::mod_store_t::Set(flags,
+				server::mod_store_t::Set(op,
 					msgtype::DBKey(req.key, req.keylen, req.hash),
 					msgtype::DBValue(req.val, req.vallen, meta, clocktime))
 				);
@@ -398,7 +409,6 @@ RPC_REPLY_IMPL(mod_store_t, Set, from, res, err, z,
 try {
 	msgtype::DBKey key(retry->param().dbkey);
 	msgtype::DBValue val(retry->param().dbval);
-	server::store_flags flags(retry->param().flags);
 	LOG_TRACE("ResSet ",err);
 
 	if(!res.is_nil()) {

@@ -516,11 +516,11 @@ int request_gets(void* user,
 }
 
 
-int request_set(void* user,
+int request_set_impl(void* user,
 		memtext_command cmd,
-		memtext_request_storage* r)
+		memtext_request_storage* r,
+		uint64_t cas_unique)
 {
-	LOG_TRACE("set");
 	RELEASE_REFERENCE(user, ctx, life);
 
 	if((!g_save_flag && r->flags) || (!g_save_exptime && r->exptime)) {
@@ -528,28 +528,30 @@ int request_set(void* user,
 		return 0;
 	}
 
-	if(g_save_flag) {
-		union {
-			uint16_t num;
-			char mem[2];
-		} cast;
-		cast.num = htons(r->flags);
-		r->data     -= 2;
-		r->data_len += 2;
-		// テキストプロトコルでdataの前2バイトには\nとbytesが入っているが、
-		// r->data_lenにコピーされている
-		memcpy(const_cast<char*>(r->data), cast.mem, 2);
-	}
+	if(cmd == MEMTEXT_CMD_SET || cmd == MEMTEXT_CMD_CAS) {
+		if(g_save_flag) {
+			union {
+				uint16_t num;
+				char mem[2];
+			} cast;
+			cast.num = htons(r->flags);
+			r->data     -= 2;
+			r->data_len += 2;
+			// テキストプロトコルでdataの前2バイトには\nとbytesが入っているが、
+			// r->data_lenにコピーされている
+			memcpy(const_cast<char*>(r->data), cast.mem, 2);
+		}
 
-	if(g_save_exptime) {
-		union {
-			uint32_t num;
-			char mem[4];
-		} cast;
-		cast.num = htonl( exptime_to_system(r->exptime) );
-		r->data     -= 4;
-		r->data_len += 4;
-		memcpy(const_cast<char*>(r->data), cast.mem, 4);
+		if(g_save_exptime) {
+			union {
+				uint32_t num;
+				char mem[4];
+			} cast;
+			cast.num = htonl( exptime_to_system(r->exptime) );
+			r->data     -= 4;
+			r->data_len += 4;
+			memcpy(const_cast<char*>(r->data), cast.mem, 4);
+		}
 	}
 
 	set_entry* e = life->allocate<set_entry>();
@@ -563,16 +565,45 @@ int request_set(void* user,
 	req.val      = r->data;
 	req.hash     = gate::stdhash(req.key, req.keylen);
 	req.user     = reinterpret_cast<void*>(e);
+	req.life     = life;
 	if(r->noreply) {
-		req.async    = true;
 		req.callback = &response_noreply_set;
 	} else {
 		req.callback = &response_set;
 	}
-	req.life     = life;
+
+	switch(cmd) {
+	case MEMTEXT_CMD_SET:
+		if(r->noreply) {
+			req.operation = gate::OP_SET_ASYNC;
+		} else {
+			req.operation = gate::OP_SET;
+		}
+		break;
+	case MEMTEXT_CMD_CAS:
+		req.operation = gate::OP_CAS;
+		req.clocktime = cas_unique;
+		break;
+	case MEMTEXT_CMD_APPEND:
+		req.operation = gate::OP_APPEND;
+		break;
+	case MEMTEXT_CMD_PREPEND:
+		req.operation = gate::OP_PREPEND;
+		break;
+	default:
+		throw std::logic_error("unknown command");
+	}
 
 	req.submit();
 	return 0;
+}
+
+int request_set(void* user,
+		memtext_command cmd,
+		memtext_request_storage* r)
+{
+	LOG_TRACE("set/append/prepend");
+	return request_set_impl(user, cmd, r, 0);
 }
 
 int request_cas(void* user,
@@ -580,60 +611,8 @@ int request_cas(void* user,
 		memtext_request_cas* r)
 {
 	LOG_TRACE("cas");
-	RELEASE_REFERENCE(user, ctx, life);
-
-	if((!g_save_flag && r->flags) || (!g_save_exptime && r->exptime)) {
-		wavy::write(ctx->fd(), NOT_SUPPORTED_REPLY, strlen(NOT_SUPPORTED_REPLY));
-		return 0;
-	}
-
-	if(g_save_flag) {
-		union {
-			uint16_t num;
-			char mem[2];
-		} cast;
-		cast.num = htons(r->flags);
-		r->data     -= 2;
-		r->data_len += 2;
-		// テキストプロトコルでdataの前2バイトには\nとbytesが入っているが、
-		// r->data_lenにコピーされている
-		memcpy(const_cast<char*>(r->data), cast.mem, 2);
-	}
-
-	if(g_save_exptime) {
-		union {
-			uint32_t num;
-			char mem[4];
-		} cast;
-		cast.num = htonl( exptime_to_system(r->exptime) );
-		r->data     -= 4;
-		r->data_len += 4;
-		memcpy(const_cast<char*>(r->data), cast.mem, 4);
-	}
-
-	set_entry* e = life->allocate<set_entry>();
-	e->fd    = ctx->fd();
-	e->valid = ctx->valid();
-
-	gate::req_set req;
-	req.keylen   = r->key_len;
-	req.key      = r->key;
-	req.vallen   = r->data_len;
-	req.val      = r->data;
-	req.cas      = true;
-	req.clocktime = r->cas_unique;
-	req.hash     = gate::stdhash(req.key, req.keylen);
-	req.user     = reinterpret_cast<void*>(e);
-	if(r->noreply) {
-		req.async    = true;
-		req.callback = &response_noreply_cas;
-	} else {
-		req.callback = &response_cas;
-	}
-	req.life     = life;
-
-	req.submit();
-	return 0;
+	return request_set_impl(user, cmd,
+			(memtext_request_storage*)r, r->cas_unique);
 }
 
 int request_delete(void* user,
@@ -711,8 +690,8 @@ handler::handler(int fd) :
 		request_set,    // set
 		NULL,           // add
 		NULL,           // replace
-		NULL,           // append
-		NULL,           // prepend
+		NULL, //request_set,    // append
+		NULL, //request_set,    // prepend
 		request_cas,    // cas
 		request_delete, // delete
 		NULL,           // incr

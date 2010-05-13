@@ -69,15 +69,19 @@ private:
 
 
 @code mod_store_t
+typedef uint32_t set_op_t;
+static const set_op_t OP_SET       = 0x00;
+static const set_op_t OP_SET_ASYNC = 0x01;
+static const set_op_t OP_CAS       = 0x02;
+static const set_op_t OP_APPEND    = 0x04;
+static const set_op_t OP_PREPEND   = 0x08;
+
 struct store_flags;
 typedef msgtype::flags<store_flags, 0>    store_flags_none;
 typedef msgtype::flags<store_flags, 0x01> store_flags_async;
-typedef msgtype::flags<store_flags, 0x02> store_flags_cas;
 struct store_flags : public msgtype::flags_base {
 	bool is_async() const { return is_set<store_flags_async>(); }
-	bool is_cas()   const { return is_set<store_flags_cas>(); }
 	void set_async() { m |= store_flags_async::flag; }
-	void set_cas()   { m |= store_flags_cas::flag; }
 };
 
 struct replicate_flags;
@@ -105,7 +109,7 @@ struct replicate_flags : msgtype::flags_base {
 	};
 
 	message Set {
-		store_flags flags;
+		set_op_t operation;
 		msgtype::DBKey dbkey;
 		msgtype::DBValue dbval;
 		// success: clocktime:ClockTime

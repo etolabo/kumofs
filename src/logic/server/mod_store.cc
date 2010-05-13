@@ -188,10 +188,19 @@ RPC_IMPL(mod_store_t, GetIfModified, req, z, response)
 
 RPC_IMPL(mod_store_t, Set, req, z, response)
 {
+	set_op_t op = req.param().operation;
+	switch(op) {
+	case OP_SET: case OP_SET_ASYNC: case OP_CAS:
+	//case OP_APPEND: case OP_PREPEND:  // FIXME
+		break;
+	default:
+		throw msgpack::type_error();
+	}
+
 	msgtype::DBKey key(req.param().dbkey);
 	msgtype::DBValue val(req.param().dbval);
 	ClockTime cas_require = val.clocktime();
-	bool is_async = req.param().flags.is_async();
+
 	LOG_DEBUG("Set '",
 			/*std::string(key.data(),key.size()),*/"' => '",
 			/*std::string(val.data(),val.size()),*/"' with hash ",
@@ -210,7 +219,7 @@ RPC_IMPL(mod_store_t, Set, req, z, response)
 
 	volatile unsigned int* pcr =
 		(volatile unsigned int*)life->malloc(sizeof(volatile unsigned int));
-	if(is_async) { *pcr = 0; }
+	if(op == OP_SET_ASYNC) { *pcr = 0; }
 	else { *pcr = wrep_num + rrep_num; }
 
 	if(rrep_num != 0) {
@@ -251,24 +260,40 @@ RPC_IMPL(mod_store_t, Set, req, z, response)
 		}
 	}
 
-	if(req.param().flags.is_cas()) {
-		LOG_TRACE("try cas: ",val.clocktime().get());
-		bool success = share->db().cas(
-				key.raw_data(), key.raw_size(),
-				val.raw_data(), val.raw_size(),
-				cas_require);
-		if(!success) {
-			response.result(false);
-			return;
-		}
-	} else {
-		share->db().set(
-				key.raw_data(), key.raw_size(),
-				val.raw_data(), val.raw_size());
+	switch(op) {
+	case OP_SET:
+	case OP_SET_ASYNC: {
+			share->db().set(
+					key.raw_data(), key.raw_size(),
+					val.raw_data(), val.raw_size());
+		} break;
+
+	case OP_CAS: {
+			LOG_TRACE("try cas: ",val.clocktime().get());
+			bool success = share->db().cas(
+					key.raw_data(), key.raw_size(),
+					val.raw_data(), val.raw_size(),
+					cas_require);
+			if(!success) {
+				response.result(false);
+				return;
+			}
+		} break;
+
+	case OP_PREPEND:
+		// FIXME
+		break;
+
+	case OP_APPEND:
+		// FIXME
+		break;
+
+	default:
+		throw std::logic_error("unknown operation");
 	}
 
 	LOG_DEBUG("set copy required: ", wrep_num+rrep_num);
-	if((wrep_num == 0 && rrep_num == 0) || is_async) {
+	if((wrep_num == 0 && rrep_num == 0) || op == OP_SET_ASYNC) {
 		response.result(ct);
 	}
 
