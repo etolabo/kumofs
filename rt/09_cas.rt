@@ -1,0 +1,58 @@
+#!/usr/bin/env ruby
+$LOAD_PATH << File.dirname(__FILE__)
+require 'common'
+include Chukan::Test
+
+LOOP_RESTART = (ARGV[0] || ENV["LOOP_RESTART"] || (ENV["HEAVY"] ? 20 : 3)).to_i
+NUM_STORE    = (ARGV[2] || 500).to_i
+NUM_THREAD   = (ARGV[3] ||   1).to_i
+
+mgr, gw, srv1, srv2, srv3 = init_cluster(false, 3)
+
+mgrs = [ref(mgr)]
+srvs = [ref(srv1), ref(srv2), ref(srv3)]
+
+pid = Process.pid
+keyf = "#{pid}-key%d"
+valf = "val%d"
+
+test "run normally" do
+	NUM_STORE.times do |i|
+		test "set initial" do
+			c = gw.client
+			key = keyf % i
+			val = valf % i
+			begin
+				c.set(key, val)
+				true
+			rescue
+				raise "set failed #{key.inspect} => #{val.inspect}: #{$!.inspect}"
+			end
+		end
+	end
+
+	LOOP_RESTART.times {
+		NUM_STORE.times do |i|
+			test "cas value" do
+				c = gw.client
+				key = keyf % i
+				val = valf % i
+				begin
+					c.cas(key) do |val|
+						"val#{i}"
+					end
+					true
+				rescue
+					raise "cas failed #{key.inspect} => #{val.inspect}: #{$!.inspect}"
+				end
+			end
+		end
+
+		k = srvs.choice
+		k.set restart_srv(k.get, mgr)
+	}
+
+	true
+end
+term_daemons *((mgrs + srvs).map {|r| r.get } + [gw])
+
