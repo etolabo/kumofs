@@ -284,6 +284,6 @@ Example:
 
 ## FAQ
 
-### What does 'kumofs' means?
+### What does 'kumofs' mean?
 *kumo* means *cloud* in Japanese. Cloud won't fall down ;-) *fs* means Fast Storage.
 
