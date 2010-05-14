@@ -581,6 +581,7 @@ int request_set_impl(void* user,
 		}
 		break;
 	case MEMTEXT_CMD_CAS:
+		req.callback = &response_cas;
 		req.operation = gate::OP_CAS;
 		req.clocktime = cas_unique;
 		break;
