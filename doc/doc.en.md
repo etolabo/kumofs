@@ -15,14 +15,14 @@ kumofs is a scalable and highly available distributed key-value store.
   - Scalable from 2 to 60 servers. (more than 60 servers has not be tested yet)
   - Optimized for storing a large amount of small data.
   - memcached protocol support.
-    - supported commands are get (+get_multi), set and delete.
+    - supported commands are get (+get_multi), set, delete, gets and cas.
 	- specify -F option to the kumo-gateway to save flags.
 	- specify -E option to the kumo-gateway to save expiration time.
 
 
 ## Data Model
 
-kumofs supports following 3 operations:
+kumofs supports following 4 operations:
 
 **Set(key, value)**
 Store the key-value pair. One key-value pair is copied on three servers.
@@ -33,6 +33,10 @@ Retrieve the associated value of the key.
 
 **Delete(key)**
 Delete the key and its associated value.
+
+**CAS(key, value, compare)**
+Compare-and-Swap the key and its associated value.
+The semantics of the CAS operation is that "the swapping always fails if the comparison fails". This means that the swapping may not succeed if the comparison succeeds. This restriction is caused when some servers are detached or attached. You are required to retry the operation if the swapping is failed.
 
 
 ## Installation
