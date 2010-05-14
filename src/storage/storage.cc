@@ -96,7 +96,7 @@ static bool storage_casproc(void* casdata,
 		const char* oldval, size_t oldvallen)
 {
 	if(oldvallen < Storage::VALUE_CLOCKTIME_SIZE) {
-		return true;
+		return false;
 	}
 
 	ClockTime compare =

@@ -217,6 +217,35 @@ RPC_IMPL(mod_store_t, Set, req, z, response)
 
 	SHARED_ZONE(life, z);
 
+	switch(op) {
+	case OP_SET:
+	case OP_SET_ASYNC:
+		break;
+
+	case OP_CAS: {
+			LOG_TRACE("try cas: ",val.clocktime().get());
+			bool success = share->db().cas(
+					key.raw_data(), key.raw_size(),
+					val.raw_data(), val.raw_size(),
+					cas_require);
+			if(!success) {
+				response.result(false);
+				return;
+			}
+		} break;
+
+	case OP_PREPEND:
+		// FIXME
+		break;
+
+	case OP_APPEND:
+		// FIXME
+		break;
+
+	default:
+		throw std::logic_error("unknown operation");
+	}
+
 	volatile unsigned int* pcr =
 		(volatile unsigned int*)life->malloc(sizeof(volatile unsigned int));
 	if(op == OP_SET_ASYNC) { *pcr = 0; }
@@ -268,24 +297,9 @@ RPC_IMPL(mod_store_t, Set, req, z, response)
 					val.raw_data(), val.raw_size());
 		} break;
 
-	case OP_CAS: {
-			LOG_TRACE("try cas: ",val.clocktime().get());
-			bool success = share->db().cas(
-					key.raw_data(), key.raw_size(),
-					val.raw_data(), val.raw_size(),
-					cas_require);
-			if(!success) {
-				response.result(false);
-				return;
-			}
-		} break;
-
+	case OP_CAS:
 	case OP_PREPEND:
-		// FIXME
-		break;
-
 	case OP_APPEND:
-		// FIXME
 		break;
 
 	default:
