@@ -143,9 +143,9 @@ struct arg_t : rpc_args {
 		"  -c  <[addr:]port="<<CLOUDY_DEFAULT_PORT<<">   "
 			"--cloudy          asynchronous memcached binary protocol listen port\n"
 		"  -F                "
-			"--memproto-save-flag     save flags on memcached text protocol\n"
+			"--memproto-save-flag     save flags on memcached protocol\n"
 		"  -E                "
-			"--memproto-save-expire   save expire time on memcached text protocol\n"
+			"--memproto-save-expire   save expire time on memcached protocol\n"
 		"  -As               "
 			"--async-replicate-set    send response without waiting replication on set\n"
 		"  -Ad               "
@@ -179,7 +179,7 @@ int main(int argc, char* argv[])
 	std::auto_ptr<MemcacheBinary> mcbin;
 	std::auto_ptr<Cloudy> cloudy;
 	if(arg.mctext_set) { mctext.reset(new MemcacheText(arg.mctext_lsock, arg.mc_save_flag, arg.mc_save_exptime)); }
-	if(arg.mcbin_set)  { mcbin.reset(new MemcacheBinary(arg.mcbin_lsock)); }
+	if(arg.mcbin_set)  { mcbin.reset(new MemcacheBinary(arg.mcbin_lsock, arg.mc_save_flag, arg.mc_save_exptime)); }
 	if(arg.cloudy_set) { cloudy.reset(new Cloudy(arg.cloudy_lsock)); }
 
 	// daemonize

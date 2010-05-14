@@ -25,7 +25,7 @@ namespace kumo {
 
 class MemcacheBinary : public gate::gate {
 public:
-	MemcacheBinary(int lsock);
+	MemcacheBinary(int lsock, bool save_flag, bool save_exptime);
 	~MemcacheBinary();
 
 	void run();

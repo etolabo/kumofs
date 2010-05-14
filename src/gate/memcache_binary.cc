@@ -29,6 +29,7 @@
 #include <netinet/tcp.h>
 #include <sys/types.h>
 #include <sys/uio.h>
+#include <sys/time.h>
 #include <unistd.h>
 #include <algorithm>
 #include <memory>
@@ -36,6 +37,30 @@
 
 namespace kumo {
 namespace {
+
+static bool g_save_flag = false;
+static bool g_save_exptime = false;
+static uint32_t g_system_time;
+
+#define RELATIVE_MAX (60*60*24*30)
+
+uint32_t exptime_to_system(uint32_t exptime)
+{
+	if(exptime == 0) { return 0; }
+	if(exptime <= RELATIVE_MAX) {
+		return exptime + g_system_time;
+	} else {
+		return exptime;
+	}
+}
+
+void update_system_time()
+{
+	struct timeval v;
+	if(gettimeofday(&v, NULL) == 0) {
+		g_system_time = v.tv_sec;
+	}
+}
 
 using gate::wavy;
 using gate::shared_zone;
@@ -144,6 +169,8 @@ private:
 	};
 	static void response_set(void* user,
 			gate::res_set& res, auto_zone z);
+	static void response_cas(void* user,
+			gate::res_set& res, auto_zone z);
 
 
 	// delete
@@ -162,7 +189,8 @@ private:
 			uint8_t status,
 			const char* key, uint16_t keylen,
 			const void* val, uint16_t vallen,
-			const char* extra, uint16_t extralen);
+			const char* extra, uint16_t extralen,
+			uint64_t cas);
 
 	static void pack_header(
 			char* hbuf, uint16_t status, uint8_t op,
@@ -311,7 +339,7 @@ void handler::pack_header(
 	*(uint32_t*)&hbuf[8] = htonl(vallen + keylen + extralen);
 	*(uint32_t*)&hbuf[12] = htonl(opaque);
 	*(uint32_t*)&hbuf[16] = htonl((uint32_t)(cas>>32));
-	*(uint32_t*)&hbuf[20] = htonl((uint32_t)(cas&0xffffffff));
+	*(uint32_t*)&hbuf[20] = htonl((uint32_t)(cas&0xffffffffULL));
 }
 
 inline void handler::send_response_nosend(entry* e, auto_zone z)
@@ -342,12 +370,13 @@ void handler::send_response(
 		uint8_t status,
 		const char* key, uint16_t keylen,
 		const void* val, uint16_t vallen,
-		const char* extra, uint16_t extralen)
+		const char* extra, uint16_t extralen,
+		uint64_t cas)
 {
 	char* header = (char*)z->malloc(MEMPROTO_HEADER_SIZE);
 	pack_header(header, status, e->header.opcode,
 			keylen, vallen, extralen,
-			e->header.opaque, 0);  // cas = 0
+			e->header.opaque, cas);
 
 	struct iovec* vec = (struct iovec*)z->malloc(
 			sizeof(struct iovec) * 4);
@@ -539,9 +568,40 @@ void handler::request_set(memproto_header* h,
 	LOG_TRACE("set");
 	RELEASE_REFERENCE(life);
 
-	if(h->cas || flags || expiration) {
+	if((!g_save_flag && flags) || (!g_save_exptime && expiration)) {
 		// FIXME error response
 		throw std::runtime_error("memcached binary protocol: invalid argument");
+	}
+
+	size_t extra_header = 0;
+	if(g_save_flag)    { extra_header += 2; }
+	if(g_save_exptime) { extra_header += 4; }
+	if(extra_header) {
+		char* xval = (char*)life->malloc(vallen + extra_header);
+		memcpy(xval+extra_header, val, vallen);
+		val = xval+extra_header;
+	}
+
+	if(g_save_flag) {
+		union {
+			uint16_t num;
+			char mem[2];
+		} cast;
+		cast.num = htons(flags);
+		val    -= 2;
+		vallen += 2;
+		memcpy(const_cast<char*>(val), cast.mem, 2);
+	}
+
+	if(g_save_exptime) {
+		union {
+			uint32_t num;
+			char mem[4];
+		} cast;
+		cast.num = htonl( exptime_to_system(expiration) );
+		val    -= 4;
+		vallen += 4;
+		memcpy(const_cast<char*>(val), cast.mem, 4);
 	}
 
 	set_entry* e = life->allocate<set_entry>();
@@ -557,6 +617,11 @@ void handler::request_set(memproto_header* h,
 	req.user     = reinterpret_cast<void*>(e);
 	req.callback = &handler::response_set;
 	req.life     = life;
+	if(h->cas) {
+		req.operation = gate::OP_CAS;
+		req.clocktime = h->cas;
+		req.callback = &handler::response_cas;
+	}
 
 	m_queue->push_entry(e);
 	req.submit();
@@ -656,11 +721,52 @@ void handler::response_getx(void* user,
 		return;
 	}
 
+	if(g_save_exptime) {
+		if(res.vallen < 4) {
+			send_response_nodata(e, z, MEMPROTO_RES_KEY_NOT_FOUND);
+			return;
+		}
+		union {
+			uint32_t num;
+			char mem[4];
+		} cast;
+		memcpy(cast.mem, res.val, 4);
+		uint32_t exptime = ntohl(cast.num);
+		if(exptime != 0 && exptime < g_system_time) {
+			send_response_nodata(e, z, MEMPROTO_RES_KEY_NOT_FOUND);
+			return;
+		}
+		res.vallen -= 4;
+		res.val    += 4;
+	}
+
+	char* flags = NULL;
+	if(g_save_flag) {
+		if(res.vallen < 2) {
+			send_response_nodata(e, z, MEMPROTO_RES_KEY_NOT_FOUND);
+			return;
+		}
+		flags = (char*)z->malloc(4);
+		memset(flags, 0, 4);
+		memcpy(flags+2, res.val, 2);
+		res.val    += 2;
+		res.vallen -= 2;
+	}
+
 	// found
-	send_response(e, z, MEMPROTO_RES_NO_ERROR,
-			res.key, (e->flag_key ? res.keylen : 0),
-			res.val, res.vallen,
-			(char*)&ZERO_FLAG, 4);
+	if(flags) {
+		send_response(e, z, MEMPROTO_RES_NO_ERROR,
+				res.key, (e->flag_key ? res.keylen : 0),
+				res.val, res.vallen,
+				flags, 4,
+				res.clocktime);
+	} else {
+		send_response(e, z, MEMPROTO_RES_NO_ERROR,
+				res.key, (e->flag_key ? res.keylen : 0),
+				res.val, res.vallen,
+				(char*)&ZERO_FLAG, 4,
+				res.clocktime);
+	}
 }
 
 void handler::response_set(void* user,
@@ -674,6 +780,30 @@ void handler::response_set(void* user,
 	if(res.error) {
 		// error
 		send_response_nodata(e, z, MEMPROTO_RES_OUT_OF_MEMORY);
+		return;
+	}
+
+	// stored
+	send_response_nodata(e, z, MEMPROTO_RES_NO_ERROR);
+}
+
+void handler::response_cas(void* user,
+		gate::res_set& res, auto_zone z)
+{
+	set_entry* e = reinterpret_cast<set_entry*>(user);
+	if(!e->queue->is_valid()) { return; }
+
+	LOG_TRACE("cas response");
+
+	if(res.error) {
+		// error
+		send_response_nodata(e, z, MEMPROTO_RES_OUT_OF_MEMORY);
+		return;
+	}
+
+	if(!res.cas_success) {
+		// FIXME EXISTS, NOT_FOUND
+		send_response_nodata(e, z, MEMPROTO_RES_KEY_EXISTS);
 		return;
 	}
 
@@ -726,8 +856,13 @@ void accepted(int fd, int err)
 }  // noname namespace
 
 
-MemcacheBinary::MemcacheBinary(int lsock) :
-	m_lsock(lsock) { }
+MemcacheBinary::MemcacheBinary(int lsock, bool save_flag, bool save_exptime) :
+	m_lsock(lsock)
+{
+	g_save_flag = save_flag;
+	g_save_exptime = save_exptime;
+}
+
 
 MemcacheBinary::~MemcacheBinary() {}
 
@@ -736,6 +871,12 @@ void MemcacheBinary::run()
 	using namespace mp::placeholders;
 	wavy::listen(m_lsock,
 			mp::bind(&accepted, _1, _2));
+
+	if(g_save_exptime) {
+		update_system_time();
+		struct timespec interval = {0, 500*1000*1000};
+		wavy::timer(&interval, &update_system_time);
+	}
 }
 
 
