@@ -1,4 +1,10 @@
 
+2010-05-14 version 0.4.1:
+
+  * Fixed replication behavior on CAS
+  * Fixed error response message of CAS on memcached text protocol
+  * Support flags, expiration time and CAS on memcached binary protocol
+
 2010-05-14 version 0.4.0:
 
   * CAS (Compare-and-Swap) support
