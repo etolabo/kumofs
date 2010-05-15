@@ -42,6 +42,13 @@ It measured performance of one server node using three client machines. Each cli
 It measured performance of the cluster using 50 client machines. Each client machine gets 1,024,000 entries form the cluster using 32 threads.
 
 
+## Design
+
+<a href="http://kumofs.sourceforge.net">![Design of kumofs](http://kumofs.sourceforge.net/index/design.png)</a>
+
+**kumo-servers** store data and replicate them into other kumo-servers.  **kumo-managers** watch life or death of kumo-servers and proceed automatic rebalancing when the number of kumo-servers is changed.  **kumo-gatway** relay the requests from client applications to kumo-servers. Because kumo-gateway implements memcached protocol, you can use memcached client library to access kumofs.
+
+
 ## Installation
 
 Following libraries are required to build kumofs:
@@ -62,13 +69,6 @@ Configure and install in the usual way:
     $ ./configure
     $ make
     $ sudo make install
-
-
-## Design
-
-<a href="http://kumofs.sourceforge.net">![Design of kumofs](http://kumofs.sourceforge.net/index/design.png)</a>
-
-**kumo-servers** store data and replicate them into other kumo-servers.  **kumo-managers** watch life or death of kumo-servers and proceed automatic rebalancing when the number of kumo-servers is changed.  **kumo-gatway** relay the requests from client applications to kumo-servers. Because kumo-gateway implements memcached protocol, you can use memcached client library to access kumofs.
 
 
 ## Example
