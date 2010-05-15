@@ -310,7 +310,7 @@ void response_get_multi(void* user,
 		}
 	
 		if(e->require_cas) {
-			p += sprintf(p, " %"PRIu64"\r\n", (uint64_t)0);  // FIXME p64X casval
+			p += sprintf(p, " %"PRIu64"\r\n", res.clocktime);
 		} else {
 			p[0] = '\r'; p[1] = '\n'; p += 2;
 		}
