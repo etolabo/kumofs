@@ -21,15 +21,6 @@ Backend storage is Tokyo Cabinet and it will give you great performance.
   - Safe CAS operation support.
   - memcached protocol support.
 
-![Single node performance of kumofs](http://kumofs.sourceforge.net/index/speedtest.png)
-
-It measured performance of one server node using three client machines. Each client machine gets 12,800 of 1KB values from the server using 32 threads. The source code is available from frsyuki's repository. ([kumofs](http://github.com/frsyuki/memstrike), [voldemort](http://github.com/frsyuki/memstrike-voldemort)).
-
-![Scalability of kumofs](http://kumofs.sourceforge.net/index/scalability.png)
-
-It measured performance of the cluster using 50 client machines. Each client machine gets 1,024,000 entries form the cluster using 32 threads.
-
-
 See following URLs for more details:
 
   - [Project Website](http://kumofs.sourceforge.net/)
@@ -37,6 +28,27 @@ See following URLs for more details:
   - [document, Japanese](http://github.com/etolabo/kumofs/blob/master/doc/doc.ja.md)
   - [blog, Japanese](http://d.hatena.ne.jp/viver/20100118/p1)
   - [source code](http://github.com/etolabo/kumofs/)
+
+
+<a href="http://kumofs.sourceforge.net">![Single node performance of kumofs](http://kumofs.sourceforge.net/index/speedtest.png)</a>
+
+It measured performance of one server node using three client machines. Each client machine gets 12,800 of 1KB values from the server using 32 threads. The source code is available from frsyuki's repository. ([kumofs](http://github.com/frsyuki/memstrike), [voldemort](http://github.com/frsyuki/memstrike-voldemort)).
+
+<a href="http://kumofs.sourceforge.net">![Scalability of kumofs](http://kumofs.sourceforge.net/index/scalability.png)</a>
+
+It measured performance of the cluster using 50 client machines. Each client machine gets 1,024,000 entries form the cluster using 32 threads.
+
+
+## Design
+
+<a href="http://kumofs.sourceforge.net">![Design of kumofs](http://kumofs.sourceforge.net/index/design-large.png)</a>
+
+kumo-servers store data and replicate them into other kumo-servers.
+
+kumo-managers watch life or death of kumo-servers and proceed automatic rebalancing when the number of kumo-servers is changed.
+
+kumo-gatway relay the requests from client applications to kumo-servers. Because kumo-gateway implements memcached protocol, you can use memcached client library to access kumofs.
+
 
 
 ## Installation
