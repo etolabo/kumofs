@@ -1,5 +1,6 @@
 kumofs
 ======
+http://kumofs.sourceforge.net/
 
 ## Overview
 
@@ -19,6 +20,7 @@ kumofs is a scalable and highly available distributed key-value store.
 
 See following URLs for more details:
 
+  - [Project Website](http://kumofs.sourceforge.net/)
   - [document, English](http://github.com/etolabo/kumofs/blob/master/doc/doc.en.md)
   - [document, Japanese](http://github.com/etolabo/kumofs/blob/master/doc/doc.ja.md)
   - [blog, Japanese](http://d.hatena.ne.jp/viver/20100118/p1)
