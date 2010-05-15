@@ -30,26 +30,6 @@ See following URLs for more details:
   - [source code](http://github.com/etolabo/kumofs/)
 
 
-<div style="background-color:black;padding:10px;">
-
-<div style="float:left;width:400px;padding:5px;">
-<a href="http://kumofs.sourceforge.net"><img src="http://kumofs.sourceforge.net/index/speedtest.png" alt="Single node performance of kumofs" style="display:block;padding:5px;"/></a>
-<span style="color:#888;">
-It measured performance of one server node using three client machines. Each client machine gets 12,800 of 1KB values from the server using 32 threads. The source code is available from frsyuki's repository. (<a href="http://github.com/frsyuki/memstrike" style="color:#777;">kumofs</a>, <a href="http://github.com/frsyuki/memstrike-voldemort" style="color:#777;">voldemort</a>).
-</span>
-</div>
-
-<div style="float:left;width:400px;padding:5px;">
-<a href="http://kumofs.sourceforge.net"><img src="http://kumofs.sourceforge.net/index/scalability.png" alt="Scalability of kumofs" style="display:block;padding:5px;"></a>
-<span style="color:#888;">
-It measured performance of the cluster using 50 client machines. Each client machine gets 1,024,000 entries form the cluster using 32 threads.
-</span>
-</div>
-
-<div style="clear:both;"></div>
-</div>
-
-
 ## Design
 
 <a href="http://kumofs.sourceforge.net">![Design of kumofs](http://kumofs.sourceforge.net/index/design-large.png)</a>
@@ -60,6 +40,17 @@ kumo-managers watch life or death of kumo-servers and proceed automatic rebalanc
 
 kumo-gatway relay the requests from client applications to kumo-servers. Because kumo-gateway implements memcached protocol, you can use memcached client library to access kumofs.
 
+
+## Performance
+
+![Single node performance of kumofs](http://kumofs.sourceforge.net/index/speedtest.png)
+
+It measured performance of one server node using three client machines. Each client machine gets 12,800 of 1KB values from the server using 32 threads. The source code is available from frsyuki's repository. ([kumofs](http://github.com/frsyuki/memstrike), [voldemort](http://github.com/frsyuki/memstrike-voldemort)).
+
+
+![Scalability of kumofs](http://kumofs.sourceforge.net/index/scalability.png)
+
+It measured performance of the cluster using 50 client machines. Each client machine gets 1,024,000 entries form the cluster using 32 threads.
 
 
 ## Installation
