@@ -1,4 +1,9 @@
 
+2010-05-15 version 0.4.2:
+
+  * Fixed the problem that get_multi always returns a CAS of 0
+  * Supported 'replace' command with CAS value on memcached binary protocol
+
 2010-05-14 version 0.4.1:
 
   * Fixed replication behavior on CAS
