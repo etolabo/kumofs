@@ -1,6 +1,6 @@
 kumofs
 ======
-http://kumofs.sourceforge.net/
+[http://kumofs.sourceforge.net/](http://kumofs.sourceforge.net/)
 
 ## Overview
 
