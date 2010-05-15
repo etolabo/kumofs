@@ -30,13 +30,24 @@ See following URLs for more details:
   - [source code](http://github.com/etolabo/kumofs/)
 
 
-<a href="http://kumofs.sourceforge.net">![Single node performance of kumofs](http://kumofs.sourceforge.net/index/speedtest.png)</a>
+<div style="background-color:black;padding:10px;">
 
-It measured performance of one server node using three client machines. Each client machine gets 12,800 of 1KB values from the server using 32 threads. The source code is available from frsyuki's repository. ([kumofs](http://github.com/frsyuki/memstrike), [voldemort](http://github.com/frsyuki/memstrike-voldemort)).
+<div style="float:left;width:400px;padding:5px;">
+<a href="http://kumofs.sourceforge.net"><img src="http://kumofs.sourceforge.net/index/speedtest.png" alt="Single node performance of kumofs" style="display:block;padding:5px;"/></a>
+<span style="color:#888;">
+It measured performance of one server node using three client machines. Each client machine gets 12,800 of 1KB values from the server using 32 threads. The source code is available from frsyuki's repository. (<a href="http://github.com/frsyuki/memstrike" style="color:#777;">kumofs</a>, <a href="http://github.com/frsyuki/memstrike-voldemort" style="color:#777;">voldemort</a>).
+</span>
+</div>
 
-<a href="http://kumofs.sourceforge.net">![Scalability of kumofs](http://kumofs.sourceforge.net/index/scalability.png)</a>
-
+<div style="float:left;width:400px;padding:5px;">
+<a href="http://kumofs.sourceforge.net"><img src="http://kumofs.sourceforge.net/index/scalability.png" alt="Scalability of kumofs" style="display:block;padding:5px;"></a>
+<span style="color:#888;">
 It measured performance of the cluster using 50 client machines. Each client machine gets 1,024,000 entries form the cluster using 32 threads.
+</span>
+</div>
+
+<div style="clear:both;"></div>
+</div>
 
 
 ## Design
