@@ -446,7 +446,7 @@ handler::handler(int fd) :
 		cmd_getx,    // get
 		cmd_set,     // set
 		NULL,        // add
-		NULL,        // replace
+		cmd_set,     // replace
 		cmd_delete,  // delete
 		NULL,        // increment
 		NULL,        // decrement
@@ -567,6 +567,11 @@ void handler::request_set(memproto_header* h,
 {
 	LOG_TRACE("set");
 	RELEASE_REFERENCE(life);
+
+	if(h->opcode == MEMPROTO_CMD_REPLACE && !h->cas) {
+		// replace without cas value is not supported
+		throw std::runtime_error("memcached binary protocol: unsupported requrest");
+	}
 
 	if((!g_save_flag && flags) || (!g_save_exptime && expiration)) {
 		// FIXME error response
