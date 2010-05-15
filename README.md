@@ -4,19 +4,31 @@ kumofs
 
 ## Overview
 
-kumofs is a scalable and highly available distributed key-value store.
+Kumofs is a simple and fast distributed key-value store.
 
-  - Data is replicated over multiple servers.
-  - Data is partitioned over multiple servers.
+You can use a memcached client library to set, get, CAS or delete values from/into kumofs.
+
+Backend storage is Tokyo Cabinet and it will give you great performance.
+
+  - Data is partitioned and replicated over multiple servers.
   - Extreme single node performance; comparable with memcached.
   - Both read and write performance got improved as servers added.
   - Servers can be added without stopping the system.
-  - Servers can be added without changing the client applications.
+  - Servers can be added without modifying any configuration files.
   - The system does not stop even if one or two servers crashed.
   - The system does not stop to recover crashed servers.
-  - Scalable from 2 to 60 servers. (more than 60 servers has not be tested yet)
-  - Optimized for storing a large amount of small data.
-  - memcached protocol support. (get, set and delete only; expiration time must be 0)
+  - Automatic rebalancing support with a consistency control algorithm.
+  - Safe CAS operation support.
+  - memcached protocol support.
+
+![Single node performance of kumofs](http://kumofs.sourceforge.net/index/speedtest.png)
+
+It measured performance of one server node using three client machines. Each client machine gets 12,800 of 1KB values from the server using 32 threads. The source code is available from frsyuki's repository. ([kumofs](http://github.com/frsyuki/memstrike), [voldemort](http://github.com/frsyuki/memstrike-voldemort)).
+
+![Scalability of kumofs](http://kumofs.sourceforge.net/index/scalability.png)
+
+It measured performance of the cluster using 50 client machines. Each client machine gets 1,024,000 entries form the cluster using 32 threads.
+
 
 See following URLs for more details:
 
