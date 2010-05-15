@@ -7,8 +7,7 @@ kumofs
 Kumofs is a simple and fast distributed key-value store.
 
 You can use a memcached client library to set, get, CAS or delete values from/into kumofs.
-
-Backend storage is Tokyo Cabinet and it will give you great performance.
+Backend storage is [Tokyo Cabinet](http://1978th.net/tokyocabinet/index.html) and it will give you [great performance](http://tokyocabinet.sourceforge.net/benchmark.pdf).
 
   - Data is partitioned and replicated over multiple servers.
   - Extreme single node performance; comparable with memcached.
@@ -19,7 +18,7 @@ Backend storage is Tokyo Cabinet and it will give you great performance.
   - The system does not stop to recover crashed servers.
   - Automatic rebalancing support with a consistency control algorithm.
   - Safe CAS operation support.
-  - memcached protocol support.
+  - [memcached](http://memcached.org/) protocol support.
 
 See following URLs for more details:
 
