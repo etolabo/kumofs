@@ -23,17 +23,11 @@ Backend storage is [Tokyo Cabinet](http://1978th.net/tokyocabinet/index.html) an
 See following URLs for more details:
 
   - [Project Website](http://kumofs.sourceforge.net/)
+  - [twitter](http://twitter.com/frsyuki_ha)
   - [document, English](http://github.com/etolabo/kumofs/blob/master/doc/doc.en.md)
   - [document, Japanese](http://github.com/etolabo/kumofs/blob/master/doc/doc.ja.md)
   - [blog, Japanese](http://d.hatena.ne.jp/viver/20100118/p1)
   - [source code](http://github.com/etolabo/kumofs/)
-
-
-## Design
-
-<a href="http://kumofs.sourceforge.net">![Design of kumofs](http://kumofs.sourceforge.net/index/design-large.png)</a>
-
-**kumo-servers** store data and replicate them into other kumo-servers.  **kumo-managers** watch life or death of kumo-servers and proceed automatic rebalancing when the number of kumo-servers is changed.  **kumo-gatway** relay the requests from client applications to kumo-servers. Because kumo-gateway implements memcached protocol, you can use memcached client library to access kumofs.
 
 
 ## Performance
@@ -68,6 +62,13 @@ Configure and install in the usual way:
     $ ./configure
     $ make
     $ sudo make install
+
+
+## Design
+
+<a href="http://kumofs.sourceforge.net">![Design of kumofs](http://kumofs.sourceforge.net/index/design.png)</a>
+
+**kumo-servers** store data and replicate them into other kumo-servers.  **kumo-managers** watch life or death of kumo-servers and proceed automatic rebalancing when the number of kumo-servers is changed.  **kumo-gatway** relay the requests from client applications to kumo-servers. Because kumo-gateway implements memcached protocol, you can use memcached client library to access kumofs.
 
 
 ## Example
