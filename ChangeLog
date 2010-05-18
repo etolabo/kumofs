@@ -1,4 +1,9 @@
 
+2010-05-18 version 0.4.3:
+
+  * gateway: Fixed memory leak problem on memcached binary protocol
+  * gateway: improve performance on binary protocol when -E or -F is enabled.
+
 2010-05-15 version 0.4.2:
 
   * Fixed the problem that get_multi always returns a CAS of 0
