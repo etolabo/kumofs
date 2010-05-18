@@ -578,13 +578,12 @@ void handler::request_set(memproto_header* h,
 		throw std::runtime_error("memcached binary protocol: invalid argument");
 	}
 
-	size_t extra_header = 0;
-	if(g_save_flag)    { extra_header += 2; }
-	if(g_save_exptime) { extra_header += 4; }
-	if(extra_header) {
-		char* xval = (char*)life->malloc(vallen + extra_header);
-		memcpy(xval+extra_header, val, vallen);
-		val = xval+extra_header;
+	if(g_save_flag || g_save_exptime) {
+		// バイナリプロトコルでdataの前6バイトにはkey,extra,casが入っている
+		// extraとcasは変数にコピーされているので、keyを動かす
+		char* xkey = (char*)life->malloc(keylen);
+		memcpy(xkey, key, keylen);
+		key = xkey;
 	}
 
 	if(g_save_flag) {
