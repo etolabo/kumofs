@@ -217,6 +217,12 @@ inline int handler::response_queue::is_valid() const
 inline void handler::response_queue::invalidate()
 {
 	m_valid = false;
+
+	// untie circular reference.
+	// m_queue -> element_t -> shared_zone -> {get,set,delete}_entry
+	// -> m_queue.
+	mp::pthread_scoped_lock mqlk(m_queue_mutex);
+	m_queue.clear();
 }
 
 
@@ -250,7 +256,7 @@ void handler::response_queue::reached_try_send(
 			find_entry_compare(e));
 
 	if(found == m_queue.end()) {
-		// FIXME log?
+		// invalidated
 		return;
 	}
 
@@ -269,8 +275,10 @@ void handler::response_queue::reached_try_send(
 		}
 
 		if(elem.veclen > 0) {
-			wavy::request req(&mp::object_delete<shared_zone>, new shared_zone(elem.life));
+			std::auto_ptr<shared_zone> sz(new shared_zone(elem.life));
+			wavy::request req(&mp::object_delete<shared_zone>, sz.get());
 			wavy::writev(m_fd, elem.vec, elem.veclen, req);
+			sz.release();
 		}
 
 		m_queue.pop_front();
