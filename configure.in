@@ -114,22 +114,6 @@ AC_MSG_RESULT($enable_tcadb)
 
 
 
-AC_MSG_CHECKING([if tcmalloc is enabled])
-AC_ARG_WITH([tcmalloc],
-	AS_HELP_STRING([--with-tcmalloc@<:@=DIR@:>@],
-				   [link libtcmalloc]),
-	[with_tcmalloc="$withval"], [with_tcmalloc="no"])
-AC_MSG_RESULT($with_tcmalloc)
-if test "$with_tcmalloc" != "no"; then
-	if test "$with_tcmalloc" != "yes"; then
-		LDFLAGS="$LDFLAGS -L$with_tcmalloc/lib"
-		LDFLAGS="$LDFLAGS -L$with_tcmalloc/lib64"
-	fi
-	AC_CHECK_LIB(tcmalloc,malloc,,
-		AC_MSG_ERROR([Can't find tcmalloc library]))
-fi
-
-
 AC_CHECK_LIB(stdc++, main)
 
 AC_CHECK_LIB(pthread,pthread_create,,
@@ -142,6 +126,39 @@ AC_CHECK_HEADERS(openssl/sha.h,,
 	AC_MSG_ERROR([Can't find openssl header]))
 AC_CHECK_LIB(crypto,SHA1,,
 	AC_MSG_ERROR([Can't find openssl library]))
+
+
+AC_MSG_CHECKING([if jemalloc is enabled])
+AC_ARG_WITH([jemalloc],
+	AS_HELP_STRING([--with-jemalloc@<:@=DIR@:>@],
+				   [link jemalloc. This is recommended. See http://www.canonware.com/jemalloc/ for details.]),
+	[with_jemalloc="$withval"], [with_jemalloc="no"])
+AC_MSG_RESULT($with_jemalloc)
+if test "$with_jemalloc" != "no"; then
+	if test "$with_jemalloc" != "yes"; then
+		LDFLAGS="$LDFLAGS -L$with_jemalloc/lib"
+		LDFLAGS="$LDFLAGS -L$with_jemalloc/lib64"
+	fi
+	AC_CHECK_LIB(jemalloc,malloc,,
+		AC_MSG_ERROR([Can't find jemalloc library]))
+fi
+
+
+AC_MSG_CHECKING([if tcmalloc is enabled])
+AC_ARG_WITH([tcmalloc],
+	AS_HELP_STRING([--with-tcmalloc@<:@=DIR@:>@],
+				   [link tcmalloc]),
+	[with_tcmalloc="$withval"], [with_tcmalloc="no"])
+AC_MSG_RESULT($with_tcmalloc)
+if test "$with_tcmalloc" != "no"; then
+	if test "$with_tcmalloc" != "yes"; then
+		LDFLAGS="$LDFLAGS -L$with_tcmalloc/lib"
+		LDFLAGS="$LDFLAGS -L$with_tcmalloc/lib64"
+	fi
+	AC_CHECK_LIB(tcmalloc,malloc,,
+		AC_MSG_ERROR([Can't find tcmalloc library]))
+fi
+
 
 AC_CHECK_LIB(msgpack,main,,
 	AC_MSG_ERROR([Can't find msgpack library.

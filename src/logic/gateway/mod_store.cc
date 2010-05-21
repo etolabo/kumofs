@@ -308,7 +308,7 @@ try {
 		} else {
 			retry->call(share->server_for<resource::HS_READ>(key.hash(), offset), life, 10);
 		}
-		LOG_WARN("Get error: ",err,", fallback to offset +",offset," node");
+		LOG_DEBUG("Get error: ",err,", fallback to offset +",offset," node");  // too slow to display it
 
 	} else {
 		if(err.via.u64 == (uint64_t)rpc::protocol::TRANSPORT_LOST_ERROR ||
