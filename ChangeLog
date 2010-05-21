@@ -1,4 +1,10 @@
 
+2010-05-21 version 0.4.3:
+
+  * gateway: returns 'out of memory' instead of 'invalid argument' on server error
+    on binary protocol.
+  * configure: added --with-jemalloc option that links jemalloc.
+
 2010-05-18 version 0.4.3:
 
   * gateway: Fixed memory leak problem on memcached binary protocol
