@@ -41,6 +41,8 @@ typedef enum {
 	MEMPROTO_RES_ITEM_NOT_STORED    = 0x0005,
 	MEMPROTO_RES_UNKNOWN_COMMAND    = 0x0081,
 	MEMPROTO_RES_OUT_OF_MEMORY      = 0x0082,
+	MEMPROTO_RES_PAUSE              = 0xfe00,
+	MEMPROTO_RES_IO_ERROR           = 0xff00,
 } memproto_response_status;
 
 

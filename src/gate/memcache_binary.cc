@@ -719,7 +719,7 @@ void handler::response_getx(void* user,
 			return;
 		}
 		LOG_TRACE("getx res err");
-		send_response_nodata(e, z, MEMPROTO_RES_INVALID_ARGUMENTS);
+		send_response_nodata(e, z, MEMPROTO_RES_OUT_OF_MEMORY);
 		return;
 	}
 
