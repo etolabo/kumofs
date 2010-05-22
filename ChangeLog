@@ -1,5 +1,9 @@
 
-2010-05-21 version 0.4.3:
+2010-05-22 version 0.4.5:
+
+  * gateway: fixes memory leak problem on binary protocol.
+
+2010-05-21 version 0.4.4:
 
   * gateway: returns 'out of memory' instead of 'invalid argument' on server error
     on binary protocol.
