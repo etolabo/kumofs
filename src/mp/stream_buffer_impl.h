@@ -88,6 +88,11 @@ inline void stream_buffer::reference::push(void* d)
 	incr_count(d);
 }
 
+inline void stream_buffer::reference::move(void* d)
+{
+	m_array.push_back(d);
+}
+
 inline void stream_buffer::reference::swap(reference& x)
 {
 	m_array.swap(x.m_array);
@@ -200,7 +205,7 @@ inline void stream_buffer::expand_buffer(size_t len, size_t initial_buffer_size)
 		init_count(tmp);
 
 		try {
-			m_ref.push(m_buffer);
+			m_ref.move(m_buffer);
 		} catch (...) { free(tmp); throw; }
 
 		memcpy(tmp+sizeof(count_t), m_buffer+m_off, not_used);

@@ -59,6 +59,9 @@ public:
 		std::vector<void*> m_array;
 		struct each_incr;
 		struct each_decr;
+	private:
+		void move(void* d);
+		friend class stream_buffer;
 	};
 
 	reference* release();
