@@ -1,4 +1,8 @@
 
+2010-05-27 version 0.4.6:
+
+  * kumotop: shows 'status' column: inactive, Copying, WAIT, Deleting, ready or ?
+
 2010-05-22 version 0.4.5:
 
   * gateway: fixes memory leak problem on binary protocol.
