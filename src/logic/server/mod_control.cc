@@ -126,6 +126,31 @@ RPC_IMPL(mod_control_t, GetStatus, req, z, response)
 		}
 		break;
 
+	case STAT_REPLACE:
+		{
+			bool hssame;
+			{
+				pthread_scoped_rdlock rhlk(share->rhs_mutex());
+				pthread_scoped_rdlock whlk(share->whs_mutex());
+				if(share->rhs() == share->whs()) {
+					hssame = true;
+				} else {
+					hssame = false;
+				}
+			}
+
+			bool copying = net->mod_replace.is_copying();
+			bool deleting = net->mod_replace.is_deleting();
+
+			uint32_t flags = 0;
+			if(!hssame)  { flags |= 0x01; }
+			if(copying)  { flags |= 0x02; }
+			if(deleting) { flags |= 0x04; }
+
+			response.result(flags);
+		}
+		break;
+
 	default:
 		response.result(msgpack::type::nil());
 		break;

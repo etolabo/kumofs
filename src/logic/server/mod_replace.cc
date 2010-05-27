@@ -23,6 +23,12 @@ namespace kumo {
 namespace server {
 
 
+mod_replace_t::mod_replace_t() :
+	m_copying(false), m_deleting(false) { }
+
+mod_replace_t::~mod_replace_t() { }
+
+
 bool mod_replace_t::test_replicator_assign(const HashSpace& hs, uint64_t h, const address& target)
 {
 	EACH_ASSIGN(hs, h, r,
@@ -170,6 +176,8 @@ private:
 
 void mod_replace_t::replace_copy(const address& manager_addr, HashSpace& hs, shared_zone life)
 {
+	scoped_set_true set_copying(&m_copying);
+
 	ClockTime replace_time = hs.clocktime();
 
 	{
@@ -321,6 +329,8 @@ private:
 
 void mod_replace_t::full_replace_copy(const address& manager_addr, HashSpace& hs, shared_zone life)
 {
+	scoped_set_true set_copying(&m_copying);
+
 	ClockTime replace_time = hs.clocktime();
 
 	{
@@ -414,6 +424,8 @@ private:
 
 void mod_replace_t::replace_delete(shared_node& manager, HashSpace& hs, shared_zone life)
 {
+	scoped_set_true set_deleting(&m_deleting);
+
 	pthread_scoped_rdlock whlk(share->whs_mutex());
 	ClockTime replace_time = share->whs().clocktime();
 

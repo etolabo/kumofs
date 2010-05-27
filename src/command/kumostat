@@ -44,8 +44,21 @@ class KumoServer < KumoRPC
 	STAT_CLOCKTIME   = 8
 	STAT_RHS         = 9
 	STAT_WHS         = 10
+	STAT_REPLACE     = 11
 
 	CONF_TCP_NODELAY = 0
+
+	def self.replace_stat_str(flags)
+		if flags & 0x04 != 0
+			"Deleting"
+		elsif flags & 0x02 != 0
+			"Copying"
+		elsif flags & 0x01 != 0
+			"WAIT"
+		else
+			"ready"
+		end
+	end
 end
 
 if $0 == __FILE__
@@ -66,6 +79,7 @@ def usage
 	puts "   rhs                        get rhs (routing table for Get)"
 	puts "   whs                        get whs (routing table for Set/Delete)"
 	puts "   hscheck                    check if rhs == whs"
+	puts "   replstat                   get replace status"
 	puts "   set_delay                  maximize throughput at the expense of latency"
 	puts "   unset_delay                minimize latency at the expense of throughput"
 	exit 1
@@ -83,6 +97,7 @@ end
 	"rhs"         => Proc.new{|s| KumoRPC::HSSeed.parse s.GetStatus(KumoServer::STAT_RHS) },
 	"whs"         => Proc.new{|s| KumoRPC::HSSeed.parse s.GetStatus(KumoServer::STAT_WHS) },
 	"hscheck"     => Proc.new{|s| s.GetStatus(KumoServer::STAT_RHS) == s.GetStatus(KumoServer::STAT_WHS) },
+	"replstat"    => Proc.new{|s| KumoServer.replace_stat_str s.GetStatus(KumoServer::STAT_REPLACE) },
 	"set_delay"   => Proc.new{|s| s.SetConfig(KumoServer::CONF_TCP_NODELAY, false) },
 	"unset_delay" => Proc.new{|s| s.SetConfig(KumoServer::CONF_TCP_NODELAY, true) },
 }

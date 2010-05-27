@@ -38,7 +38,7 @@ typedef struct {
 
 	void (*free)(void* data);
 
-	// success: true;  faied: false
+	// success: true;  failed: false
 	//bool (*open)(void* data, int* argc, char** argv);
 	bool (*open)(void* data, const char* path);
 

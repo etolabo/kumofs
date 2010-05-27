@@ -178,6 +178,10 @@ private:
 		// accepted: true
 	};
 
+public:
+	mod_replace_t();
+	~mod_replace_t();
+
 private:
 	static bool test_replicator_assign(const HashSpace& hs, uint64_t h, const address& target);
 
@@ -217,10 +221,34 @@ private:
 	mp::pthread_mutex m_state_mutex;
 	replace_state m_state;
 
+	class scoped_set_true {
+	public:
+		scoped_set_true(bool* value) :
+			m_value(value)
+		{
+			*m_value = true;
+		}
+		~scoped_set_true()
+		{
+			*m_value = false;
+		}
+	private:
+		bool* m_value;
+	private:
+		scoped_set_true(const scoped_set_true&);
+		scoped_set_true();
+	};
+
+	bool m_copying;
+	bool m_deleting;
+
 public:
 	void replace_offer_push(ClockTime replace_time, REQUIRE_STLK);
 	void replace_offer_pop(ClockTime replace_time, REQUIRE_STLK);
 	mp::pthread_mutex& state_mutex() { return m_state_mutex; }
+
+	bool is_copying()  const { return m_copying; }
+	bool is_deleting() const { return m_deleting; }
 @end
 
 
@@ -307,6 +335,7 @@ enum status_type {
 	STAT_CLOCKTIME		= 8,
 	STAT_RHS			= 9,
 	STAT_WHS			= 10,
+	STAT_REPLACE		= 11,
 };
 
 enum config_type {

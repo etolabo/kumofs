@@ -20,10 +20,10 @@
 load File.dirname(__FILE__) + "/kumostat"
 
 
-          #       1    2    3    4     5     6     7   8     9   10    11
-INDEX  = %w[address #Get #Set #Del Get/s Set/s Del/s QPS items time clock]
-FORMAT_SMALL = %[%1$22s%2$9s%3$9s%4$9s%9$10s %10$19s\n                      %5$9s%6$9s%7$9s%8$10s %11$19s]
-FORMAT_LARGE = %[%23s %9s %9s %9s %8s %8s %8s %8s %10s %20s %8s]
+          #       1    2    3    4     5     6     7   8     9   10    11      12
+INDEX  = %w[address #Get #Set #Del Get/s Set/s Del/s QPS items time clock status]
+FORMAT_SMALL = %[%1$22s%2$9s%3$9s%4$9s%9$10s %10$19s %12$8s\n                      %5$9s%6$9s%7$9s%8$10s %11$19s]
+FORMAT_LARGE = %[%23s %9s %9s %9s %8s %8s %8s %8s %10s %20s %8s %8s]
 TIME_FORMAT = "%Y-%m-%d %H:%M:%S"
 
 class Node
@@ -51,6 +51,12 @@ class Node
 		del   = @con.GetStatus(KumoServer::STAT_CMD_DELETE)
 		items = @con.GetStatus(KumoServer::STAT_DB_ITEMS)
 		clocktime  = @con.GetStatus(KumoServer::STAT_CLOCKTIME)
+		replacing  = @con.GetStatus(KumoServer::STAT_REPLACE)
+		if replacing
+			replacing = KumoServer.replace_stat_str(replacing)
+		else
+			replacing = '?'
+		end
 		time  = clocktime >> 32
 		clock = clocktime & 0xffffffff
 
@@ -81,7 +87,8 @@ class Node
 			q_per_s.to_i,
 			items,
 			Time.at(time).strftime(TIME_FORMAT),
-			clock
+			clock,
+			replacing
 		]
 
 	rescue
