@@ -49,11 +49,13 @@ class KumoServer < KumoRPC
 	CONF_TCP_NODELAY = 0
 
 	def self.replace_stat_str(flags)
-		if flags & 0x04 != 0
+		if flags & 0x01 != 0
+			"inactive"
+		elsif flags & 0x08 != 0
 			"Deleting"
-		elsif flags & 0x02 != 0
+		elsif flags & 0x04 != 0
 			"Copying"
-		elsif flags & 0x01 != 0
+		elsif flags & 0x02 != 0
 			"WAIT"
 		else
 			"ready"

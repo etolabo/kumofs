@@ -128,6 +128,7 @@ RPC_IMPL(mod_control_t, GetStatus, req, z, response)
 
 	case STAT_REPLACE:
 		{
+			bool active;
 			bool hssame;
 			{
 				pthread_scoped_rdlock rhlk(share->rhs_mutex());
@@ -137,15 +138,21 @@ RPC_IMPL(mod_control_t, GetStatus, req, z, response)
 				} else {
 					hssame = false;
 				}
+				if(share->whs().server_is_active(net->addr())) {
+					active = true;
+				} else {
+					active = false;
+				}
 			}
 
 			bool copying = net->mod_replace.is_copying();
 			bool deleting = net->mod_replace.is_deleting();
 
 			uint32_t flags = 0;
-			if(!hssame)  { flags |= 0x01; }
-			if(copying)  { flags |= 0x02; }
-			if(deleting) { flags |= 0x04; }
+			if(!active)  { flags |= 0x01; }
+			if(!hssame)  { flags |= 0x02; }
+			if(copying)  { flags |= 0x04; }
+			if(deleting) { flags |= 0x08; }
 
 			response.result(flags);
 		}
