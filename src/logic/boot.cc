@@ -170,6 +170,8 @@ void rpc_args::set_basic_args()
 			type::string(&logpack_path));
 	on("-d", "--daemon", &pidfile_set,
 			type::string(&pidfile));
+	on("-k", "--keepalive-interval",
+			type::numeric(&keepalive_interval_usec, keepalive_interval_usec));
 	on("-Ci", "--clock-interval",
 			type::numeric(&clock_interval, clock_interval));
 	on("-Ys", "--connect-timeout",

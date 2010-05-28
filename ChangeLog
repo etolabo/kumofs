@@ -1,4 +1,8 @@
 
+2010-05-29 version 0.4.7:
+
+  * make --keepalive-internval (-k) option work.
+
 2010-05-27 version 0.4.6:
 
   * kumotop: shows 'status' column: inactive, Copying, WAIT, Deleting, ready or ?
