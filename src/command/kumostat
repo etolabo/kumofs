@@ -48,6 +48,17 @@ class KumoServer < KumoRPC
 
 	CONF_TCP_NODELAY = 0
 
+	STAT_NAME_OF = {
+		STAT_PID        => "pid",
+		STAT_UPTIME     => "uptime",
+		STAT_TIME       => "time",
+		STAT_VERSION    => "version",
+		STAT_CMD_GET    => "cmd_get",
+		STAT_CMD_SET    => "cmd_set",
+		STAT_CMD_DELETE => "cmd_delete",
+		STAT_DB_ITEMS   => "curr_items",
+	}
+
 	def self.replace_stat_str(flags)
 		if flags & 0x01 != 0
 			"inactive"
@@ -78,6 +89,7 @@ def usage
 	puts "   cmd_set                    get number of set requests"
 	puts "   cmd_delete                 get number of delete requests"
 	puts "   items                      get number of stored items"
+	puts "   stats                      get statistics like memcached's 'stats' command"
 	puts "   rhs                        get rhs (routing table for Get)"
 	puts "   whs                        get whs (routing table for Set/Delete)"
 	puts "   hscheck                    check if rhs == whs"
@@ -102,6 +114,15 @@ end
 	"replstat"    => Proc.new{|s| KumoServer.replace_stat_str s.GetStatus(KumoServer::STAT_REPLACE) },
 	"set_delay"   => Proc.new{|s| s.SetConfig(KumoServer::CONF_TCP_NODELAY, false) },
 	"unset_delay" => Proc.new{|s| s.SetConfig(KumoServer::CONF_TCP_NODELAY, true) },
+	"stats"       => [
+		KumoServer::STAT_PID,
+		KumoServer::STAT_UPTIME,
+		KumoServer::STAT_TIME,
+		KumoServer::STAT_CMD_GET,
+		KumoServer::STAT_CMD_SET,
+		KumoServer::STAT_CMD_DELETE,
+		KumoServer::STAT_DB_ITEMS,
+	],
 }
 
 
@@ -110,19 +131,27 @@ def run_command(cmd, host, port)
 	begin
 		result = case cmd
 						 when Array
-							 s.GetStatus(*cmd)
+							if cmd.length > 1
+								res = ""
+								cmd.each {|c|
+									res += sprintf "STAT %s %s\n", KumoServer::STAT_NAME_OF[c], s.GetStatus(*[c])
+								}
+								res+"END"
+							else
+								s.GetStatus(*cmd)
+							end
 
-						 else Proc
-							 cmd.call(s)
+				 else Proc
+					 cmd.call(s)
 
-						 end
+				 end
 
 	rescue
 		puts $!.to_s
 	ensure
 		s.close
 	end
-	result
+	result.to_s+"\n"
 end
 
 if ARGV[0] == "-m"
@@ -155,7 +184,7 @@ if manager
 		if active
 			print "#{host}:#{port}:  "
 			$stdout.flush
-			p run_command(cmd, host, port)
+			print run_command(cmd, host, port)
 		end
 	}
 
@@ -163,7 +192,7 @@ else
 	host, port = addr.split(':', 2)
 	port ||= KumoRPC::SERVER_DEFAULT_PORT
 
-	p run_command(cmd, host, port)
+	print run_command(cmd, host, port)
 
 end
 
