@@ -307,16 +307,6 @@ void mod_replace_stream_t::stream_accumulator::send(int sock)
 }
 
 
-class replace_stream_header : public msgpack::define<
-		msgpack::type::tuple<uint64_t> > {
-public:
-	replace_stream_header() { }
-	replace_stream_header(uint64_t num) :
-		define_type(msgpack_type( num )) { }
-	uint64_t items() const { return get<0>(); }
-};
-
-
 struct scopeout_close {
 	scopeout_close(int fd) : m(fd) {}
 	~scopeout_close() { if(m >= 0) { ::close(m); } }
@@ -378,17 +368,9 @@ try {
 
 	LOG_DEBUG("send offer storage to ",iaddr);
 
-	// send header
-	{
-		replace_stream_header header(accum->num_itmes());
-		msgpack::sbuffer sbuf;
-		msgpack::packer<msgpack::sbuffer>(sbuf).pack(header);
-		::write(fd, sbuf.data(), sbuf.size());  // FIXME
-	}
-
 	accum->send(fd);
 
-	struct timeval timeout = {40, 0};  // FIXME
+	struct timeval timeout = {60, 0};  // FIXME
 	if(::setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO,
 				&timeout, sizeof(timeout)) < 0) {
 		throw std::runtime_error("can't set SO_RCVTIMEO");
@@ -500,24 +482,14 @@ private:
 	uint64_t m_items;
 	uint64_t m_major_counter;
 	volatile uint64_t m_minor_counter;
-
-	msgpack::sbuffer m_tmpbuf;
 };
 
 void mod_replace_stream_t::stream_handler::submit_message(rpc::msgobj msg, rpc::auto_zone& z)
 {
-	if(m_major_counter == 0) {
-		// receive header
-		replace_stream_header header;
-		msg.convert(&header);
-		m_items = header.items();
-		return;
-	}
-
 	if(msg.is_nil()) {
-		m_tmpbuf.clear();
-		msgpack::packer<msgpack::sbuffer>(m_tmpbuf).pack_nil();
-		wavy::write(fd(), m_tmpbuf.data(), m_tmpbuf.size());
+		msgpack::sbuffer tmpbuf(32);
+		msgpack::packer<msgpack::sbuffer>(tmpbuf).pack_nil();
+		wavy::write(fd(), tmpbuf.data(), tmpbuf.size());
 		return;
 	}
 
@@ -532,14 +504,14 @@ void mod_replace_stream_t::stream_handler::submit_message(rpc::msgobj msg, rpc::
 
 	// update() returns false means that key is overwritten while replicating.
 
-	if((++m_major_counter) % 1 == 0) {
+	if((++m_major_counter) % 100 == 0) {
 		m_minor_counter += 1;
 
 		// send keepalive
-		m_tmpbuf.clear();
-		msgpack::packer<msgpack::sbuffer> pk(m_tmpbuf);
+		msgpack::sbuffer tmpbuf(32);
+		msgpack::packer<msgpack::sbuffer> pk(tmpbuf);
 		pk.pack_array(0);
-		wavy::write(fd(), m_tmpbuf.data(), m_tmpbuf.size());
+		wavy::write(fd(), tmpbuf.data(), tmpbuf.size());
 	}
 }
 
