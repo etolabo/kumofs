@@ -1,4 +1,9 @@
 
+2010-05-25 version 0.4.8:
+
+  * kumostat: added stats subcommand
+  * server: sends keepalive packet during replacing (breaks backward compatibility)
+
 2010-05-29 version 0.4.7:
 
   * make --keepalive-internval (-k) option work.
