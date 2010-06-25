@@ -67,6 +67,9 @@ public:
 
 	const address& addr() const { return m_addr; }
 	ClockTime replace_time() const { return m_replace_time; }
+
+	uint64_t num_itmes() const { return m_items; }
+
 private:
 	address m_addr;
 	ClockTime m_replace_time;
@@ -84,6 +87,8 @@ private:
 	scoped_fd m_fd;
 
 	std::auto_ptr<zmmap_stream> m_mmap_stream;
+
+	uint64_t m_items;
 
 private:
 	stream_accumulator();
@@ -235,11 +240,12 @@ int mod_replace_stream_t::stream_accumulator::openfd(const std::string& basename
 }
 
 mod_replace_stream_t::stream_accumulator::stream_accumulator(const std::string& basename,
-		const address& addr, ClockTime replace_time):
+		const address& addr, ClockTime replace_time) :
 	m_addr(addr),
 	m_replace_time(replace_time),
 	m_fd(openfd(basename)),
-	m_mmap_stream(new zmmap_stream(m_fd.get()))
+	m_mmap_stream(new zmmap_stream(m_fd.get())),
+	m_items(0)
 {
 	LOG_TRACE("create stream_accumulator for ",addr);
 }
@@ -257,6 +263,7 @@ void mod_replace_stream_t::stream_accumulator::add(
 	pk.pack_raw_body(key, keylen);
 	pk.pack_raw(vallen);
 	pk.pack_raw_body(val, vallen);
+	++m_items;
 }
 
 void mod_replace_stream_t::stream_accumulator::flush()
@@ -298,6 +305,16 @@ void mod_replace_stream_t::stream_accumulator::send(int sock)
 	}
 #endif
 }
+
+
+class replace_stream_header : public msgpack::define<
+		msgpack::type::tuple<uint64_t> > {
+public:
+	replace_stream_header() { }
+	replace_stream_header(uint64_t num) :
+		define_type(msgpack_type( num )) { }
+	uint64_t items() const { return get<0>(); }
+};
 
 
 struct scopeout_close {
@@ -360,16 +377,29 @@ try {
 	}
 
 	LOG_DEBUG("send offer storage to ",iaddr);
+
+	// send header
+	{
+		replace_stream_header header(accum->num_itmes());
+		msgpack::sbuffer sbuf;
+		msgpack::packer<msgpack::sbuffer>(sbuf).pack(header);
+		::write(fd, sbuf.data(), sbuf.size());  // FIXME
+	}
+
 	accum->send(fd);
 
+	struct timeval timeout = {40, 0};  // FIXME
+	if(::setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO,
+				&timeout, sizeof(timeout)) < 0) {
+		throw std::runtime_error("can't set SO_RCVTIMEO");
+	}
+
+	msgpack::unpacker pac;
+
 	while(true) {
-		struct timeval timeout = {20, 0};  // FIXME
-		if(::setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO,
-					&timeout, sizeof(timeout)) < 0) {
-			throw std::runtime_error("can't set SO_RCVTIMEO");
-		}
-		char buf[1];
-		if(::read(fd, buf, sizeof(buf)) <= 0) {
+		pac.reserve_buffer(1024);
+		ssize_t rl = ::read(fd, pac.buffer(), pac.buffer_capacity());
+		if(rl <= 0) {
 			if(errno == EINTR) { continue; }
 			if(errno == EAGAIN) {
 				throw std::runtime_error("read stream response timed out");
@@ -377,7 +407,20 @@ try {
 				throw std::runtime_error("can't read stream response");
 			}
 		}
-		break;
+
+		pac.buffer_consumed(rl);
+
+		bool done = false;
+		while(pac.execute()) {
+			msgpack::object msg = pac.data();
+			std::auto_ptr<msgpack::zone> z( pac.release_zone() );
+			pac.reset();
+			if(msg.is_nil()) {
+				done = true;
+				break;
+			}
+		}
+		if(done) { break; }
 	}
 
 	LOG_DEBUG("finish to send offer storage to ",iaddr);
@@ -446,19 +489,35 @@ try {
 class mod_replace_stream_t::stream_handler : public zconnection<stream_handler> {
 public:
 	stream_handler(int fd) :
-		zconnection<stream_handler>(fd) { }
+		zconnection<stream_handler>(fd),
+		m_items(0), m_major_counter(0), m_minor_counter(0) { }
 
 	~stream_handler() { }
 
 	void submit_message(rpc::msgobj msg, rpc::auto_zone& z);
+
+private:
+	uint64_t m_items;
+	uint64_t m_major_counter;
+	volatile uint64_t m_minor_counter;
+
+	msgpack::sbuffer m_tmpbuf;
 };
 
 void mod_replace_stream_t::stream_handler::submit_message(rpc::msgobj msg, rpc::auto_zone& z)
 {
+	if(m_major_counter == 0) {
+		// receive header
+		replace_stream_header header;
+		msg.convert(&header);
+		m_items = header.items();
+		return;
+	}
+
 	if(msg.is_nil()) {
-		msgpack::sbuffer buf(8);
-		msgpack::packer<msgpack::sbuffer>(buf).pack_nil();
-		wavy::write(fd(), buf.data(), buf.size());
+		m_tmpbuf.clear();
+		msgpack::packer<msgpack::sbuffer>(m_tmpbuf).pack_nil();
+		wavy::write(fd(), m_tmpbuf.data(), m_tmpbuf.size());
 		return;
 	}
 
@@ -472,6 +531,16 @@ void mod_replace_stream_t::stream_handler::submit_message(rpc::msgobj msg, rpc::
 			val.raw_data(), val.raw_size());
 
 	// update() returns false means that key is overwritten while replicating.
+
+	if((++m_major_counter) % 1 == 0) {
+		m_minor_counter += 1;
+
+		// send keepalive
+		m_tmpbuf.clear();
+		msgpack::packer<msgpack::sbuffer> pk(m_tmpbuf);
+		pk.pack_array(0);
+		wavy::write(fd(), m_tmpbuf.data(), m_tmpbuf.size());
+	}
 }
 
 
