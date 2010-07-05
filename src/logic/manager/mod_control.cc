@@ -53,7 +53,9 @@ RPC_IMPL(mod_control_t, AttachNewServers, req, z, response)
 	{
 		pthread_scoped_lock hslk(share->hs_mutex());
 		net->mod_replace.attach_new_servers(hslk);
-		net->mod_replace.start_replace(hslk);
+		if(req.param().replace) {
+			net->mod_replace.start_replace(hslk);
+		}
 	}
 	response.null();
 }
@@ -63,7 +65,9 @@ RPC_IMPL(mod_control_t, DetachFaultServers, req, z, response)
 	{
 		pthread_scoped_lock hslk(share->hs_mutex());
 		net->mod_replace.detach_fault_servers(hslk);
-		net->mod_replace.start_replace(hslk);
+		if(req.param().replace) {
+			net->mod_replace.start_replace(hslk);
+		}
 	}
 	response.null();
 }
