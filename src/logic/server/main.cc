@@ -64,6 +64,10 @@ struct arg_t : cluster_args {
 		}
 
 		db_backup_basename = dbpath + "-";
+
+		if(garbage_min_time_sec > garbage_max_time_sec) {
+			garbage_min_time_sec = garbage_max_time_sec;
+		}
 	}
 
 	arg_t(int argc, char** argv) :

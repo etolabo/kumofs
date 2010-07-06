@@ -62,6 +62,22 @@ void Storage::set(
 }
 
 
+static bool storage_updateproc_eq(void* casdata,
+		const char* oldval, size_t oldvallen)
+{
+	if(oldvallen < Storage::VALUE_CLOCKTIME_SIZE) {
+		return true;
+	}
+
+	ClockTime update_clocktime =
+		ClockTime( *reinterpret_cast<uint64_t*>(casdata) );
+
+	ClockTime old_clocktime = ClockTime( Storage::clocktime_of(oldval) );
+
+	return old_clocktime <= update_clocktime;
+}
+
+
 static bool storage_updateproc(void* casdata,
 		const char* oldval, size_t oldvallen)
 {
@@ -222,7 +238,7 @@ bool Storage::remove(
 				ClockTime ct = garbage_key.clocktime();
 				m_op.del(m_data,
 						garbage_key.key(), garbage_key.keylen(),
-						&storage_updateproc,
+						&storage_updateproc_eq,
 						reinterpret_cast<void*>(&ct));
 			}
 			m_garbage.pop();
@@ -232,7 +248,7 @@ bool Storage::remove(
 			ClockTime ct = garbage_key.clocktime();
 			m_op.del(m_data,
 					garbage_key.key(), garbage_key.keylen(),
-					&storage_updateproc,
+					&storage_updateproc_eq,
 					reinterpret_cast<void*>(&ct));
 			m_garbage.pop();
 
