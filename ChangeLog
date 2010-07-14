@@ -1,4 +1,8 @@
 
+2010-07-14 version 0.4.10:
+
+  * gateway: binary protocol gateway doesn't send "not found" response on getq command when the key is expired
+
 2010-07-06 version 0.4.9:
 
   * server: makes -gS work
