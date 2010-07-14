@@ -759,6 +759,10 @@ void handler::response_getx(void* user,
 	char* flags = NULL;
 	if(g_save_flag) {
 		if(res.vallen < 2) {
+			if(e->flag_quiet) {
+				send_response_nosend(e, z);
+				return;
+			}
 			send_response_nodata(e, z, MEMPROTO_RES_KEY_NOT_FOUND);
 			return;
 		}
