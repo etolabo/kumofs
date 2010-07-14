@@ -745,6 +745,10 @@ void handler::response_getx(void* user,
 		memcpy(cast.mem, res.val, 4);
 		uint32_t exptime = ntohl(cast.num);
 		if(exptime != 0 && exptime < g_system_time) {
+			if(e->flag_quiet) {
+				send_response_nosend(e, z);
+				return;
+			}
 			send_response_nodata(e, z, MEMPROTO_RES_KEY_NOT_FOUND);
 			return;
 		}
