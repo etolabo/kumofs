@@ -268,7 +268,7 @@
 				'\r\n'
 				;
 
-	cas = cas_command ' ' key
+	cas = cas_command ' '+ key  # workaraound for libmemcached
 				' ' flags ' ' exptime ' ' bytes
 				' ' cas_unique
 				(' ' noreply)?
