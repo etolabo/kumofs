@@ -86,6 +86,8 @@ class KumoRPC
 	def process_response(seqid, res, err)
 		if cb = @callback[seqid]
 			cb.call(res, err)
+			@callback[seqid] = nil
+			GC.start
 		end
 	end
 
