@@ -1,4 +1,8 @@
 
+2010-08-06 version 0.4.12:
+
+  * kumoctl: purge used callback Proc to save memory (hirose31++)
+
 2010-07-29 version 0.4.11:
 
   * gateway: text protocol gateway accepts libmemcached's peculiar cas request
