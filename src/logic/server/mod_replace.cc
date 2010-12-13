@@ -142,11 +142,12 @@ struct mod_replace_t::for_each_replace_copy {
 	for_each_replace_copy(
 			const address& addr,
 			const HashSpace& src, const HashSpace& dst,
-			mod_replace_stream_t::offer_storage& offer_storage,
-			const addrvec_t& faults) :
+			mod_replace_stream_t::offer_storage** offer_storage,
+			const addrvec_t& faults, const ClockTime rtime) :
 		self(addr),
 		srchs(src), dsths(dst),
-		offer(offer_storage), fault_nodes(faults)
+		offer(offer_storage), fault_nodes(faults),
+		replace_time(rtime)
 	{
 		Sa.reserve(NUM_REPLICATION+1);
 		Da.reserve(NUM_REPLICATION+1);
@@ -167,8 +168,9 @@ private:
 	const HashSpace& srchs;
 	const HashSpace& dsths;
 
-	mod_replace_stream_t::offer_storage& offer;
+	mod_replace_stream_t::offer_storage** offer;
 	const addrvec_t& fault_nodes;
+	const ClockTime replace_time;
 
 private:
 	for_each_replace_copy();
@@ -239,14 +241,15 @@ void mod_replace_t::replace_copy(const address& manager_addr, HashSpace& hs, sha
 	}
 
 	{
-		mod_replace_stream_t::offer_storage offer(
+		mod_replace_stream_t::offer_storage* offer = new mod_replace_stream_t::offer_storage(
 				share->cfg_offer_tmpdir(), replace_time);
 
 		share->db().for_each(
-				for_each_replace_copy(net->addr(), srchs, dsths, offer, fault_nodes),
+				for_each_replace_copy(net->addr(), srchs, dsths, &offer, fault_nodes, replace_time),
 				net->clocktime_now());
 
-		net->mod_replace_stream.send_offer(offer, replace_time);
+		net->mod_replace_stream.send_offer(*offer, replace_time);
+		delete offer;
 	}
 
 skip_replace:
@@ -260,6 +263,7 @@ void mod_replace_t::for_each_replace_copy::operator() (Storage::iterator& kv)
 	size_t raw_keylen = kv.keylen();
 	const char* raw_val = kv.val();
 	size_t raw_vallen = kv.vallen();
+	unsigned long size_total = 0;
 
 	// Note: it is done in storage wrapper.
 	//if(raw_vallen < Storage::VALUE_META_SIZE) { return; }
@@ -283,7 +287,10 @@ void mod_replace_t::for_each_replace_copy::operator() (Storage::iterator& kv)
 	}
 
 	// FIXME 再配置中にServerがダウンしたときコピーが正常に行われないかもしれない？
-	if(current_owners.empty() || current_owners.front() != self) { return; }
+	if(current_owners.empty() || current_owners.front() != self) {
+		LOG_WARN("current_owners.empty() || current_owners.front() != self");
+		return;
+	}
 	//if(std::find(current_owners.begin(), current_owners.end(), self)
 	//		== current_owners.end()) { return; }
 
@@ -297,9 +304,25 @@ void mod_replace_t::for_each_replace_copy::operator() (Storage::iterator& kv)
 	if(newbies.empty()) { return; }
 
 	for(addrvec_iterator it(newbies.begin()); it != newbies.end(); ++it) {
-		offer.add(*it,
+		(*offer)->add(*it,
 				raw_key, raw_keylen,
 				raw_val, raw_vallen);
+		size_total += (*offer)->stream_size(*it);
+	}
+
+	// offer内のストリームのサイズの合計が制限値を超えていたら、この時点までのofferをサーバに送る
+	if((unsigned long)share->cfg_replace_set_limit_mem() > 0) {
+		if(size_total >= (unsigned long)share->cfg_replace_set_limit_mem()*1024*1024) {
+			LOG_INFO("send replace offer by limit for time(",replace_time.get(),")");
+			net->mod_replace_stream.send_offer(*(*offer), replace_time);
+
+			while(net->mod_replace_stream.accum_set_size()) {
+				sleep(1);
+			}
+
+			delete (*offer);
+			(*offer) = new mod_replace_stream_t::offer_storage(share->cfg_offer_tmpdir(), replace_time);
+		}
 	}
 }
 
@@ -307,10 +330,12 @@ void mod_replace_t::for_each_replace_copy::operator() (Storage::iterator& kv)
 struct mod_replace_t::for_each_full_replace_copy {
 	for_each_full_replace_copy(
 			const address& addr, const HashSpace& hs,
-			mod_replace_stream_t::offer_storage& offer_storage) :
+			mod_replace_stream_t::offer_storage** offer_storage,
+			const ClockTime rtime) :
 		self(addr),
 		dsths(hs),
-		offer(offer_storage) { }
+		offer(offer_storage),
+		replace_time(rtime) { }
 
 	inline void operator() (Storage::iterator& kv);
 
@@ -321,7 +346,9 @@ private:
 
 	const HashSpace& dsths;
 
-	mod_replace_stream_t::offer_storage& offer;
+	mod_replace_stream_t::offer_storage** offer;
+
+	const ClockTime replace_time;
 
 private:
 	for_each_full_replace_copy();
@@ -342,14 +369,15 @@ void mod_replace_t::full_replace_copy(const address& manager_addr, HashSpace& hs
 	LOG_INFO("start full replace copy for time(",replace_time.get(),")");
 
 	{
-		mod_replace_stream_t::offer_storage offer(
+		mod_replace_stream_t::offer_storage* offer = new mod_replace_stream_t::offer_storage(
 				share->cfg_offer_tmpdir(), replace_time);
 	
 		share->db().for_each(
-				for_each_full_replace_copy(net->addr(), hs, offer),
+				for_each_full_replace_copy(net->addr(), hs, &offer, replace_time),
 				net->clocktime_now());
 	
-		net->mod_replace_stream.send_offer(offer, replace_time);
+		net->mod_replace_stream.send_offer(*offer, replace_time);
+		delete offer;
 	}
 
 	pthread_scoped_lock stlk(m_state_mutex);
@@ -362,6 +390,7 @@ void mod_replace_t::for_each_full_replace_copy::operator() (Storage::iterator& k
 	size_t raw_keylen = kv.keylen();
 	const char* raw_val = kv.val();
 	size_t raw_vallen = kv.vallen();
+	unsigned long size_total = 0;
 
 	// Note: it is done in storage wrapper.
 	//if(raw_vallen < Storage::VALUE_META_SIZE) { return; }
@@ -374,9 +403,25 @@ void mod_replace_t::for_each_full_replace_copy::operator() (Storage::iterator& k
 		if(r.is_active()) Da.push_back(r.addr()); });
 
 	for(addrvec_iterator it(Da.begin()); it != Da.end(); ++it) {
-		offer.add(*it,
+		(*offer)->add(*it,
 				raw_key, raw_keylen,
 				raw_val, raw_vallen);
+		size_total += (*offer)->stream_size(*it);
+	}
+
+	// offer内のストリームのサイズの合計が制限値を超えていたら、この時点までのofferをサーバに送る
+	if((unsigned long)share->cfg_replace_set_limit_mem() > 0) {
+		if(size_total >= (unsigned long)share->cfg_replace_set_limit_mem()*1024*1024) {
+			LOG_INFO("send replace offer by limit for time(",replace_time.get(),")");
+			net->mod_replace_stream.send_offer(*(*offer), replace_time);
+
+			while(net->mod_replace_stream.accum_set_size()) {
+				sleep(1);
+			}
+
+			delete (*offer);
+			(*offer) = new mod_replace_stream_t::offer_storage(share->cfg_offer_tmpdir(), replace_time);
+		}
 	}
 }
 

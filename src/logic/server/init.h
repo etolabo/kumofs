@@ -63,6 +63,7 @@ resource::resource(const Config& cfg) :
 	m_cfg_db_backup_basename(cfg.db_backup_basename),
 	m_cfg_replicate_set_retry_num(cfg.replicate_set_retry_num),
 	m_cfg_replicate_delete_retry_num(cfg.replicate_delete_retry_num),
+	m_cfg_replace_set_limit_mem(cfg.replace_set_limit_mem),
 
 	m_stat_start_time(time(NULL)),
 	m_stat_num_get(0),

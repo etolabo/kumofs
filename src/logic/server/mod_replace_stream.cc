@@ -53,6 +53,9 @@ void mod_replace_stream_t::stop_stream()
 	m_stream_core->end();
 }
 
+unsigned long mod_replace_stream_t::accum_set_size() {
+	return m_accum_set.size();
+}
 
 class mod_replace_stream_t::stream_accumulator {
 public:
@@ -69,6 +72,7 @@ public:
 	ClockTime replace_time() const { return m_replace_time; }
 
 	uint64_t num_itmes() const { return m_items; }
+	size_t stream_size() const { return m_mmap_stream->size(); }
 
 private:
 	address m_addr;
@@ -189,6 +193,16 @@ void mod_replace_stream_t::offer_storage::add(
 		m_set.push_back(accum);
 		std::sort(m_set.begin(), m_set.end(), accum_set_comp());
 		accum->add(key, keylen, val, vallen);
+	}
+}
+
+size_t mod_replace_stream_t::offer_storage::stream_size(const address& addr)
+{
+	accum_set_t::iterator it = accum_set_find(m_set, addr);
+	if(it != m_set.end()) {
+		return (*it)->stream_size();
+	} else {
+		return 0;
 	}
 }
 
@@ -363,46 +377,47 @@ try {
 			return;
 		}
 		accum = *it;
+
+		LOG_DEBUG("send offer storage to ",iaddr);
+
+		accum->send(fd);
+
+		struct timeval timeout = {60, 0};  // FIXME
+		if(::setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO,
+					&timeout, sizeof(timeout)) < 0) {
+			throw std::runtime_error("can't set SO_RCVTIMEO");
+		}
+
+		msgpack::unpacker pac;
+
+		while(true) {
+			pac.reserve_buffer(1024);
+			ssize_t rl = ::read(fd, pac.buffer(), pac.buffer_capacity());
+			if(rl <= 0) {
+				if(errno == EINTR) { continue; }
+				if(errno == EAGAIN) {
+					throw std::runtime_error("read stream response timed out");
+				} else {
+					throw std::runtime_error("can't read stream response");
+				}
+			}
+
+			pac.buffer_consumed(rl);
+
+			bool done = false;
+			while(pac.execute()) {
+				msgpack::object msg = pac.data();
+				std::auto_ptr<msgpack::zone> z( pac.release_zone() );
+				pac.reset();
+				if(msg.is_nil()) {
+					done = true;
+					break;
+				}
+			}
+			if(done) { break; }
+		}
+
 		m_accum_set.erase(it);
-	}
-
-	LOG_DEBUG("send offer storage to ",iaddr);
-
-	accum->send(fd);
-
-	struct timeval timeout = {60, 0};  // FIXME
-	if(::setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO,
-				&timeout, sizeof(timeout)) < 0) {
-		throw std::runtime_error("can't set SO_RCVTIMEO");
-	}
-
-	msgpack::unpacker pac;
-
-	while(true) {
-		pac.reserve_buffer(1024);
-		ssize_t rl = ::read(fd, pac.buffer(), pac.buffer_capacity());
-		if(rl <= 0) {
-			if(errno == EINTR) { continue; }
-			if(errno == EAGAIN) {
-				throw std::runtime_error("read stream response timed out");
-			} else {
-				throw std::runtime_error("can't read stream response");
-			}
-		}
-
-		pac.buffer_consumed(rl);
-
-		bool done = false;
-		while(pac.execute()) {
-			msgpack::object msg = pac.data();
-			std::auto_ptr<msgpack::zone> z( pac.release_zone() );
-			pac.reset();
-			if(msg.is_nil()) {
-				done = true;
-				break;
-			}
-		}
-		if(done) { break; }
 	}
 
 	LOG_DEBUG("finish to send offer storage to ",iaddr);

@@ -42,6 +42,7 @@ struct arg_t : cluster_args {
 
 	unsigned short replicate_set_retry_num;
 	unsigned short replicate_delete_retry_num;
+	unsigned short replace_set_limit_mem;
 
 	unsigned int garbage_min_time_sec;
 	unsigned int garbage_max_time_sec;
@@ -74,6 +75,7 @@ struct arg_t : cluster_args {
 		stream_port(SERVER_STREAM_DEFAULT_PORT),
 		replicate_set_retry_num(20),
 		replicate_delete_retry_num(20),
+		replace_set_limit_mem(0),
 		garbage_min_time_sec(60),
 		garbage_max_time_sec(60*60),
 		garbage_mem_limit_kb(2*1024)
@@ -98,6 +100,8 @@ struct arg_t : cluster_args {
 				type::numeric(&replicate_set_retry_num, replicate_set_retry_num));
 		on("-D", "--replicate-delete-retry",
 				type::numeric(&replicate_delete_retry_num, replicate_delete_retry_num));
+		on("-M", "--replace-memory-limit",
+				type::numeric(&replace_set_limit_mem, replace_set_limit_mem));
 		on("-gN", "--garbage-min-time",
 				type::numeric(&garbage_min_time_sec, garbage_min_time_sec));
 		on("-gX", "--garbage-max-time",
@@ -132,6 +136,8 @@ struct arg_t : cluster_args {
 			"--replicate-set-retry    replicate set retry limit\n"
 		"  -D  <number="<<replicate_delete_retry_num<<">        "
 			"--replicate-delete-retry replicate delete retry limit\n"
+		"  -M  <number="<<replace_set_limit_mem<<">        "
+			"--replace-memory-limit   Memory map limit size\n"
 		"  -gN <seconds="<<garbage_min_time_sec<<">       "
 			"--garbage-min-time       minimum time to maintenance deleted key\n"
 		"  -gX <seconds="<<garbage_max_time_sec<<">     "

@@ -131,6 +131,7 @@ private:
 
 	const unsigned short m_cfg_replicate_set_retry_num;
 	const unsigned short m_cfg_replicate_delete_retry_num;
+	const unsigned short m_cfg_replace_set_limit_mem;
 
 	const time_t m_stat_start_time;  // FIXME m_start_time -> m_stat_start_time
 	volatile uint64_t m_stat_num_get;
@@ -152,6 +153,7 @@ public:
 	RESOURCE_CONST_ACCESSOR(std::string, cfg_db_backup_basename);
 	RESOURCE_CONST_ACCESSOR(unsigned short, cfg_replicate_set_retry_num);
 	RESOURCE_CONST_ACCESSOR(unsigned short, cfg_replicate_delete_retry_num);
+	RESOURCE_CONST_ACCESSOR(unsigned short, cfg_replace_set_limit_mem);
 
 	RESOURCE_CONST_ACCESSOR(time_t, stat_start_time);
 
