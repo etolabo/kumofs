@@ -82,6 +82,8 @@ private:
 
 	unsigned short m_error_count;
 
+	std::string m_cfg_key_prefix;
+
 public:
 	// mod_store.cc
 	void incr_error_renew_count();
@@ -113,6 +115,8 @@ public:
 	RESOURCE_CONST_ACCESSOR(unsigned short, cfg_delete_retry_num);
 
 	RESOURCE_CONST_ACCESSOR(unsigned short, cfg_renew_threshold);
+
+	RESOURCE_CONST_ACCESSOR(std::string, cfg_key_prefix);
 
 private:
 	resource();

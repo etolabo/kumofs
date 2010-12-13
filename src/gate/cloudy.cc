@@ -273,7 +273,6 @@ void request_getx(void* user,
 	gate::req_get req;
 	req.keylen   = keylen;
 	req.key      = key;
-	req.hash     = kumo::gate::stdhash(req.key, req.keylen);
 	req.user     = static_cast<void*>(e);
 	req.callback = &response_getx;
 	req.life     = life;
@@ -304,7 +303,6 @@ void request_set(void* user,
 	req.key      = key;
 	req.vallen   = vallen;
 	req.val      = val;
-	req.hash     = kumo::gate::stdhash(req.key, req.keylen);
 	req.user     = static_cast<void*>(e);
 	req.callback = &response_set;
 	req.life     = life;
@@ -332,7 +330,6 @@ void request_delete(void* user,
 	gate::req_delete req;
 	req.key      = key;
 	req.keylen   = keylen;
-	req.hash     = kumo::gate::stdhash(req.key, req.keylen);
 	req.user     = static_cast<void*>(e);
 	req.callback = &response_delete;
 	req.life     = life;

@@ -79,6 +79,44 @@ node_found:
 	return net->get_session(addr);
 }
 
+template <typename ReqType>
+static msgtype::DBKey dbkey_with_prefix(const ReqType& req, shared_zone& life) {
+	const std::string prefix(share->cfg_key_prefix());
+	uint64_t hash;
+	if(prefix.empty()) {
+		if(req.has_user_hash) {
+			hash = req.user_hash;
+		} else {
+			hash = gate::stdhash(req.key, req.keylen);
+		}
+		return msgtype::DBKey(req.key, req.keylen, hash);
+
+	} else {
+		size_t klen = prefix.size()+req.keylen;
+		char* kp = (char*)life->malloc(klen);
+		memcpy(kp, prefix.data(), prefix.size());
+		memcpy(kp+prefix.size(), req.key, req.keylen);
+		if(req.has_user_hash) {
+			hash = req.user_hash;
+		} else {
+			hash = gate::stdhash(kp, klen);
+		}
+		return msgtype::DBKey(kp, klen, hash);
+	}
+}
+
+template <typename ResType>
+static void dbkey_remove_prefix(ResType* ret, const msgtype::DBKey& key) {
+	const std::string prefix(share->cfg_key_prefix());
+	if(prefix.empty()) {
+		ret->key       = key.data();
+		ret->keylen    = key.size();
+	} else {
+		ret->key       = key.data()+prefix.size();
+		ret->keylen    = key.size()-prefix.size();
+	}
+}
+
 
 void resource::incr_error_renew_count()
 {
@@ -122,7 +160,7 @@ try {
 	shared_zone life(req.life);
 	if(!life) { life.reset(new msgpack::zone()); }
 
-	msgtype::DBKey key(req.key, req.keylen, req.hash);
+	msgtype::DBKey key = dbkey_with_prefix(req, life);
 	msgtype::DBValue cached_val_buf;
 
 	if(net->mod_cache.get(key, &cached_val_buf, life.get())) {
@@ -137,7 +175,7 @@ try {
 				BIND_RESPONSE(mod_store_t, GetIfModified, retry,
 					req.callback, req.user, cached_val) );
 
-		retry->call(share->server_for<resource::HS_READ>(req.hash), life, 10);
+		retry->call(share->server_for<resource::HS_READ>(key.hash()), life, 10);
 
 	} else {
 		rpc::retry<server::mod_store_t::Get>* retry =
@@ -149,7 +187,7 @@ try {
 				BIND_RESPONSE(mod_store_t, Get, retry,
 					req.callback, req.user) );
 
-		retry->call(share->server_for<resource::HS_READ>(req.hash), life, 10);
+		retry->call(share->server_for<resource::HS_READ>(key.hash()), life, 10);
 	}
 }
 SUBMIT_CATCH(_get);
@@ -181,17 +219,19 @@ try {
 		break;
 	}
 
+	msgtype::DBKey key = dbkey_with_prefix(req, life);
+
 	uint16_t meta = 0;
 	rpc::retry<server::mod_store_t::Set>* retry =
 		life->allocate< rpc::retry<server::mod_store_t::Set> >(
 				server::mod_store_t::Set(op,
-					msgtype::DBKey(req.key, req.keylen, req.hash),
+					key,
 					msgtype::DBValue(req.val, req.vallen, meta, clocktime))
 				);
 
 	retry->set_callback(
 			BIND_RESPONSE(mod_store_t, Set, retry, req.callback, req.user) );
-	retry->call(share->server_for<resource::HS_WRITE>(req.hash), life, 10);
+	retry->call(share->server_for<resource::HS_WRITE>(key.hash()), life, 10);
 }
 SUBMIT_CATCH(_set);
 
@@ -201,18 +241,20 @@ try {
 	shared_zone life(req.life);
 	if(!life) { life.reset(new msgpack::zone()); }
 
+	msgtype::DBKey key = dbkey_with_prefix(req, life);
+
 	rpc::retry<server::mod_store_t::Delete>* retry =
 		life->allocate< rpc::retry<server::mod_store_t::Delete> >(
 				server::mod_store_t::Delete(
 					(share->cfg_async_replicate_delete() || req.async) ?
 					 static_cast<server::store_flags>(server::store_flags_async()) :
 					 static_cast<server::store_flags>(server::store_flags_none()),
-					msgtype::DBKey(req.key, req.keylen, req.hash))
+					key)
 				);
 
 	retry->set_callback(
 			BIND_RESPONSE(mod_store_t, Delete, retry, req.callback, req.user) );
-	retry->call(share->server_for<resource::HS_WRITE>(req.hash), life, 10);
+	retry->call(share->server_for<resource::HS_WRITE>(key.hash()), life, 10);
 }
 SUBMIT_CATCH(_delete);
 
@@ -281,8 +323,7 @@ try {
 	if(err.is_nil()) {
 		gate::res_get ret;
 		ret.error     = 0;
-		ret.key       = key.data();
-		ret.keylen    = key.size();
+		dbkey_remove_prefix(&ret, key);
 		ret.hash      = key.hash();
 		if(res.is_nil()) {
 			ret.val       = NULL;
@@ -317,8 +358,7 @@ try {
 		}
 		gate::res_get ret;
 		ret.error     = 1;  // ERROR
-		ret.key       = key.data();
-		ret.keylen    = key.size();
+		dbkey_remove_prefix(&ret, key);
 		ret.hash      = key.hash();
 		ret.val       = NULL;
 		ret.vallen    = 0;
@@ -345,8 +385,7 @@ try {
 	if(err.is_nil()) {
 		gate::res_get ret;
 		ret.error     = 0;
-		ret.key       = key.data();
-		ret.keylen    = key.size();
+		dbkey_remove_prefix(&ret, key);
 		ret.hash      = key.hash();
 		if(res.is_nil()) {
 			ret.val       = NULL;
@@ -387,8 +426,7 @@ try {
 		}
 		gate::res_get ret;
 		ret.error     = 1;  // ERROR
-		ret.key       = key.data();
-		ret.keylen    = key.size();
+		dbkey_remove_prefix(&ret, key);
 		ret.hash      = key.hash();
 		ret.val       = NULL;
 		ret.vallen    = 0;
@@ -414,8 +452,7 @@ try {
 	if(!res.is_nil()) {
 		gate::res_set ret;
 		ret.error     = 0;
-		ret.key       = key.data();
-		ret.keylen    = key.size();
+		dbkey_remove_prefix(&ret, key);
 		ret.hash      = key.hash();
 		ret.val       = val.data();
 		ret.vallen    = val.size();
@@ -444,8 +481,7 @@ try {
 		}
 		gate::res_set ret;
 		ret.error     = 1;  // ERROR
-		ret.key       = key.data();
-		ret.keylen    = key.size();
+		dbkey_remove_prefix(&ret, key);
 		ret.hash      = key.hash();
 		ret.val       = val.data();
 		ret.vallen    = val.size();
@@ -472,8 +508,7 @@ try {
 		bool st = res.as<bool>();
 		gate::res_delete ret;
 		ret.error     = 0;
-		ret.key       = key.data();
-		ret.keylen    = key.size();
+		dbkey_remove_prefix(&ret, key);
 		ret.hash      = key.hash();
 		ret.deleted   = st;
 		try { (*callback)(user, ret, z); } catch (...) { }
@@ -493,8 +528,7 @@ try {
 		}
 		gate::res_delete ret;
 		ret.error     = 1;  // ERROR
-		ret.key       = key.data();
-		ret.keylen    = key.size();
+		dbkey_remove_prefix(&ret, key);
 		ret.hash      = key.hash();
 		ret.deleted   = false;
 		try { (*callback)(user, ret, z); } catch (...) { }

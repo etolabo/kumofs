@@ -62,6 +62,8 @@ struct arg_t : rpc_args {
 	bool mc_save_flag;
 	bool mc_save_exptime;
 
+	std::string key_prefix;
+
 	virtual void convert()
 	{
 		rpc_args::convert();
@@ -119,6 +121,8 @@ struct arg_t : rpc_args {
 				type::boolean(&async_replicate_set));
 		on("-Ad", "--async-replicate-delete",
 				type::boolean(&async_replicate_delete));
+		on("-k", "--key-prefix",
+				type::string(&key_prefix, ""));
 		parse(argc, argv);
 	}
 
@@ -158,6 +162,8 @@ struct arg_t : rpc_args {
 			"--delete-retry           delete retry limit\n"
 		"  -rn <number="<<renew_threshold<<">    "
 			"--renew-threshold        hash space renew threshold\n"
+		"  -k <string>       "
+			"--key-prefix             add prefix to keys automatically\n"
 		;
 		rpc_args::show_usage();
 	}

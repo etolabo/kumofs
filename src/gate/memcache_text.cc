@@ -429,7 +429,6 @@ int request_get_single(void* user,
 	gate::req_get req;
 	req.keylen   = key_len;
 	req.key      = key;
-	req.hash     = gate::stdhash(req.key, req.keylen);
 	req.user     = reinterpret_cast<void*>(e);
 	req.callback = &response_get;
 	req.life     = life;
@@ -483,7 +482,6 @@ int request_get_multi(void* user,
 		req.keylen   = r->key_len[i];
 		req.key      = r->key[i];
 		req.user     = reinterpret_cast<void*>(me[i]);
-		req.hash     = gate::stdhash(req.key, req.keylen);
 		req.callback = &response_get_multi;
 		req.life     = life;
 
@@ -563,7 +561,6 @@ int request_set_impl(void* user,
 	req.key      = r->key;
 	req.vallen   = r->data_len;
 	req.val      = r->data;
-	req.hash     = gate::stdhash(req.key, req.keylen);
 	req.user     = reinterpret_cast<void*>(e);
 	req.life     = life;
 	if(r->noreply) {
@@ -635,7 +632,6 @@ int request_delete(void* user,
 	gate::req_delete req;
 	req.key      = r->key;
 	req.keylen   = r->key_len;
-	req.hash     = gate::stdhash(req.key, req.keylen);
 	req.user     = reinterpret_cast<void*>(e);
 	if(r->noreply) {
 		req.async    = true;

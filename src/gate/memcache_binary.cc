@@ -559,7 +559,6 @@ void handler::request_getx(memproto_header* h,
 	gate::req_get req;
 	req.keylen   = keylen;
 	req.key      = key;
-	req.hash     = gate::stdhash(req.key, req.keylen);
 	req.user     = reinterpret_cast<void*>(e);
 	req.callback = &handler::response_getx;
 	req.life     = life;
@@ -625,7 +624,6 @@ void handler::request_set(memproto_header* h,
 	req.key      = key;
 	req.vallen   = vallen;
 	req.val      = val;
-	req.hash     = gate::stdhash(req.key, req.keylen);
 	req.user     = reinterpret_cast<void*>(e);
 	req.callback = &handler::response_set;
 	req.life     = life;
@@ -658,7 +656,6 @@ void handler::request_delete(memproto_header* h,
 	gate::req_delete req;
 	req.key      = key;
 	req.keylen   = keylen;
-	req.hash     = gate::stdhash(req.key, req.keylen);
 	req.user     = reinterpret_cast<void*>(e);
 	req.callback = &handler::response_delete;
 	req.life     = life;

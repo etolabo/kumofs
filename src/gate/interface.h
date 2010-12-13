@@ -49,6 +49,7 @@ struct res_get {
 	int error;
 	const char* key;
 	uint32_t keylen;
+
 	uint64_t hash;
 
 	char* val;
@@ -59,11 +60,13 @@ struct res_get {
 typedef void (*callback_get)(void* user, res_get& res, auto_zone z);
 
 struct req_get {
-	req_get() { }
+	req_get() : has_user_hash(false) { }
 
 	const char* key;
 	uint32_t keylen;
-	uint64_t hash;
+
+	bool has_user_hash;
+	uint64_t user_hash;
 
 	shared_zone life;
 	callback_get callback;
@@ -87,6 +90,7 @@ struct res_set {
 
 	const char* key;
 	uint32_t keylen;
+
 	uint64_t hash;
 
 	const char* val;
@@ -99,11 +103,13 @@ struct res_set {
 typedef void (*callback_set)(void* user, res_set& res, auto_zone z);
 
 struct req_set {
-	req_set() : operation(OP_SET) { }
+	req_set() : has_user_hash(false), operation(OP_SET) { }
 
 	const char* key;
 	uint32_t keylen;
-	uint64_t hash;
+
+	bool has_user_hash;
+	uint64_t user_hash;
 
 	const char* val;
 	uint32_t vallen;
@@ -124,6 +130,7 @@ struct res_delete {
 
 	const char* key;
 	uint32_t keylen;
+
 	uint64_t hash;
 
 	bool deleted;
@@ -132,11 +139,13 @@ struct res_delete {
 typedef void (*callback_delete)(void* user, res_delete& res, auto_zone z);
 
 struct req_delete {
-	req_delete() : async(false) { }
+	req_delete() : has_user_hash(false), async(false) { }
 
 	const char* key;
 	uint32_t keylen;
-	uint64_t hash;
+
+	bool has_user_hash;
+	uint64_t user_hash;
 
 	bool async;
 
