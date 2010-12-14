@@ -275,6 +275,11 @@ public:
 	void init_stream(int lsock);
 	void stop_stream();
 
+	size_t accum_set_size() const
+	{
+		return m_accum_set.size();
+	}
+
 private:
 	class stream_accumulator;
 	typedef mp::shared_ptr<stream_accumulator> shared_stream_accumulator;

@@ -53,10 +53,6 @@ void mod_replace_stream_t::stop_stream()
 	m_stream_core->end();
 }
 
-unsigned long mod_replace_stream_t::accum_set_size() {
-	return m_accum_set.size();
-}
-
 class mod_replace_stream_t::stream_accumulator {
 public:
 	stream_accumulator(const std::string& basename,
