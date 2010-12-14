@@ -1,4 +1,9 @@
 
+2010-12-14 version 0.4.12:
+
+  * gateway: added --key-prefix option that adds prefix to keys automatically
+  * server: added --replace-memory-limit option (a.mishima++)
+
 2010-08-06 version 0.4.12:
 
   * kumoctl: purge used callback Proc to save memory (hirose31++)

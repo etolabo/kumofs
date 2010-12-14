@@ -291,6 +291,7 @@ public:
 				const char* val, size_t vallen);
 		void flush();
 		void commit(accum_set_t* dst);
+		size_t stream_size(const address& addr);
 	private:
 		accum_set_t m_set;
 		const std::string& m_basename;
