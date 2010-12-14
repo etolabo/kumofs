@@ -2,7 +2,7 @@ AC_INIT(src/logic/boot.h)
 AC_CONFIG_AUX_DIR(ac)
 AC_CANONICAL_TARGET
 
-AM_INIT_AUTOMAKE(kumofs, 0.4.12)
+AM_INIT_AUTOMAKE(kumofs, 0.4.13)
 AC_CONFIG_HEADER(config.h)
 
 
@@ -33,7 +33,7 @@ if test "$kumofs_cv_atomic_ops" != "yes"; then
 Note that gcc < 4.1 is not supported.
 
 If you are using gcc >= 4.1 and the default target CPU architecture is "i386", try to
-add CFLAGS="--march=i686" and CXXFLAGS="-march=i686" options to ./configure as follows:
+add CFLAGS="-march=i686" and CXXFLAGS="-march=i686" options to ./configure as follows:
 
   $ ./configure CFLAGS="-march=i686" CXXFLAGS="-march=i686"
 ])
