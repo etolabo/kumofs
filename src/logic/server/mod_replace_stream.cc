@@ -104,7 +104,11 @@ RPC_IMPL(mod_replace_stream_t, ReplaceOffer, req, z, response)
 
 	using namespace mp::placeholders;
 	m_stream_core->connect(
+#ifdef KUMO_IPV6
+			PF_INET6, SOCK_STREAM, 0,
+#else
 			PF_INET, SOCK_STREAM, 0,
+#endif
 			(sockaddr*)addrbuf, sizeof(addrbuf),
 			net->connect_timeout_msec(),
 			mp::bind(&mod_replace_stream_t::stream_connected, this, _1, _2));

@@ -30,8 +30,13 @@ using namespace kumo;
 
 struct arg_t : rpc_args {
 
+#ifdef KUMO_IPV6
+	sockaddr_in6 manager1_in;
+	sockaddr_in6 manager2_in;
+#else
 	sockaddr_in manager1_in;
 	sockaddr_in manager2_in;
+#endif
 	bool manager2_set;
 	rpc::address manager1;  // convert
 	rpc::address manager2;  // convert
@@ -48,15 +53,27 @@ struct arg_t : rpc_args {
 	std::string local_cache;
 
 	bool mctext_set;
+#ifdef KUMO_IPV6
+	sockaddr_in6 mctext_addr_in;
+#else
 	sockaddr_in mctext_addr_in;
+#endif
 	int mctext_lsock;  // convert
 
 	bool mcbin_set;
+#ifdef KUMO_IPV6
+	sockaddr_in6 mcbin_addr_in;
+#else
 	sockaddr_in mcbin_addr_in;
+#endif
 	int mcbin_lsock;  // convert
 
 	bool cloudy_set;
+#ifdef KUMO_IPV6
+	sockaddr_in6 cloudy_addr_in;
+#else
 	sockaddr_in cloudy_addr_in;
+#endif
 	int cloudy_lsock;  // convert
 
 	bool mc_save_flag;

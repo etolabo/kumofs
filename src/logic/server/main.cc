@@ -25,8 +25,13 @@ struct arg_t : cluster_args {
 
 	std::string dbpath;
 
+#ifdef KUMO_IPV6
+	sockaddr_in6 manager1_in;
+	sockaddr_in6 manager2_in;
+#else
 	sockaddr_in manager1_in;
 	sockaddr_in manager2_in;
+#endif
 	bool manager2_set;
 	rpc::address manager1;  // convert
 	rpc::address manager2;  // convert

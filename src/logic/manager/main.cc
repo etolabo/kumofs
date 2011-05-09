@@ -27,7 +27,11 @@ struct arg_t : cluster_args {
 	bool auto_replace;
 
 	bool partner_set;
+#ifdef KUMO_IPV6
+	struct sockaddr_in6 partner_in;
+#else
 	struct sockaddr_in partner_in;
+#endif
 	rpc::address partner;  // convert
 
 	virtual void convert()
