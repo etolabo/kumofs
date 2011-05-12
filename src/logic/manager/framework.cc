@@ -94,7 +94,7 @@ void framework::new_node(address addr, role_type id, shared_node n)
 
 void framework::lost_node(address addr, role_type id)
 {
-	LOG_WARN("lost node ",id," ",addr);
+	LOG_WARN("lost node ",(uint16_t)id," ",addr);
 	if(id == ROLE_MANAGER) {
 		return;
 
