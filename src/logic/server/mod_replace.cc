@@ -287,10 +287,7 @@ void mod_replace_t::for_each_replace_copy::operator() (Storage::iterator& kv)
 	}
 
 	// FIXME 再配置中にServerがダウンしたときコピーが正常に行われないかもしれない？
-	if(current_owners.empty() || current_owners.front() != self) {
-		LOG_WARN("current_owners.empty() || current_owners.front() != self");
-		return;
-	}
+	if(current_owners.empty() || current_owners.front() != self) { return; }
 	//if(std::find(current_owners.begin(), current_owners.end(), self)
 	//		== current_owners.end()) { return; }
 
