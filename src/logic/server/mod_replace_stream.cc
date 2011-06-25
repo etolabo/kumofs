@@ -33,7 +33,8 @@ namespace server {
 
 
 mod_replace_stream_t::mod_replace_stream_t(address stream_addr) :
-	m_stream_addr(stream_addr)
+	m_stream_addr(stream_addr),
+	send_offer_counter(0)
 { }
 
 mod_replace_stream_t::~mod_replace_stream_t() { }
@@ -121,6 +122,8 @@ void mod_replace_stream_t::send_offer(mod_replace_stream_t::offer_storage& offer
 	pthread_scoped_lock oflk(m_accum_set_mutex);
 	offer.commit(&m_accum_set);
 
+	send_offer_counter++;
+
 	pthread_scoped_lock relk(net->mod_replace.state_mutex());
 
 	for(accum_set_t::iterator it(m_accum_set.begin()),
@@ -133,7 +136,7 @@ void mod_replace_stream_t::send_offer(mod_replace_stream_t::offer_storage& offer
 
 		using namespace mp::placeholders;
 		net->get_node(addr)->call(param, nullz,
-				BIND_RESPONSE(mod_replace_stream_t, ReplaceOffer, addr), 160);  // FIXME 160
+				BIND_RESPONSE(mod_replace_stream_t, ReplaceOffer, addr, send_offer_counter), 160);  // FIXME 160
 
 		net->mod_replace.replace_offer_push(replace_time, relk);
 	}
@@ -141,10 +144,14 @@ void mod_replace_stream_t::send_offer(mod_replace_stream_t::offer_storage& offer
 
 
 RPC_REPLY_IMPL(mod_replace_stream_t, ReplaceOffer, from, res, err, z,
-		address addr)
+		address addr, uint32_t counter)
 {
 	LOG_TRACE("ResReplaceOffer from ",addr," res:",res," err:",err);
 	// Note: this request always timed out
+
+	if (counter != send_offer_counter) {
+		return;
+	}
 
 	pthread_scoped_lock oflk(m_accum_set_mutex);
 

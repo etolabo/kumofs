@@ -317,7 +317,7 @@ private:
 			accum_set_t& map, const address& addr);
 
 	RPC_REPLY_DECL(ReplaceOffer, from, res, err, z,
-			address addr);
+			address addr, uint32_t counter);
 
 	void stream_accepted(int fd, int err);
 	void stream_connected(int fd, int err);
@@ -325,6 +325,7 @@ private:
 	std::auto_ptr<mp::wavy::core> m_stream_core;
 	class stream_handler;
 	friend class stream_handler;
+	uint32_t send_offer_counter;
 @end
 
 
