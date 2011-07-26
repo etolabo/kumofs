@@ -322,7 +322,8 @@ private:
 	void stream_accepted(int fd, int err);
 	void stream_connected(int fd, int err);
 
-	std::auto_ptr<mp::wavy::core> m_stream_core;
+	std::auto_ptr<mp::wavy::core> m_stream_core_a; // for accept
+	std::auto_ptr<mp::wavy::core> m_stream_core_c; // for connect
 	class stream_handler;
 	friend class stream_handler;
 @end

@@ -40,17 +40,20 @@ mod_replace_stream_t::~mod_replace_stream_t() { }
 
 void mod_replace_stream_t::init_stream(int fd)
 {
-	m_stream_core.reset(new mp::wavy::core());
+	m_stream_core_a.reset(new mp::wavy::core());
+	m_stream_core_c.reset(new mp::wavy::core());
 	using namespace mp::placeholders;
-	m_stream_core->listen(fd, mp::bind(
+	m_stream_core_a->listen(fd, mp::bind(
 				&mod_replace_stream_t::stream_accepted, this,
 				_1, _2));
-	m_stream_core->add_thread(2);  // FIXME 2
+	m_stream_core_a->add_thread(2);  // FIXME 2
+	m_stream_core_c->add_thread(2);  // FIXME 2
 }
 
 void mod_replace_stream_t::stop_stream()
 {
-	m_stream_core->end();
+	m_stream_core_a->end();
+	m_stream_core_c->end();
 }
 
 class mod_replace_stream_t::stream_accumulator {
@@ -103,7 +106,7 @@ RPC_IMPL(mod_replace_stream_t, ReplaceOffer, req, z, response)
 	stream_addr.getaddr((sockaddr*)addrbuf);
 
 	using namespace mp::placeholders;
-	m_stream_core->connect(
+	m_stream_core_c->connect(
 			PF_INET, SOCK_STREAM, 0,
 			(sockaddr*)addrbuf, sizeof(addrbuf),
 			net->connect_timeout_msec(),
@@ -467,7 +470,7 @@ try {
 
 	mp::set_nonblock(fd);
 
-	m_stream_core->add<stream_handler>(fd);
+	m_stream_core_c->add<stream_handler>(fd);
 	fdscope.release();
 
 } catch (std::exception& e) {
