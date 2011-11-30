@@ -200,12 +200,12 @@ int main(int argc, char* argv[])
 
 	// run server
 	gateway::init(arg);
+	gateway::net->run(arg);
 
 	if(mctext.get()) { mctext->run(); }
 	if(mcbin.get())  { mcbin->run();  }
 	if(cloudy.get()) { cloudy->run(); }
 
-	gateway::net->run(arg);
 	gateway::net->join();
 }
 
