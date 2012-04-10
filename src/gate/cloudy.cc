@@ -146,7 +146,7 @@ void send_response(
 		entry* e, auto_zone z,
 		uint8_t status,
 		const char* key, uint16_t keylen,
-		const void* val, uint16_t vallen,
+		const void* val, uint32_t vallen,
 		const char* extra, uint16_t extralen,
 		uint64_t cas)
 {
