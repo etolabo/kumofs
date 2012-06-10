@@ -159,7 +159,11 @@ bool client_tmpl<Transport, Session>::async_connect(
 	addr.getaddr((sockaddr*)&addrbuf);
 
 	using namespace mp::placeholders;
+#ifdef KUMO_IPV6
+	wavy::connect(PF_INET6, SOCK_STREAM, 0,
+#else
 	wavy::connect(PF_INET, SOCK_STREAM, 0,
+#endif
 			(sockaddr*)addrbuf, sizeof(addrbuf),
 			m_connect_timeout_msec,
 			mp::bind(

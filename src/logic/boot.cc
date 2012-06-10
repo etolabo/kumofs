@@ -29,6 +29,12 @@ scoped_listen_tcp::scoped_listen_tcp(struct sockaddr_in addr) :
 	m_addr(addr),
 	m_sock(listen(m_addr)) { }
 
+#ifdef KUMO_IPV6
+scoped_listen_tcp::scoped_listen_tcp(struct sockaddr_in6 addr) :
+	m_addr(addr),
+	m_sock(listen(m_addr)) { }
+#endif
+
 scoped_listen_tcp::~scoped_listen_tcp()
 {
 	::close(m_sock);
@@ -37,7 +43,11 @@ scoped_listen_tcp::~scoped_listen_tcp()
 
 int scoped_listen_tcp::listen(const rpc::address& addr)
 {
+#ifdef KUMO_IPV6
+	int lsock = socket(PF_INET6, SOCK_STREAM, 0);
+#else
 	int lsock = socket(PF_INET, SOCK_STREAM, 0);
+#endif
 	if(lsock < 0) {
 		throw std::runtime_error("socket failed");
 	}
@@ -152,7 +162,11 @@ void rpc_args::convert()
 void cluster_args::convert()
 {
 	cluster_addr = rpc::address(cluster_addr_in);
-	cluster_addr_in.sin_addr.s_addr = INADDR_ANY;  // listen any
+#ifdef KUMO_IPV6
+	// cluster_addr_in.sin6_addr = in6addr_any;  // listen any
+#else
+	// cluster_addr_in.sin_addr.s_addr = INADDR_ANY;  // listen any
+#endif
 	cluster_lsock = scoped_listen_tcp::listen(
 			rpc::address(cluster_addr_in));
 	rpc_args::convert();

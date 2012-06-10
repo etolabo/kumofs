@@ -31,6 +31,9 @@ namespace kumo {
 class scoped_listen_tcp {
 public:
 	scoped_listen_tcp(struct sockaddr_in addr);
+#ifdef KUMO_IPV6
+	scoped_listen_tcp(struct sockaddr_in6 addr);
+#endif
 	~scoped_listen_tcp();
 
 public:
@@ -110,7 +113,11 @@ struct cluster_args : rpc_args {
 	virtual void set_basic_args();
 	virtual void show_usage();
 
+#ifdef KUMO_IPV6
+	struct sockaddr_in6 cluster_addr_in;
+#else
 	struct sockaddr_in cluster_addr_in;
+#endif
 	rpc::address cluster_addr;  // convert
 	int cluster_lsock;  // convert
 
