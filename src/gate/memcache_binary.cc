@@ -82,20 +82,21 @@ private:
 	void request_getx(memproto_header* h,
 			const char* key, uint16_t keylen);
 
-	// set
-	void request_set(memproto_header* h,
+	// set, setq, replace, replaceq
+	void request_setx(memproto_header* h,
 			const char* key, uint16_t keylen,
 			const char* val, uint32_t vallen,
 			uint32_t flags, uint32_t expiration);
 
-	// delete
-	void request_delete(memproto_header* h,
+	// delete, deletex
+	void request_deletex(memproto_header* h,
 			const char* key, uint16_t keylen,
 			uint32_t expiration);
 
 	// noop
 	void request_noop(memproto_header* h);
 
+	// flush
 	void request_flush(memproto_header* h,
 			uint32_t expiration);
 
@@ -148,12 +149,11 @@ private:
 	typedef mp::shared_ptr<response_queue> shared_entry_queue;
 	shared_entry_queue m_queue;
 
-
+	// entry
 	struct entry {
 		shared_entry_queue queue;
 		memproto_header header;
 	};
-
 
 	// get, getq, getk, getkq
 	struct get_entry : entry {
@@ -163,28 +163,32 @@ private:
 	static void response_getx(void* user,
 			gate::res_get& res, auto_zone z);
 
-
-	// set
+	// set, setq, replace, replaceq
 	struct set_entry : entry {
+		bool flag_quiet;
 	};
-	static void response_set(void* user,
+	static void response_setx(void* user,
 			gate::res_set& res, auto_zone z);
+
+	// cas
 	static void response_cas(void* user,
 			gate::res_set& res, auto_zone z);
 
-
-	// delete
+	// delete, deletex
 	struct delete_entry : entry {
+		bool flag_quiet;
 	};
-	static void response_delete(void* user,
+	static void response_deletex(void* user,
 			gate::res_delete& res, auto_zone z);
 
-
+	// nosend
 	static void send_response_nosend(entry* e, auto_zone z);
 
+	// nodata
 	static void send_response_nodata(entry* e, auto_zone z,
 			uint8_t status);
 
+	// response
 	static void send_response(entry* e, auto_zone z,
 			uint8_t status,
 			const char* key, uint16_t keylen,
@@ -192,6 +196,7 @@ private:
 			const char* extra, uint16_t extralen,
 			uint64_t cas);
 
+	// header
 	static void pack_header(
 			char* hbuf, uint16_t status, uint8_t op,
 			uint16_t keylen, uint32_t vallen, uint8_t extralen,
@@ -425,21 +430,21 @@ handler::handler(int fd) :
 				const char*, uint16_t)>
 				::mem_fun<handler, &handler::request_getx>;
 
-	void (*cmd_set)(void*, memproto_header*,
+	void (*cmd_setx)(void*, memproto_header*,
 			const char*, uint16_t,
 			const char*, uint32_t,
 			uint32_t, uint32_t) = &mp::object_callback<void (memproto_header*,
 				const char*, uint16_t,
 				const char*, uint32_t,
 				uint32_t, uint32_t)>
-				::mem_fun<handler, &handler::request_set>;
+				::mem_fun<handler, &handler::request_setx>;
 
-	void (*cmd_delete)(void*, memproto_header*,
+	void (*cmd_deletex)(void*, memproto_header*,
 			const char*, uint16_t,
 			uint32_t) = &mp::object_callback<void (memproto_header*,
 				const char*, uint16_t,
 				uint32_t)>
-				::mem_fun<handler, &handler::request_delete>;
+				::mem_fun<handler, &handler::request_deletex>;
 
 	void (*cmd_noop)(void*, memproto_header*) =
 			&mp::object_callback<void (memproto_header*)>
@@ -452,10 +457,10 @@ handler::handler(int fd) :
 
 	memproto_callback cb = {
 		cmd_getx,    // get
-		cmd_set,     // set
+		cmd_setx,    // set
 		NULL,        // add
-		cmd_set,     // replace
-		cmd_delete,  // delete
+		cmd_setx,    // replace
+		cmd_deletex, // delete
 		NULL,        // increment
 		NULL,        // decrement
 		NULL,        // quit
@@ -467,6 +472,11 @@ handler::handler(int fd) :
 		cmd_getx,    // getkq
 		NULL,        // append
 		NULL,        // prepend
+		NULL,        // stat
+		cmd_setx,    // setq
+		NULL,        // addq
+		cmd_setx,    // replaceq
+		cmd_deletex, // deleteq
 	};
 
 	memproto_parser_init(&m_memproto, &cb, this);
@@ -567,15 +577,15 @@ void handler::request_getx(memproto_header* h,
 	req.submit();
 }
 
-void handler::request_set(memproto_header* h,
+void handler::request_setx(memproto_header* h,
 		const char* key, uint16_t keylen,
 		const char* val, uint32_t vallen,
 		uint32_t flags, uint32_t expiration)
 {
-	LOG_TRACE("set");
+	LOG_TRACE("setx");
 	RELEASE_REFERENCE(life);
 
-	if(h->opcode == MEMPROTO_CMD_REPLACE && !h->cas) {
+	if((h->opcode == MEMPROTO_CMD_REPLACE || h->opcode == MEMPROTO_CMD_REPLACEQ) && !h->cas) {
 		// replace without cas value is not supported
 		throw std::runtime_error("memcached binary protocol: unsupported requrest");
 	}
@@ -618,6 +628,7 @@ void handler::request_set(memproto_header* h,
 	set_entry* e = life->allocate<set_entry>();
 	e->queue      = m_queue;
 	e->header     = *h;
+	e->flag_quiet = (h->opcode == MEMPROTO_CMD_SETQ || h->opcode == MEMPROTO_CMD_REPLACEQ);
 
 	gate::req_set req;
 	req.keylen   = keylen;
@@ -625,7 +636,7 @@ void handler::request_set(memproto_header* h,
 	req.vallen   = vallen;
 	req.val      = val;
 	req.user     = reinterpret_cast<void*>(e);
-	req.callback = &handler::response_set;
+	req.callback = &handler::response_setx;
 	req.life     = life;
 	if(h->cas) {
 		req.operation = gate::OP_CAS;
@@ -637,11 +648,11 @@ void handler::request_set(memproto_header* h,
 	req.submit();
 }
 
-void handler::request_delete(memproto_header* h,
+void handler::request_deletex(memproto_header* h,
 		const char* key, uint16_t keylen,
 		uint32_t expiration)
 {
-	LOG_TRACE("delete");
+	LOG_TRACE("deletex");
 	RELEASE_REFERENCE(life);
 
 	if(expiration) {
@@ -652,12 +663,13 @@ void handler::request_delete(memproto_header* h,
 	delete_entry* e = life->allocate<delete_entry>();
 	e->queue      = m_queue;
 	e->header     = *h;
+	e->flag_quiet = h->opcode == MEMPROTO_CMD_DELETEQ;
 
 	gate::req_delete req;
 	req.key      = key;
 	req.keylen   = keylen;
 	req.user     = reinterpret_cast<void*>(e);
-	req.callback = &handler::response_delete;
+	req.callback = &handler::response_deletex;
 	req.life     = life;
 
 	m_queue->push_entry(e);
@@ -707,7 +719,7 @@ void handler::response_getx(void* user,
 	get_entry* e = reinterpret_cast<get_entry*>(user);
 	if(!e->queue->is_valid()) { return; }
 
-	LOG_TRACE("get response");
+	LOG_TRACE("getx response");
 
 	if(res.error) {
 		// error
@@ -786,13 +798,17 @@ void handler::response_getx(void* user,
 	}
 }
 
-void handler::response_set(void* user,
+void handler::response_setx(void* user,
 		gate::res_set& res, auto_zone z)
 {
 	set_entry* e = reinterpret_cast<set_entry*>(user);
 	if(!e->queue->is_valid()) { return; }
 
-	LOG_TRACE("set response");
+	LOG_TRACE("setx response");
+	if(e->flag_quiet) {
+		send_response_nosend(e, z);
+		return;
+	}
 
 	if(res.error) {
 		// error
@@ -811,6 +827,10 @@ void handler::response_cas(void* user,
 	if(!e->queue->is_valid()) { return; }
 
 	LOG_TRACE("cas response");
+	if(e->flag_quiet) {
+		send_response_nosend(e, z);
+		return;
+	}
 
 	if(res.error) {
 		// error
@@ -828,13 +848,17 @@ void handler::response_cas(void* user,
 	send_response_nodata(e, z, MEMPROTO_RES_NO_ERROR);
 }
 
-void handler::response_delete(void* user,
+void handler::response_deletex(void* user,
 		gate::res_delete& res, auto_zone z)
 {
 	delete_entry* e = reinterpret_cast<delete_entry*>(user);
 	if(!e->queue->is_valid()) { return; }
 
-	LOG_TRACE("delete response");
+	LOG_TRACE("deletex response");
+	if(e->flag_quiet) {
+		send_response_nosend(e, z);
+		return;
+	}
 
 	if(res.error) {
 		// error
