@@ -63,6 +63,11 @@ typedef enum {
 	MEMPROTO_CMD_GETKQ               = 0x0d,
 	MEMPROTO_CMD_APPEND              = 0x0e,
 	MEMPROTO_CMD_PREPEND             = 0x0f,
+	MEMPROTO_CMD_STAT                = 0x10,
+	MEMPROTO_CMD_SETQ                = 0x11,
+	MEMPROTO_CMD_ADDQ                = 0x12,
+	MEMPROTO_CMD_REPLACEQ            = 0x13,
+	MEMPROTO_CMD_DELETEQ             = 0x14,
 } memproto_command;
 
 
@@ -82,7 +87,6 @@ typedef struct memproto_header_ {
 
 
 #define MEMPROTO_HEADER_SIZE 24
-
 
 typedef struct memproto_callback_ {
 	void (*cb_get      )(void* user, memproto_header* h,
@@ -127,7 +131,6 @@ typedef struct memproto_callback_ {
 
 	void (*cb_version  )(void* user, memproto_header* h);
 
-
 	void (*cb_getk     )(void* user, memproto_header* h,
 			const char* key, uint16_t keylen);
 
@@ -142,12 +145,34 @@ typedef struct memproto_callback_ {
 			const char* key, uint16_t keylen,
 			const char* val, uint32_t vallen);
 
+	void (*cb_stat     )(void* user, memproto_header* h,
+			const char* key, uint16_t keylen);
+
+	void (*cb_setq     )(void* user, memproto_header* h,
+			const char* key, uint16_t keylen,
+			const char* val, uint32_t vallen,
+			uint32_t flags, uint32_t expiration);
+
+	void (*cb_addq     )(void* user, memproto_header* h,
+			const char* key, uint16_t keylen,
+			const char* val, uint32_t vallen,
+			uint32_t flags, uint32_t expiration);
+
+	void (*cb_replaceq )(void* user, memproto_header* h,
+			const char* key, uint16_t keylen,
+			const char* val, uint32_t vallen,
+			uint32_t flags, uint32_t expiration);
+
+	void (*cb_deleteq  )(void* user, memproto_header* h,
+			const char* key, uint16_t keylen,
+			uint32_t expiration);
+
 } memproto_callback;
 
 
 typedef struct memproto_parser_ {
 	const char* header;
-	void* callback[16];
+	void* callback[21];
 	void* user;
 } memproto_parser;
 

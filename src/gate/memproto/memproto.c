@@ -91,6 +91,11 @@ void memproto_parser_init(memproto_parser* ctx, memproto_callback* cb, void* use
 	ctx->callback[0x0d] = (void*)cb->cb_getkq;
 	ctx->callback[0x0e] = (void*)cb->cb_append;
 	ctx->callback[0x0f] = (void*)cb->cb_prepend;
+	ctx->callback[0x10] = (void*)cb->cb_stat;
+	ctx->callback[0x11] = (void*)cb->cb_setq;
+	ctx->callback[0x12] = (void*)cb->cb_addq;
+	ctx->callback[0x13] = (void*)cb->cb_replaceq;
+	ctx->callback[0x14] = (void*)cb->cb_deleteq;
 	ctx->user = user;
 }
 
@@ -151,6 +156,7 @@ int memproto_dispatch(memproto_parser* ctx)
 		return 1;
 
 	case MEMPROTO_CMD_DELETE:
+	case MEMPROTO_CMD_DELETEQ:
 		if(keylen   == 0) { return MEMPROTO_INVALID_ARGUMENT; }
 		if(vallen   != 0) { return MEMPROTO_INVALID_ARGUMENT; }
 		if(extralen == 0) {
@@ -184,10 +190,12 @@ int memproto_dispatch(memproto_parser* ctx)
 			return 1;
 		} else { return MEMPROTO_INVALID_ARGUMENT; }
 
-
 	case MEMPROTO_CMD_SET:
+	case MEMPROTO_CMD_SETQ:
 	case MEMPROTO_CMD_ADD:
+	case MEMPROTO_CMD_ADDQ:
 	case MEMPROTO_CMD_REPLACE:
+	case MEMPROTO_CMD_REPLACEQ:
 		if(keylen   == 0) { return MEMPROTO_INVALID_ARGUMENT; }
 		if(extralen != 8) { return MEMPROTO_INVALID_ARGUMENT; }
 		/*if(vallen   == 0) { return MEMPROTO_INVALID_ARGUMENT; }*/
@@ -222,6 +230,14 @@ int memproto_dispatch(memproto_parser* ctx)
 		if(extralen != 0) { return MEMPROTO_INVALID_ARGUMENT; }
 		if(vallen   != 0) { return MEMPROTO_INVALID_ARGUMENT; }
 		MEMPROTO_CALLBACK(cb, void*, memproto_header*)(ctx->user, &h);
+		return 1;
+
+	case MEMPROTO_CMD_STAT:
+		if(extralen != 0) { return MEMPROTO_INVALID_ARGUMENT; }
+		if(vallen   != 0) { return MEMPROTO_INVALID_ARGUMENT; }
+		MEMPROTO_CALLBACK(cb, void*, memproto_header*,
+				const char*, uint16_t)(ctx->user, &h,
+					key, keylen);
 		return 1;
 
 	case MEMPROTO_CMD_APPEND:
