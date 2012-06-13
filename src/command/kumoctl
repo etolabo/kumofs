@@ -190,6 +190,10 @@ class KumoRPC
 		send_request_sync_ex(Protocol::StartReplace, [])
 	end
 
+	def RemoveServer(serverAddr)
+		send_request_sync_ex(Protocol::RemoveServer, [serverAddr])
+	end
+
 	module Protocol
 		GetNodesInfo        = 0 << 16 |  99
 		AttachNewServers    = 0 << 16 | 100
@@ -199,6 +203,7 @@ class KumoRPC
 		StartReplace        = 0 << 16 | 104
 		GetStatus           = 0 << 16 |  97
 		SetConfig           = 0 << 16 |  98
+		RemoveServer        = 0 << 16 | 200
 	end
 
 	MANAGER_DEFAULT_PORT = 19700
@@ -318,6 +323,10 @@ class KumoManager < KumoRPC
 			send_request_sync_ex(Protocol::StartReplace, [])
 		end
 	end
+
+	def RemoveServer(serverAddr)
+		send_request_sync_ex(Protocol::RemoveServer, [serverAddr])
+	end
 end
 
 if $0 == __FILE__
@@ -339,6 +348,7 @@ def usage
 	puts "   backup  [suffix=#{$now }]  create backup with specified suffix"
 	puts "   enable-auto-replace        enable auto replace"
 	puts "   disable-auto-replace       disable auto replace"
+	puts "   remove-server address[:port=#{KumoRPC::SERVER_DEFAULT_PORT}] remove server with specified server address"
 	exit 1
 end
 
@@ -410,6 +420,13 @@ when "replace"
 when "full-replace"
 	usage if ARGV.length != 0
 	p KumoManager.new(host, port).StartReplace(true)
+
+when "remove-server"
+	usage if ARGV.length != 1
+	serverHost, serverPort = (ARGV.shift).split(':', 2)
+	serverPort ||= KumoRPC::SERVER_DEFAULT_PORT
+	puts "serverAddress=#{serverHost}:#{serverPort}"
+	p KumoManager.new(host, port).RemoveServer("#{serverHost}:#{serverPort}")
 
 else
 	puts "unknown command #{cmd}"
