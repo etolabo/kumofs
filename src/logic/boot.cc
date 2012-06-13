@@ -121,7 +121,7 @@ void init_mlogger(const std::string& logfile, bool use_tty, mlogger::level level
 
 
 rpc_args::rpc_args() :
-	keepalive_interval(2.0),
+	keepalive_interval_sec(2.0),
 	clock_interval(2.0),
 	connect_timeout_sec(10.0),
 	connect_retry_limit(4),
@@ -144,7 +144,7 @@ cluster_args::~cluster_args()
 
 void rpc_args::convert()
 {
-	keepalive_interval_usec = keepalive_interval *1000 *1000;
+	keepalive_interval_usec = keepalive_interval_sec * 1000 * 1000;
 	clock_interval_usec = clock_interval * 1000 * 1000;
 	connect_timeout_msec = connect_timeout_sec * 1000;
 }
@@ -171,7 +171,7 @@ void rpc_args::set_basic_args()
 	on("-d", "--daemon", &pidfile_set,
 			type::string(&pidfile));
 	on("-k", "--keepalive-interval",
-			type::numeric(&keepalive_interval_usec, keepalive_interval_usec));
+			type::numeric(&keepalive_interval_sec, keepalive_interval_sec));
 	on("-Ci", "--clock-interval",
 			type::numeric(&clock_interval, clock_interval));
 	on("-Ys", "--connect-timeout",
@@ -187,7 +187,7 @@ void rpc_args::set_basic_args()
 void rpc_args::show_usage()
 {
 	std::cout <<
-		"  -k  <number="<<keepalive_interval<<">    "
+		"  -k  <number="<<keepalive_interval_sec<<">    "
 			"--keepalive-interval     keepalive interval in seconds\n"
 		"  -Ys <number="<<connect_timeout_sec<<">   "
 			"--connect-timeout        connect timeout time in seconds\n"
