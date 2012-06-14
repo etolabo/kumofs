@@ -78,7 +78,7 @@ struct rpc_args {
 
 	const char* prog;
 
-	double keepalive_interval;  // sec
+	double keepalive_interval_sec;  // sec
 	unsigned long keepalive_interval_usec;  // convert
 
 	double clock_interval;  // sec
