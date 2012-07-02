@@ -100,9 +100,21 @@ void framework::lost_node(address addr, role_type id)
 		return;
 
 	} else if(id == ROLE_SERVER) {
-		// FIXME delayed change
-		mod_replace.remove_server(addr);
-		return;
+		bool w_active = share->whs().server_is_active(addr);
+		bool r_active = share->rhs().server_is_active(addr);
+		LOG_TRACE("active hash space: w=",w_active,", r=",r_active);
+		if(w_active || r_active)
+		{
+			// FIXME delayed change
+			LOG_WARN("remove server: server=",addr);
+			mod_replace.remove_server(addr);
+			return;
+		}
+		else
+		{
+			LOG_WARN("already removed: server=",addr);
+			return;
+		}
 	}
 }
 
