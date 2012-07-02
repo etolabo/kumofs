@@ -131,8 +131,8 @@ RPC_IMPL(mod_control_t, GetStatus, req, z, response)
 			bool active;
 			bool hssame;
 			{
-				pthread_scoped_rdlock rhlk(share->rhs_mutex());
 				pthread_scoped_rdlock whlk(share->whs_mutex());
+				pthread_scoped_rdlock rhlk(share->rhs_mutex());
 				if(share->rhs() == share->whs()) {
 					hssame = true;
 				} else {
