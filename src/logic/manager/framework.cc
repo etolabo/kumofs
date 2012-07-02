@@ -57,6 +57,7 @@ try {
 	RPC_DISPATCH(mod_control, CreateBackup);
 	RPC_DISPATCH(mod_control, SetAutoReplace);
 	RPC_DISPATCH(mod_control, StartReplace);
+	RPC_DISPATCH(mod_control, RemoveServer);
 	default:
 		throw unknown_method_error();
 	}
@@ -94,14 +95,26 @@ void framework::new_node(address addr, role_type id, shared_node n)
 
 void framework::lost_node(address addr, role_type id)
 {
-	LOG_WARN("lost node ",id," ",addr);
+	LOG_WARN("lost node, tpye=",(uint16_t)id,", addr=",addr);
 	if(id == ROLE_MANAGER) {
 		return;
 
 	} else if(id == ROLE_SERVER) {
-		// FIXME delayed change
-		mod_replace.remove_server(addr);
-		return;
+		bool w_active = share->whs().server_is_active(addr);
+		bool r_active = share->rhs().server_is_active(addr);
+		LOG_TRACE("active hash space: w=",w_active,", r=",r_active);
+		if(w_active || r_active)
+		{
+			// FIXME delayed change
+			LOG_WARN("remove server: server=",addr);
+			mod_replace.remove_server(addr);
+			return;
+		}
+		else
+		{
+			LOG_WARN("already removed: server=",addr);
+			return;
+		}
 	}
 }
 

@@ -17,6 +17,7 @@
 //
 #include "manager/framework.h"
 #include "server/mod_control.h"
+#include <netdb.h>
 
 namespace kumo {
 namespace manager {
@@ -121,6 +122,78 @@ RPC_IMPL(mod_control_t, StartReplace, req, z, response)
 	response.null();
 }
 
+RPC_IMPL(mod_control_t, RemoveServer, req, z, response)
+{
+	// params
+	LOG_TRACE("start");
+	std::string addr(req.param().serverAddr);
+	std::string::size_type posc = addr.find(':');
+	if(posc == std::string::npos || posc != addr.rfind(':'))
+	{
+		LOG_ERROR("illigal params: addr=", addr);
+		response.null();
+		return;
+	}
+	std::string host = addr.substr(0,posc);
+	std::string port = addr.substr(posc+1);
+	LOG_TRACE("params are parsed: addr=",addr,", host=",host,", port=",port);
+
+	// set
+	int err;
+	unsigned short m_port;
+	struct sockaddr_in server_in;
+	struct addrinfo hints, *res, *current;
+	memset(&server_in, 0, sizeof(server_in));
+	memset(&hints, 0, sizeof(hints));
+
+	// addrinfo
+	hints.ai_family = AF_INET;
+	hints.ai_socktype = SOCK_STREAM;
+	if((err=getaddrinfo(host.c_str(), NULL, &hints, &res)) != 0)
+	{
+		LOG_ERROR("can't resolve host (%s): %s", gai_strerror(err), host);
+		response.null();
+		return;
+	}
+
+	// server
+	for(current=res; current!=NULL; current=current->ai_next)
+	{
+		if(current->ai_family != AF_INET)
+		{
+			continue; // FIXME: IPv6 is not support
+		}
+
+		memcpy( &server_in,
+			(struct sockaddr_in*)current->ai_addr,
+			sizeof(server_in) );
+		std::istringstream stream(port.c_str());
+		stream >> m_port;
+		server_in.sin_port = htons(m_port);
+
+		rpc::address server(server_in);
+		bool w_active = share->whs().server_is_active(server);
+		bool r_active = share->rhs().server_is_active(server);
+		LOG_TRACE("active hash space: w=",w_active,", r=",r_active);
+		if(w_active || r_active)
+		{
+			LOG_INFO("remove server: server=",server);
+			net->mod_replace.remove_server(server);
+		}
+		else
+		{
+			LOG_INFO("already removed: server=",server);
+		}
+		break;
+	}
+
+	// release
+	freeaddrinfo(res);
+
+	// reply
+	response.null();
+	LOG_TRACE("done");
+}
 
 }  // namespace manager
 }  // namespace kumo

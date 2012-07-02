@@ -40,6 +40,7 @@ namespace manager {
 @message mod_control_t::CreateBackup        = 102
 @message mod_control_t::SetAutoReplace      = 103
 @message mod_control_t::StartReplace        = 104
+@message mod_control_t::RemoveServer        = 200
 
 
 @rpc mod_network_t
@@ -179,6 +180,9 @@ private:
 		bool full = false;
 	};
 
+	message RemoveServer {
+		std::string serverAddr;
+	};
 
 public:
 	mod_control_t();
