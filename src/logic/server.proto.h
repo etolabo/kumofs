@@ -211,6 +211,7 @@ private:
 		void push_returned(ClockTime ct);
 		const address& mgr_addr() const;
 		bool is_finished(ClockTime ct) const;
+		bool is_waiting() const { return m_push_waiting > 0; }
 		void invalidate();
 	private:
 		int m_push_waiting;
@@ -247,6 +248,7 @@ public:
 	void replace_offer_pop(ClockTime replace_time, REQUIRE_STLK);
 	mp::pthread_mutex& state_mutex() { return m_state_mutex; }
 
+	bool is_waiting()  const { return m_state.is_waiting(); }
 	bool is_copying()  const { return m_copying; }
 	bool is_deleting() const { return m_deleting; }
 @end
