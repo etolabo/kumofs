@@ -145,12 +145,13 @@ RPC_IMPL(mod_control_t, GetStatus, req, z, response)
 				}
 			}
 
+			bool waiting = net->mod_replace.is_waiting();
 			bool copying = net->mod_replace.is_copying();
 			bool deleting = net->mod_replace.is_deleting();
 
 			uint32_t flags = 0;
 			if(!active)  { flags |= 0x01; }
-			if(!hssame)  { flags |= 0x02; }
+			if(!hssame)  { flags |= waiting ? 0x04 : 0x02; }
 			if(copying)  { flags |= 0x04; }
 			if(deleting) { flags |= 0x08; }
 
