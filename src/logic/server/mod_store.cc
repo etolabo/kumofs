@@ -208,7 +208,7 @@ RPC_IMPL(mod_store_t, Set, req, z, response)
 
 	unsigned int rrep_num;
 	unsigned int wrep_num;
-	shared_node rrepto[NUM_REPLICATION];
+	shared_node rrepto[NUM_REPLICATION+1];
 	shared_node wrepto[NUM_REPLICATION];
 	calc_replicators(key.hash(), rrepto, &rrep_num, wrepto, &wrep_num);
 
@@ -325,7 +325,7 @@ RPC_IMPL(mod_store_t, Delete, req, z, response)
 
 	unsigned int rrep_num;
 	unsigned int wrep_num;
-	shared_node rrepto[NUM_REPLICATION];
+	shared_node rrepto[NUM_REPLICATION+1];
 	shared_node wrepto[NUM_REPLICATION];
 	calc_replicators(key.hash(), rrepto, &rrep_num, wrepto, &wrep_num);
 
